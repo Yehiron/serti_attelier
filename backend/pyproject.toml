@@ -22,7 +22,7 @@ plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 exclude = ["migrations/", "\\.venv/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "environ.*"]
+module = ["celery.*", "environ.*", "django_otp.*", "axes.*", "unfold.*", "qrcode.*"]
 ignore_missing_imports = true
 
 [tool.django-stubs]

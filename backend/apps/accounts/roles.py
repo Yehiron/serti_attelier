@@ -1,0 +1,22 @@
+from django.contrib.auth.models import AnonymousUser
+
+from .models import User
+
+PROPIETARIO = "Propietario"
+OPERACIONES = "Operaciones"
+CONTENIDO = "Contenido"
+ROLE_PERMISSIONS = {
+    PROPIETARIO: {
+        *(f"accounts.{action}_user" for action in ("add", "change", "delete", "view")),
+        *(f"auth.{action}_group" for action in ("add", "change", "delete", "view")),
+        "audit.view_auditlog",
+        "otp_totp.view_totpdevice",
+        "otp_totp.delete_totpdevice",
+    },
+    OPERACIONES: set(),
+    CONTENIDO: set(),
+}
+
+
+def has_role(user: User | AnonymousUser, role: str) -> bool:
+    return user.is_authenticated and user.groups.filter(name=role).exists()

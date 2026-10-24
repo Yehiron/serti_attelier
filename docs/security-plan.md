@@ -22,7 +22,7 @@ Referencias: OWASP ASVS 4.0 (nivel 2 como objetivo), *checklist* de despliegue d
 | T4 | Venta doble de una pieza | `select_for_update()` + índice único de reserva activa + índice único de pago aprobado por pedido | Test concurrente con dos hilos |
 | T5 | Pago manual confirmado sin pago real | Solo roles Operaciones y Propietario; exige referencia y soporte; auditoría; aviso al Propietario | Test de permisos; registro en `AuditLog` |
 | T6 | IDOR en pedidos | URLs con `public_token` de 256 bits; nunca ID ni número secuencial; la vista pública oculta correo, teléfono y dirección completa | Test: token aleatorio → 404 |
-| T7 | Fuerza bruta en el dashboard | `django-axes` (bloqueo por usuario + IP), 2FA TOTP, ruta del admin configurable, *rate limit* en Caddy | Test de bloqueo tras N intentos |
+| T7 | Fuerza bruta en el dashboard | `django-axes` (5 intentos por usuario + IP, 30 min), 2FA TOTP obligatorio para Propietario y superusuarios, la misma regla de 2FA en la API (ADR-011), ruta del admin configurable, *rate limit* en Caddy | Test de bloqueo tras N intentos |
 | T8 | Abuso de cupones | *Throttling* por carrito e IP; límites por correo (hash con *pepper*); redención solo con pago aprobado | Tests de límites |
 | T9 | XSS | React escapa por defecto; contenido del CMS en bloques estructurados; texto enriquecido sanitizado con `nh3`; CSP estricta | Test de payloads en campos del CMS |
 | T10 | CSRF | Mismo dominio; CSRF de Django en el admin y en mutaciones con cookie; `SameSite=Lax` | Test sin token → 403 |

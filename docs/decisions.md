@@ -71,6 +71,15 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 - **Decisión:** al subir, Pillow re-codifica la imagen (elimina EXIF y payloads) y genera versiones WebP en varios anchos. Next/Image usa un *loader* que apunta a esas versiones.
 - **Almacenamiento:** `django-storages` con interfaz S3; en el MVP, volumen local.
 
+### ADR-011 — Una sola política de doble factor para dashboard y API
+- **Contexto:** la API usa la misma sesión que el dashboard. Si solo el dashboard exigiera el segundo factor, un usuario del equipo que solo escribió su contraseña podría llamar a endpoints internos de la API.
+- **Decisión:** la regla vive en `accounts.selectors.pending_second_factor()`: Propietario y superusuarios deben tener TOTP; cualquier usuario con un dispositivo confirmado debe verificarlo en la sesión. La usan el middleware del dashboard y el permiso por defecto de la API (`IsVerifiedStaff`).
+- **Consecuencias:** un endpoint nuevo de la API queda protegido por defecto; los públicos deben declarar `AllowAny` explícitamente.
+
+### ADR-012 — Usuario propio desde la Fase 2
+- **Decisión:** `accounts.User` (hereda de `AbstractUser`, correo único) antes de que existan datos reales; cambiar el modelo de usuario después es costoso.
+- **Consecuencias:** la base de datos de desarrollo se reinició una vez; producción aún no existe.
+
 ## Asuntos pendientes
 
 | ID | Pregunta | Responsable | Bloquea |

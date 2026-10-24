@@ -1,0 +1,18 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{% block content %}
+<div class="max-w-xl p-6">
+  <h1 class="text-xl mb-4">{{ title }}</h1>
+  {% if setup %}
+    <p>{% translate "Escanea el código con tu aplicación de autenticación o introduce la clave manualmente." %}</p>
+    <div class="bg-white p-4 my-4">{{ qr|safe }}</div>
+    <p>{% translate "Clave manual:" %} <code>{{ secret }}</code></p>
+  {% endif %}
+  <form method="post" class="mt-4">
+    {% csrf_token %}
+    {{ form.as_p }}
+    <input type="hidden" name="next" value="{{ next }}">
+    <button type="submit" class="bg-primary-600 text-white p-3 rounded-default">{% translate "Verificar" %}</button>
+  </form>
+</div>
+{% endblock %}

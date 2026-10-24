@@ -24,6 +24,7 @@ ADMIN_URL = env("DJANGO_ADMIN_URL", default="dashboard/")
 API_SCHEMA_PUBLIC = env.bool("API_SCHEMA_PUBLIC", default=False)
 
 INSTALLED_APPS = [
+    "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -33,6 +34,11 @@ INSTALLED_APPS = [
     "rest_framework",
     "drf_spectacular",
     "apps.core",
+    "django_otp",
+    "django_otp.plugins.otp_totp",
+    "axes",
+    "apps.accounts",
+    "apps.audit",
 ]
 
 MIDDLEWARE = [
@@ -42,8 +48,11 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "django_otp.middleware.OTPMiddleware",
+    "apps.accounts.middleware.AdminAccessMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "axes.middleware.AxesMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -104,7 +113,7 @@ REST_FRAMEWORK = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
-    "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAdminUser"],
+    "DEFAULT_PERMISSION_CLASSES": ["apps.accounts.permissions.IsVerifiedStaff"],
     "DEFAULT_AUTHENTICATION_CLASSES": ["rest_framework.authentication.SessionAuthentication"],
 }
 
@@ -130,4 +139,47 @@ LOGGING = {
         "console": {"class": "logging.StreamHandler", "formatter": "plain"},
     },
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", default="INFO")},
+}
+
+AUTH_USER_MODEL = "accounts.User"
+PASSWORD_HASHERS = [
+    "django.contrib.auth.hashers.Argon2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2PasswordHasher",
+    "django.contrib.auth.hashers.PBKDF2SHA1PasswordHasher",
+]
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+AXES_FAILURE_LIMIT = 5
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_COOLOFF_TIME = 0.5
+AXES_RESET_ON_SUCCESS = True
+# Use the same one-hop parser for rate limiting and audit evidence. No ipware dependency.
+AXES_CLIENT_IP_CALLABLE = "apps.core.http.client_ip"
+AXES_LOCKOUT_TEMPLATE = "admin/accounts/locked_out.html"
+OTP_TOTP_ISSUER = "SERTI"
+OTP_ADMIN_HIDE_SENSITIVE_DATA = True
+SESSION_COOKIE_AGE = 1800
+SESSION_SAVE_EVERY_REQUEST = True
+SESSION_COOKIE_HTTPONLY = True
+DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="SERTI <no-reply@serti.localhost>")
+UNFOLD = {
+    "SITE_TITLE": "SERTI",
+    "SITE_HEADER": "SERTI",
+    "COLORS": {
+        "primary": {
+            "50": "#faf2f3",
+            "100": "#f4e1e3",
+            "200": "#e8c3c7",
+            "300": "#d69aa1",
+            "400": "#bb6872",
+            "500": "#9d4651",
+            "600": "#80313c",
+            "700": "#692630",
+            "800": "#591e24",
+            "900": "#45191f",
+            "950": "#290c10",
+        },
+    },
 }
