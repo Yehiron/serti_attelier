@@ -10,11 +10,11 @@ Cada fase entrega algo **verificable**. El contrato de API ([api-contract.md](ap
 
 ## Fases
 
-### Fase 0 — Análisis y requisitos ✅ en revisión
+### Fase 0 — Análisis y requisitos ✅
 - Los 10 documentos de `docs/`.
 - **Hecho cuando:** el cliente aprueba el alcance y la dirección visual; los pendientes que bloquean la Fase 5 y la 6 tienen respuesta o fecha.
 
-### Fase 1 — Base del proyecto
+### Fase 1 — Base del proyecto ✅ (PR #1)
 | Tarea | Detalle |
 |---|---|
 | 1.1 | Estructura del monorepo, `.gitignore`, `.editorconfig`, `README` |
@@ -27,11 +27,11 @@ Cada fase entrega algo **verificable**. El contrato de API ([api-contract.md](ap
 
 **Hecho cuando:** `docker compose up` levanta todo; `https://serti.localhost/api/v1/health/ready` → 200 con BD y Redis; `/es` y `/en` responden; CI en verde.
 
-### Fase 2 — Dashboard: acceso y roles
+### Fase 2 — Dashboard: acceso y roles ✅ (rama `fase-2-acceso`)
 Unfold, Argon2, `django-axes`, 2FA TOTP, roles (Propietario, Operaciones, Contenido), recuperación de contraseña, `AuditLog`.
 **Hecho cuando:** pruebas de permisos por rol y de bloqueo pasan; un cambio en un usuario queda auditado.
 
-### Fase 3 — Catálogo de piezas únicas
+### Fase 3 — Catálogo de piezas únicas ✅ (rama `fase-3-catalogo`)
 Categorías, colecciones, piedras, materiales, piezas con estados, imágenes con WebP (Celery), ocultar piezas (DC-16), reservas con índice único, tabla DANE, API pública de catálogo, búsqueda.
 **Hecho cuando:** se cargan piezas de prueba desde el dashboard; la API filtra y busca; la prueba concurrente demuestra que una pieza no se reserva dos veces.
 

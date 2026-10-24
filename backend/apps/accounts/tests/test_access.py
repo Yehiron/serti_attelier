@@ -64,7 +64,11 @@ def test_roles_exact_idempotent_and_unknown(caplog: pytest.LogCaptureFixture) ->
     try:
         sync_roles()
         assert "future.view_piece" in caplog.text
-        assert not Group.objects.get(name=CONTENIDO).permissions.exists()
+        assert (
+            not Group.objects.get(name=CONTENIDO)
+            .permissions.filter(codename="view_piece", content_type__app_label="future")
+            .exists()
+        )
     finally:
         ROLE_PERMISSIONS[CONTENIDO].remove("future.view_piece")
 

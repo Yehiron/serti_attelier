@@ -6,6 +6,7 @@ real secret.
 """
 
 from pathlib import Path
+from typing import Any
 
 import environ
 
@@ -24,6 +25,7 @@ ADMIN_URL = env("DJANGO_ADMIN_URL", default="dashboard/")
 API_SCHEMA_PUBLIC = env.bool("API_SCHEMA_PUBLIC", default=False)
 
 INSTALLED_APPS = [
+    "modeltranslation",
     "unfold",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -31,6 +33,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "django.contrib.postgres",
     "rest_framework",
     "drf_spectacular",
     "apps.core",
@@ -39,6 +42,8 @@ INSTALLED_APPS = [
     "axes",
     "apps.accounts",
     "apps.audit",
+    "apps.catalog",
+    "apps.inventory",
 ]
 
 MIDDLEWARE = [
@@ -109,7 +114,7 @@ MEDIA_URL = "/media/"
 MEDIA_ROOT = env.path("DJANGO_MEDIA_ROOT", default=BASE_DIR / "media")
 
 # Secure by default: every API view must opt in to public access explicitly.
-REST_FRAMEWORK = {
+REST_FRAMEWORK: dict[str, Any] = {
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "DEFAULT_RENDERER_CLASSES": ["rest_framework.renderers.JSONRenderer"],
     "DEFAULT_PARSER_CLASSES": ["rest_framework.parsers.JSONParser"],
@@ -181,5 +186,22 @@ UNFOLD = {
             "900": "#45191f",
             "950": "#290c10",
         },
+    },
+}
+
+MODELTRANSLATION_DEFAULT_LANGUAGE = "es"
+MODELTRANSLATION_FALLBACK_LANGUAGES = ("es",)
+PUBLIC_SITE_URL = env("PUBLIC_SITE_URL", default="https://serti.localhost").rstrip("/")
+REST_FRAMEWORK.update(
+    {
+        "EXCEPTION_HANDLER": "apps.core.exceptions.problem_handler",
+        "NUM_PROXIES": 1,
+        "DEFAULT_THROTTLE_RATES": {"public_reads": "120/min"},
+    }
+)
+CELERY_BEAT_SCHEDULE = {
+    "release-expired-piece-reservations": {
+        "task": "apps.inventory.tasks.release_expired_reservations",
+        "schedule": 60.0,
     },
 }

@@ -11,6 +11,8 @@
 | Seguridad | Tests dirigidos + herramientas | Ver abajo | CI y antes del lanzamiento |
 | Accesibilidad y rendimiento | `@axe-core/playwright`, Lighthouse CI | WCAG 2.2 AA y presupuestos de rendimiento | CI en PR |
 
+Las pruebas siempre corren con `config.settings.test` (forzado con `--ds` en `pyproject.toml`), aunque el entorno defina otro `DJANGO_SETTINGS_MODULE`. Las que dependen de PostgreSQL (búsqueda sin tildes, concurrencia real) llevan `@pytest.mark.postgres` y se omiten solas en SQLite; `make test` y CI las corren contra PostgreSQL.
+
 Cobertura mínima: **90 % en `pricing`, `inventory`, `orders` y `payments`**; 80 % en el resto del backend. La cobertura no reemplaza los casos críticos de abajo.
 
 ## Casos críticos

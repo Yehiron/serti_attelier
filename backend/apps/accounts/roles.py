@@ -20,3 +20,32 @@ ROLE_PERMISSIONS = {
 
 def has_role(user: User | AnonymousUser, role: str) -> bool:
     return user.is_authenticated and user.groups.filter(name=role).exists()
+
+
+CATALOG_MODELS = (
+    "piece",
+    "pieceimage",
+    "category",
+    "collection",
+    "stone",
+    "material",
+    "collectionpiece",
+    "piecerelation",
+)
+for role in (PROPIETARIO, OPERACIONES, CONTENIDO):
+    actions = (
+        ("add", "change", "delete", "view") if role != CONTENIDO else ("add", "change", "view")
+    )
+    ROLE_PERMISSIONS[role].update(
+        f"catalog.{action}_{model}" for model in CATALOG_MODELS for action in actions
+    )
+    ROLE_PERMISSIONS[role].update({"core.view_department", "core.view_municipality"})
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {
+            "catalog.change_piece_price",
+            "inventory.view_piecereservation",
+            "inventory.view_piecestatuschange",
+        }
+    )
+ROLE_PERMISSIONS[PROPIETARIO].update({"core.view_sitesettings", "core.change_sitesettings"})
