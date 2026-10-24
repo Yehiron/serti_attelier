@@ -6,6 +6,7 @@ from rest_framework.exceptions import NotFound
 from rest_framework.request import Request
 from rest_framework.response import Response
 
+from ..formatting import place_name
 from ..models import Department, Municipality
 from .base import PublicView
 from .serializers import public_responses
@@ -13,7 +14,10 @@ from .serializers import public_responses
 
 class DepartmentSerializer(serializers.Serializer[Any]):
     code = serializers.CharField()
-    name = serializers.CharField()
+    name = serializers.SerializerMethodField()
+
+    def get_name(self, obj: Department | Municipality) -> str:
+        return place_name(obj.name)
 
 
 class MunicipalitySerializer(DepartmentSerializer):

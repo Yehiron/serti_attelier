@@ -45,6 +45,8 @@ docker compose -f infra/docker-compose.dev.yml cp caddy:/data/caddy/pki/authorit
 
 y agrégala al llavero del sistema (macOS: abrir el archivo → Llaveros → "Confiar siempre").
 
+Si un cambio en el frontend no se refleja en el navegador (la detección de cambios en volúmenes de Docker en macOS no siempre funciona), reinicia el contenedor: `docker compose -f infra/docker-compose.dev.yml restart frontend`.
+
 Datos de ejemplo para desarrollo: `docker compose -f infra/docker-compose.dev.yml exec backend python manage.py seed_catalog`.
 
 Otros comandos: `make test`, `make lint`, `make logs`, `make migrate`, `make down`.

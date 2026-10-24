@@ -43,6 +43,7 @@ class Municipality(models.Model):
 class SiteSettings(models.Model):
     if TYPE_CHECKING:
         whatsapp_general_en: str
+        manual_payment_instructions_en: str
 
     objects: MultilingualManager[SiteSettings] = MultilingualManager()
     id = models.PositiveSmallIntegerField(primary_key=True, default=1, editable=False)
@@ -69,6 +70,13 @@ class SiteSettings(models.Model):
         default=(
             "Hola SERTI, me enamoré de {name} ({sku}) y quisiera "
             "una pieza única inspirada en ella. {url}"
+        )
+    )
+    certificate_price_cents = models.PositiveBigIntegerField(default=0)
+    manual_payment_instructions = models.TextField(
+        default=(
+            "SERTI compartirá los datos de Efecty o transferencia por WhatsApp. "
+            "Pedido {number}, total {total}. Paga antes de {deadline}."
         )
     )
     online_reservation_minutes = models.PositiveIntegerField(

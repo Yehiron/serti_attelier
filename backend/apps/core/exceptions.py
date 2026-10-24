@@ -56,6 +56,7 @@ def problem_handler(exc: Exception, context: dict[str, Any]) -> Response | None:
         "code": code,
         "detail": problem_detail(response.data),
     }
+    response.data.update(getattr(exc, "extra", {}))
     response.content_type = "application/problem+json"
     return response
 

@@ -26,5 +26,15 @@ def save_site_settings(obj: SiteSettings, *, actor: User | AnonymousUser) -> Non
                         raise ValueError
             except ValueError as exc:
                 raise ValidationError(_("Solo se permiten {name}, {sku} y {url}.")) from exc
+    for locale in ("es", "en"):
+        text = getattr(obj, f"manual_payment_instructions_{locale}") or ""
+        try:
+            for _literal, name, spec, conversion in Formatter().parse(text):
+                if name is not None and (
+                    name not in {"number", "total", "deadline"} or spec or conversion
+                ):
+                    raise ValueError
+        except ValueError as exc:
+            raise ValidationError(_("Solo se permiten {number}, {total} y {deadline}.")) from exc
     obj.full_clean()
     obj.save()

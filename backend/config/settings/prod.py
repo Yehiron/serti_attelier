@@ -1,3 +1,5 @@
+from django.core.exceptions import ImproperlyConfigured
+
 from .base import *  # noqa: F403
 
 DEBUG = False
@@ -18,3 +20,7 @@ CSRF_COOKIE_SECURE = True
 CSRF_COOKIE_HTTPONLY = True
 
 X_FRAME_OPTIONS = "DENY"
+
+
+if not COUPON_EMAIL_PEPPER:  # noqa: F405
+    raise ImproperlyConfigured("COUPON_EMAIL_PEPPER is required in production")

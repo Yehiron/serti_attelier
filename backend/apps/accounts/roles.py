@@ -61,3 +61,11 @@ for role in (PROPIETARIO, CONTENIDO, OPERACIONES):
     ROLE_PERMISSIONS[role].update({"cms.view_homepublication", "cms.view_pagerevision"})
     if role != OPERACIONES:
         ROLE_PERMISSIONS[role].add("cms.publish_content")
+
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {"orders.view_order", "orders.change_order", "orders.change_fulfillment"}
+    )
+    ROLE_PERMISSIONS[role].update(
+        f"promotions.{action}_coupon" for action in ("add", "change", "view", "delete")
+    )

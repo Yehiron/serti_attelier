@@ -72,3 +72,9 @@ export const emptySettings: Settings = { whatsapp: { number: null, general_url: 
 export async function optionalPage(locale: Locale, kind: string) {
   try { return await getPage(locale, kind, true); } catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
 }
+
+// Customer order data must never enter a shared cache, including during builds.
+export async function getOrder(locale: Locale, token: string) {
+  await connection();
+  return request<import('../commerce').Order>(`orders/${encodeURIComponent(token)}`, locale);
+}

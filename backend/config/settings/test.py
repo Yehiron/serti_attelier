@@ -11,3 +11,5 @@ CELERY_TASK_EAGER_PROPAGATES = True
 
 CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}}
 PUBLIC_READ_RATE = "100000/min"
+
+COUPON_EMAIL_PEPPER = "test-coupon-pepper"

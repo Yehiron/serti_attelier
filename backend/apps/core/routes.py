@@ -2,6 +2,9 @@ from typing import Any
 from urllib.parse import quote
 
 ROUTES = {
+    "cart": ("carrito", "cart"),
+    "checkout": ("checkout", "checkout"),
+    "order": ("pedido", "order"),
     "home": ("", ""),
     "catalog": ("joyeria", "jewelry"),
     "category": ("joyeria", "jewelry"),
@@ -27,4 +30,6 @@ def href(route_key: str, locale: str, obj: Any = None) -> str:
         if not slug:
             raise ValueError("A localized slug is required")
         path += f"/{quote(slug, safe='')}"
+    if route_key == "order":
+        path += f"/{quote(str(getattr(obj, 'public_token', obj)), safe='')}"
     return path

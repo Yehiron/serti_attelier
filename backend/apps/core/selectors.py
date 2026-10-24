@@ -31,6 +31,10 @@ def get_solo() -> SiteSettings:
         }
         for kind, text in defaults.items():
             setattr(obj, f"whatsapp_{kind}_en", text)
+        obj.manual_payment_instructions_en = (
+            "SERTI will share Efecty or transfer details via WhatsApp. "
+            "Order {number}, total {total}. Pay before {deadline}."
+        )
         obj.save()
     return obj
 

@@ -45,6 +45,10 @@ INSTALLED_APPS = [
     "apps.catalog",
     "apps.inventory",
     "apps.cms",
+    "apps.cart",
+    "apps.pricing",
+    "apps.promotions",
+    "apps.orders",
 ]
 
 MIDDLEWARE = [
@@ -208,3 +212,19 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 INTERNAL_API_TOKEN = env("INTERNAL_API_TOKEN", default="")
+
+COUPON_EMAIL_PEPPER = env("COUPON_EMAIL_PEPPER", default="")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {
+        "cart_add": "30/min",
+        "checkout_quote": "20/min",
+        "orders_minute": "5/min",
+        "orders_hour": "20/hour",
+    }
+)
+CELERY_BEAT_SCHEDULE["cleanup-carts"] = {
+    "task": "apps.cart.tasks.delete_expired_carts",
+    "schedule": 86400.0,
+}
+
+SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {"PaymentChannelEnum": ["wompi", "manual"]}

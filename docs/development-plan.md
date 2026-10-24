@@ -39,7 +39,7 @@ Categorías, colecciones, piedras, materiales, piezas con estados, imágenes con
 CMS (home por secciones, páginas, revisiones, vista previa con *Draft Mode*), `modeltranslation`, comando de traducciones faltantes; frontend: layout, navegación, home con paneles de piedra, listado, ficha, lista de deseos, páginas legales, personalización (contenido administrable, DC-17), WhatsApp flotante.
 **Hecho cuando:** editar el hero → vista previa → publicar → visible en `/es` y `/en`; Lighthouse ≥ 90 en rendimiento y accesibilidad en la ficha.
 
-### Fase 5 — Carrito, checkout y precios
+### Fase 5 — Carrito, checkout y precios ✅ (rama `fase-5-checkout`)
 Carrito, `pricing`, cupones y precio rebajado (DC-02, P-04), envío gratis Colombia (DC-01), certificado (DC-15), consentimientos, `POST /orders` idempotente con reserva.
 **Hecho cuando:** la tabla de casos de precios pasa; doble clic en "Pagar" crea un solo pedido; pieza reservada por otro → mensaje correcto.
 

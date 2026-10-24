@@ -144,6 +144,8 @@ class SiteSettingsSerializer(serializers.Serializer[Any]):
     social = SocialSerializer(many=True)
     support_email = serializers.EmailField(allow_null=True)
     legal_pages = LegalPageSerializer(many=True)
+    legal_versions = serializers.DictField(child=serializers.IntegerField(allow_null=True))
+    certificate_price_cents = serializers.IntegerField()
 
 
 class PreviewSerializer(serializers.Serializer[Any]):

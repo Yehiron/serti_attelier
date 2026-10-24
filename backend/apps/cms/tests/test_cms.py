@@ -535,6 +535,8 @@ def test_settings_without_number_or_published_pages(client: Client) -> None:
         "social": [],
         "support_email": None,
         "legal_pages": [],
+        "legal_versions": {"terms": None, "privacy": None},
+        "certificate_price_cents": 0,
     }
 
 

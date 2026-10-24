@@ -5,6 +5,7 @@ export const routes = {
   stone: ['piedras', 'stones'], collection: ['colecciones', 'collections'],
   piece: ['piezas', 'pieces'], personalize: ['personaliza', 'customize'],
   story: ['historia', 'story'], contact: ['contacto', 'contact'],
+  cart: ['carrito', 'cart'], checkout: ['checkout', 'checkout'], order: ['pedido', 'order'],
   wishlist: ['deseos', 'wishlist'], search: ['buscar', 'search'], legal: ['legal', 'legal'],
 } as const;
 export type RouteKey = keyof typeof routes;

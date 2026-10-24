@@ -260,6 +260,10 @@ def site_settings(locale: str) -> dict[str, Any]:
             if getattr(config, f"{network}_url")
         ],
         "support_email": config.support_email or None,
+        "certificate_price_cents": config.certificate_price_cents,
+        "legal_versions": {
+            kind: legal[kind]["version"] if kind in legal else None for kind in ("terms", "privacy")
+        },
         "legal_pages": [
             {"kind": kind, "title": legal[kind]["title"], "href": legal[kind]["alternates"][locale]}
             for kind in LEGAL_KINDS

@@ -20,6 +20,9 @@ class PieceReservation(models.Model):
         CONVERTED = "converted", _("Convertida")
 
     piece = models.ForeignKey(Piece, on_delete=models.PROTECT, related_name="reservations")
+    order = models.ForeignKey(
+        "orders.Order", null=True, blank=True, on_delete=models.PROTECT, related_name="reservations"
+    )
     kind = models.CharField(max_length=6, choices=Kind)
     status = models.CharField(max_length=9, choices=Status, default=Status.ACTIVE)
     reference = models.CharField(max_length=64, blank=True)

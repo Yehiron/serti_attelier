@@ -94,19 +94,19 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | ID | Pregunta | Responsable | Bloquea |
 |---|---|---|---|
 | P-01 | Transportadora, tiempos de entrega y si el envío va asegurado | Cliente | Textos de envío; Fase 5 (no bloquea el desarrollo) |
-| P-04 | Aprobar la regla de acumulación de descuentos recomendada (un cupón por pedido; no sobre piezas ya rebajadas salvo que el cupón lo permita) | Cliente | Fase 5 |
+| P-04 | Aprobar la regla de acumulación de descuentos. **Aplicada por defecto desde la Fase 5:** un cupón por pedido; no rebaja piezas ya rebajadas salvo que el cupón tenga marcada esa opción (configurable por cupón) | Cliente | Confirmar |
 | P-06 | Número de WhatsApp dedicado y verificación del negocio en Meta | Cliente | Fase 7 |
 | P-07 | Servicios de personalización que ofrece SERTI y tiempos aproximados | Cliente | Contenido de la página (no bloquea el desarrollo) |
 | P-09 | Qué información del fabricante se publica | Cliente | Contenido |
 | P-10 | Fecha de entrega de la fotografía real | Cliente | Lanzamiento |
 | P-11 | Estado de la cuenta Wompi (sandbox / producción) y métodos habilitados | Cliente | Fase 6 en producción |
-| P-12 | Plazo de reserva en pagos en línea. **Propuesta:** 30 min para tarjeta, PSE y billeteras | Equipo + cliente | Fase 5 |
+| P-12 | Plazo de reserva en pagos en línea. **Aplicado por defecto: 30 min** (editable en Configuración del sitio) | Equipo + cliente | Confirmar |
 | P-13 | Nombre del dominio y proveedor de correo transaccional | Cliente | Fase 7 y 9 |
 | P-14 | Validación tributaria de la exclusión de facturación electrónica | Contador del cliente | Lanzamiento |
 | P-16 | Pago manual: **qué entidades** (Efecty, transferencia Bancolombia…), datos de pago que se muestran y **quién confirma** | Cliente | Fase 6 |
 | P-17 | Ajuste de talla de anillos: ¿se ofrece? ¿costo? | Cliente | Contenido |
 | P-18 | Plazo que da Wompi para pagar en efectivo en corresponsal Bancolombia | Equipo (soporte Wompi) | Fase 6 |
-| P-21 | Certificado de autenticidad: ¿tiene costo? ¿se entrega físico, digital o ambos? | Cliente | Fase 5 |
+| P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); el formato sigue pendiente | Cliente | Confirmar |
 | P-22 | Interpretación de dos notas manuscritas: "ipso facto al pasar por las categorías" y "(parallax)" | Cliente | Diseño del home |
 
 Resueltos: P-02, P-03 (DC-08) · P-05 (DC-03) · P-08 (DC-06) · P-15 (DC-13) · P-19 (DC-16) · P-20 (DC-15).

@@ -8,8 +8,8 @@ import { Navigation } from './navigation';
 import { Monogram } from './media';
 import { FloatingWhatsApp } from './whatsapp';
 export async function Header({ locale, dict }: { locale: Locale; dict: Dictionary }) {
-  const taxonomy = await getTaxonomy(locale).catch(() => emptyTaxonomy);
-  return <Navigation locale={locale} dict={dict} taxonomy={taxonomy} />;
+  const [taxonomy, settings] = await Promise.all([getTaxonomy(locale).catch(() => emptyTaxonomy), getSettings(locale).catch(() => emptySettings)]);
+  return <Navigation locale={locale} dict={dict} taxonomy={taxonomy} whatsapp={settings.whatsapp.general_url} />;
 }
 export async function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const settings = await getSettings(locale).catch(() => emptySettings);
