@@ -1,0 +1,13 @@
+{
+  "meta": {
+    "title": "SERTI — Joyería colombiana de piezas únicas",
+    "description": "Piezas únicas de alta joyería, hechas a mano en Colombia."
+  },
+  "nav": { "skip": "Saltar al contenido", "language": "Idioma" },
+  "home": {
+    "eyebrow": "SERTI · Joyería colombiana",
+    "title": ["Un poco de tierra.", "Un poco de eternidad."],
+    "lede": "Piezas únicas, hechas a mano en Colombia.",
+    "status": "Nuestra nueva tienda está en camino."
+  }
+}

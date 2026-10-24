@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+/* Brand palette from the editorial prototype (DC-06). */
+@theme {
+  --color-wine: #591e24;
+  --color-wine-light: #6a2d31;
+  --color-cream: #e9e3d0;
+  --color-paper: #dbd4b7;
+  --color-olive: #736b51;
+  --color-ink: #24241e;
+  --color-mineral: #4e7366;
+  --color-gold: #a9946f;
+
+  --font-serif: var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
+  --font-sans: var(--font-inter), "Inter", Arial, sans-serif;
+
+  --spacing-gutter: clamp(24px, 5vw, 88px);
+  --ease-editorial: cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+body {
+  background: var(--color-cream);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-weight: 300;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-wine);
+  color: var(--color-cream);
+}
+
+:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 6px;
+}
+
+.skip-link {
+  position: fixed;
+  top: -100px;
+  left: 20px;
+  z-index: 100;
+  background: var(--color-cream);
+  color: var(--color-wine);
+  padding: 15px;
+}
+
+.skip-link:focus {
+  top: 10px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}

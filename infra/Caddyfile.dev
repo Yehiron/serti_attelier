@@ -1,0 +1,33 @@
+# Local development: https://serti.localhost (certificate from Caddy's local CA).
+# Production uses the same routing with the client's domain (Phase 9).
+{
+	admin off
+}
+
+serti.localhost {
+	tls internal
+	encode zstd gzip
+
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=()"
+		-Server
+	}
+
+	# Django owns the API, its static files, media and the admin dashboard (ADR-003).
+	@django path /api/* /static/* /media/* /{$DJANGO_ADMIN_URL}*
+	handle @django {
+		reverse_proxy backend:8000
+	}
+
+	handle {
+		reverse_proxy frontend:3000
+	}
+}
+
+mail.serti.localhost {
+	tls internal
+	reverse_proxy mailpit:8025
+}

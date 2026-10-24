@@ -1,0 +1,13 @@
+{
+  "meta": {
+    "title": "SERTI — One-of-a-kind Colombian jewelry",
+    "description": "One-of-a-kind fine jewelry, handmade in Colombia."
+  },
+  "nav": { "skip": "Skip to content", "language": "Language" },
+  "home": {
+    "eyebrow": "SERTI · Colombian jewelry",
+    "title": ["A little earth.", "A little eternity."],
+    "lede": "One-of-a-kind pieces, handmade in Colombia.",
+    "status": "Our new store is on its way."
+  }
+}
