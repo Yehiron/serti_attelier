@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.audit",
     "apps.catalog",
     "apps.inventory",
+    "apps.cms",
 ]
 
 MIDDLEWARE = [
@@ -205,3 +206,5 @@ CELERY_BEAT_SCHEDULE = {
         "schedule": 60.0,
     },
 }
+
+INTERNAL_API_TOKEN = env("INTERNAL_API_TOKEN", default="")

@@ -50,6 +50,15 @@ class Command(BaseCommand):
         stones = self.taxonomy(
             Stone, [("Diamante", "Diamond"), ("Esmeralda", "Emerald"), ("Zafiro", "Sapphire")]
         )
+        # 16:9 placeholder covers so the home stone panels have backgrounds in development.
+        for stone, color in zip(stones, ["#2b2f33", "#1f3d33", "#1c2846"], strict=True):
+            if not stone.cover_image:
+                cover = Image.new("RGB", (1600, 900), color)
+                ImageDraw.Draw(cover).text((60, 820), stone.name_es, fill="#e9e3d0")
+                buffer = BytesIO()
+                cover.save(buffer, format="PNG")
+                stone.cover_image = ContentFile(buffer.getvalue(), name="cover.png")
+                save_taxonomy(stone)
         collections = self.taxonomy(
             Collection,
             [

@@ -4,8 +4,7 @@
 	admin off
 }
 
-serti.localhost {
-	tls internal
+(site) {
 	encode zstd gzip
 
 	header {
@@ -25,6 +24,16 @@ serti.localhost {
 	handle {
 		reverse_proxy frontend:3000
 	}
+}
+
+serti.localhost {
+	tls internal
+	import site
+}
+
+# Plain-HTTP twin for tools that cannot trust the local CA (e.g. in-app browsers).
+http://localhost:8090 {
+	import site
 }
 
 mail.serti.localhost {

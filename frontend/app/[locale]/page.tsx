@@ -1,40 +1,36 @@
-import Link from "next/link";
-import { locale } from "next/root-params";
+import { locale } from 'next/root-params';
+import { getDictionary } from './dictionaries';
+import { getHome, getCatalog, getTaxonomy } from '@/lib/api/server';
+import type { Section } from '@/lib/api/types';
+import { isLocale } from '@/lib/i18n';
+import { notFound } from 'next/navigation';
+import { href } from '@/lib/routes';
+import { HomeSection } from '@/components/home-sections';
+import { pageMetadata, PageAlternates } from '@/lib/metadata';
 
-import { locales } from "@/lib/i18n";
-
-import { getDictionary } from "./dictionaries";
-
+// Catalog/CMS data is read from the API at request time (it is unreachable at build
+// time), so navigations into this segment are allowed to wait for it.
+export const instant = false;
+export async function generateMetadata() {
+  const current = await locale(); if (!isLocale(current)) notFound(); const dict = await getDictionary();
+  return pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' });
+}
 export default async function Home() {
-  const current = await locale();
+  const current = await locale(); if (!isLocale(current)) notFound();
   const dict = await getDictionary();
-
-  return (
-    <main id="main" className="flex min-h-svh flex-col justify-between bg-wine px-gutter py-10 text-cream">
-      <nav aria-label={dict.nav.language} className="flex justify-end gap-4 text-xs tracking-[0.18em] uppercase">
-        {locales.map((value) => (
-          <Link
-            key={value}
-            href={`/${value}`}
-            aria-current={value === current ? "true" : undefined}
-            className="opacity-60 hover:opacity-100 aria-[current=true]:opacity-100"
-          >
-            {value}
-          </Link>
-        ))}
-      </nav>
-
-      <section className="max-w-3xl">
-        <p className="text-xs tracking-[0.18em] uppercase">{dict.home.eyebrow}</p>
-        <h1 className="mt-7 mb-8 font-serif text-[clamp(3.5rem,8vw,7.5rem)] leading-[0.96] tracking-[-0.045em]">
-          {dict.home.title[0]}
-          <br />
-          <em className="font-light">{dict.home.title[1]}</em>
-        </h1>
-        <p className="text-sm leading-relaxed opacity-75">{dict.home.lede}</p>
-      </section>
-
-      <p className="text-xs tracking-[0.1em] opacity-60">{dict.home.status}</p>
-    </main>
-  );
+  const home = await getHome(current);
+  let sections = home.sections;
+  if (!sections.length) {
+    const [taxonomy, catalog] = await Promise.all([getTaxonomy(current), getCatalog(current, 'sort=newest&page_size=8')]);
+    sections = [
+      { id: 'hero', kind: 'hero', title: dict.home.title.join('\n'), subtitle: dict.home.lede, image: null, cta: { label: dict.ui.explore, href: href('catalog', current), external: false } },
+      { id: 'statement', kind: 'statement', title: dict.home.statement, body: dict.home.statementBody },
+      { id: 'stones', kind: 'stone_panels', title: dict.home.stones, subtitle: dict.home.stonesSubtitle, stones: taxonomy.stones.map(x => ({ ...x, description: '', image: x.cover_image ? { src: x.cover_image, srcset: '', width: 2400, height: 1350, alt: x.name } : null, href: href('stone', current, x.slug) })) },
+      { id: 'new', kind: 'collection_rail', title: dict.home.newest, subtitle: dict.home.newestSubtitle, collection: { slug: '', name: dict.nav.catalog, href: href('catalog', current) }, pieces: catalog.results },
+      { id: 'story', kind: 'story', title: dict.home.storyTitle, body: dict.home.storyBody, image: null, cta: { label: dict.nav.story, href: href('story', current), external: false } },
+      { id: 'personalize', kind: 'personalize', title: dict.home.customTitle, body: dict.home.customBody, image: null, cta: { label: dict.nav.personalize, href: href('personalize', current), external: false } },
+    ] satisfies Section[];
+  }
+  const firstHero = sections.find(x => x.kind === 'hero')?.id;
+  return <main id="main" className="home-page"><PageAlternates alternates={{ es: '/es', en: '/en' }} />{firstHero === undefined && <h1 className="sr-only">{dict.meta.title}</h1>}{sections.map(section => <HomeSection key={section.id} section={section} locale={current} dict={dict} firstHero={section.id === firstHero} />)}</main>;
 }

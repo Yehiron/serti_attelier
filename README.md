@@ -2,7 +2,7 @@
 
 Plataforma de venta de joyería de piezas únicas para SERTI: sitio público en español e inglés, compra como invitado, pagos con Wompi y panel administrativo.
 
-> Estado: **Fase 1 — base del proyecto**. Infraestructura, configuración segura y CI; todavía sin funcionalidades de negocio.
+> Estado: **Fase 4 — sitio público y contenido editable**. Catálogo, dashboard con roles y 2FA, CMS con vista previa y sitio en ES/EN; el carrito y los pagos llegan en las Fases 5 y 6.
 
 ## Documentación
 
@@ -35,6 +35,7 @@ make up
 | https://serti.localhost/api/v1/schema/ | OpenAPI (solo en desarrollo) |
 | https://serti.localhost/dashboard/ | Dashboard (ruta configurable con `DJANGO_ADMIN_URL`) |
 | https://mail.serti.localhost | Mailpit: correos de desarrollo |
+| http://localhost:8090 | Mismo sitio por HTTP, para herramientas que no confían en la CA local (solo desarrollo) |
 
 El certificado lo emite la CA local de Caddy. Para que el navegador lo acepte sin aviso, confía en esa CA una vez:
 
@@ -43,6 +44,8 @@ docker compose -f infra/docker-compose.dev.yml cp caddy:/data/caddy/pki/authorit
 ```
 
 y agrégala al llavero del sistema (macOS: abrir el archivo → Llaveros → "Confiar siempre").
+
+Datos de ejemplo para desarrollo: `docker compose -f infra/docker-compose.dev.yml exec backend python manage.py seed_catalog`.
 
 Otros comandos: `make test`, `make lint`, `make logs`, `make migrate`, `make down`.
 

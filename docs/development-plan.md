@@ -35,7 +35,7 @@ Unfold, Argon2, `django-axes`, 2FA TOTP, roles (Propietario, Operaciones, Conten
 Categorías, colecciones, piedras, materiales, piezas con estados, imágenes con WebP (Celery), ocultar piezas (DC-16), reservas con índice único, tabla DANE, API pública de catálogo, búsqueda.
 **Hecho cuando:** se cargan piezas de prueba desde el dashboard; la API filtra y busca; la prueba concurrente demuestra que una pieza no se reserva dos veces.
 
-### Fase 4 — Contenido, idiomas y sitio público base
+### Fase 4 — Contenido, idiomas y sitio público base ✅ (rama `fase-4-sitio`)
 CMS (home por secciones, páginas, revisiones, vista previa con *Draft Mode*), `modeltranslation`, comando de traducciones faltantes; frontend: layout, navegación, home con paneles de piedra, listado, ficha, lista de deseos, páginas legales, personalización (contenido administrable, DC-17), WhatsApp flotante.
 **Hecho cuando:** editar el hero → vista previa → publicar → visible en `/es` y `/en`; Lighthouse ≥ 90 en rendimiento y accesibilidad en la ficha.
 

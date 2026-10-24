@@ -64,9 +64,12 @@ services:
     build:
       context: ../frontend
       target: dev
+    env_file: ../.env
     environment:
       NEXT_TELEMETRY_DISABLED: "1"
       WATCHPACK_POLLING: "true"
+      # Server-side rendering talks to Django directly inside the Compose network.
+      API_INTERNAL_URL: http://backend:8000/api/v1
     volumes:
       - ../frontend:/app
       - /app/node_modules
@@ -81,6 +84,7 @@ services:
     ports:
       - "80:80"
       - "443:443"
+      - "127.0.0.1:8090:8090"
     volumes:
       - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
       - caddy_data:/data

@@ -2,10 +2,14 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from django.core.validators import MinValueValidator, RegexValidator
+from django.core.validators import MinValueValidator, RegexValidator, URLValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.manager import MultilingualManager
+
+
+def validate_https(value: str) -> None:
+    URLValidator(schemes=["https"])(value)
 
 
 class Department(models.Model):
@@ -47,6 +51,11 @@ class SiteSettings(models.Model):
         blank=True,
         validators=[RegexValidator(r"^[1-9][0-9]{1,14}$", _("Usa dígitos E.164 sin el signo +."))],
     )
+    instagram_url = models.URLField(blank=True, validators=[validate_https])
+    facebook_url = models.URLField(blank=True, validators=[validate_https])
+    tiktok_url = models.URLField(blank=True, validators=[validate_https])
+    pinterest_url = models.URLField(blank=True, validators=[validate_https])
+    support_email = models.EmailField(blank=True)
     whatsapp_general = models.TextField(
         default="Hola SERTI, quisiera información sobre {name} ({sku}). {url}"
     )

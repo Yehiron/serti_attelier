@@ -1,3 +1,4 @@
+import hmac
 from typing import Any
 
 from django.conf import settings
@@ -12,6 +13,13 @@ from rest_framework.views import APIView
 
 class PublicReadThrottle(SimpleRateThrottle):
     scope = "public_reads"
+
+    def allow_request(self, request: Request, view: APIView) -> bool:
+        token = settings.INTERNAL_API_TOKEN
+        supplied = request.headers.get("X-Internal-Token", "")
+        if token and hmac.compare_digest(supplied.encode(), token.encode()):
+            return True
+        return super().allow_request(request, view)
 
     def get_rate(self) -> str:
         return str(

@@ -80,6 +80,15 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 - **Decisión:** `accounts.User` (hereda de `AbstractUser`, correo único) antes de que existan datos reales; cambiar el modelo de usuario después es costoso.
 - **Consecuencias:** la base de datos de desarrollo se reinició una vez; producción aún no existe.
 
+### ADR-013 — Datos del sitio en tiempo de petición, no de compilación
+- **Contexto:** con Cache Components, Next.js intenta prerenderizar páginas al compilar llamando a la API, que no existe durante `docker build` ni en CI.
+- **Decisión:** las lecturas de catálogo y CMS llaman `connection()` antes de su caché (`'use cache'`, 60 s) y los segmentos declaran `instant = false`. El HTML base se genera al compilar; los datos se cargan por petición y se cachean en memoria.
+- **Consecuencias:** la compilación no depende de la API. Las navegaciones muestran un esqueleto breve en lugar de ser instantáneas; se revisa en la Fase 9 (p. ej., caché remota o revalidación por etiquetas al publicar).
+
+### ADR-014 — Token interno para las llamadas servidor a servidor
+- **Contexto:** Next.js consulta la API desde una sola IP interna; el límite público por IP bloquearía todo el sitio.
+- **Decisión:** las peticiones con `X-Internal-Token` igual a `INTERNAL_API_TOKEN` (comparación en tiempo constante) quedan exentas del límite de lectura. El token vive solo en el servidor; nunca en variables `NEXT_PUBLIC_*`.
+
 ## Asuntos pendientes
 
 | ID | Pregunta | Responsable | Bloquea |

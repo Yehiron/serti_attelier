@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { localeCookie, localeFromPath, negotiateLocale } from "@/lib/i18n";
 
+import { routeDecision } from "@/lib/routes";
+
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export function proxy(request: NextRequest) {
@@ -10,7 +12,11 @@ export function proxy(request: NextRequest) {
 
   if (pathLocale) {
     // Remember the language the visitor chose (CMS-04).
-    const response = NextResponse.next();
+    const decision = routeDecision(pathname);
+    const url = request.nextUrl.clone();
+    url.pathname = decision.pathname;
+    const response = decision.kind === "redirect" ? NextResponse.redirect(url, 308)
+      : decision.kind === "rewrite" ? NextResponse.rewrite(url) : NextResponse.next();
     if (request.cookies.get(localeCookie)?.value !== pathLocale) {
       response.cookies.set(localeCookie, pathLocale, {
         maxAge: ONE_YEAR,
@@ -34,5 +40,5 @@ export function proxy(request: NextRequest) {
 export const config = {
   // Django owns /api, /static, /media and the admin path (routed by Caddy);
   // files with an extension and Next internals never need a locale.
-  matcher: ["/((?!api|static|media|healthz|_next|.*\\..*).*)"],
+  matcher: ["/((?!preview|api|static|media|healthz|_next|.*\\..*).*)"],
 };

@@ -1,3 +1,6 @@
+import { Suspense } from "react";
+import { Header, Footer, PreviewBar } from "@/components/site-shell";
+import { siteUrl } from "@/lib/api/server";
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -7,6 +10,10 @@ import { isLocale, locales } from "@/lib/i18n";
 
 import { getDictionary } from "./dictionaries";
 import "../globals.css";
+
+// Catalog/CMS data is read from the API at request time (it is unreachable at build
+// time), so navigations into this segment are allowed to wait for it.
+export const instant = false;
 
 const serif = Cormorant_Garamond({
   variable: "--font-cormorant",
@@ -28,7 +35,8 @@ export function generateStaticParams() {
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
   return {
-    title: dict.meta.title,
+    metadataBase: new URL(siteUrl),
+    title: { default: dict.meta.title, template: "%s | SERTI" },
     description: dict.meta.description,
     icons: { icon: "/favicon.svg" },
     alternates: { languages: { es: "/es", en: "/en" } },
@@ -46,7 +54,10 @@ export default async function RootLayout({ children }: LayoutProps<"/[locale]">)
         <a className="skip-link" href="#main">
           {dict.nav.skip}
         </a>
-        {children}
+        <Suspense fallback={<div className="header-placeholder" />}><Header locale={current} dict={dict} /></Suspense>
+        <Suspense fallback={null}><PreviewBar dict={dict} /></Suspense>
+        <Suspense fallback={<main id="main" className="loading-shell">{dict.ui.loading}</main>}>{children}</Suspense>
+        <Suspense fallback={null}><Footer locale={current} dict={dict} /></Suspense>
       </body>
     </html>
   );

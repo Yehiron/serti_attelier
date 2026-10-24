@@ -1,0 +1,57 @@
+import { EditorialTitle } from './editorial-title';
+import Link from 'next/link';
+import type { Dictionary } from '@/app/[locale]/dictionaries';
+import type { Locale } from '@/lib/i18n';
+import type { Cta, Section } from '@/lib/api/types';
+import { Media, Ornament } from './media';
+import { PieceCard } from './piece-card';
+import { StonePanels, Rail } from './editorial-interactions';
+
+function Action({ cta }: { cta: Cta | null }) {
+  return cta && <Link className="text-link" href={cta.href} target={cta.external ? '_blank' : undefined} rel={cta.external ? 'noopener noreferrer' : undefined}>{cta.label} ↗</Link>;
+}
+function Paragraphs({ body }: { body: string }) {
+  return body.split(/\n\s*\n/).map((text, i) => <p key={i}>{text}</p>);
+}
+type SectionOf<K extends Section['kind']> = Extract<Section, { kind: K }>;
+
+function HeroSection({ section, dict, first }: { section: SectionOf<'hero'>; dict: Dictionary; first: boolean }) {
+  return <section className="hero">
+    {section.image && <Media className="hero-image" image={section.image} priority={first} sizes="100vw" />}
+    <div className="hero-copy">
+      <p className="eyebrow">{dict.home.eyebrow}</p>
+      {first ? <h1 className="title-reveal"><EditorialTitle text={section.title} /></h1> : <h2><EditorialTitle text={section.title} /></h2>}
+      <p>{section.subtitle}</p><Action cta={section.cta} />
+    </div>
+    <div className="hero-caption"><span>{dict.home.status}</span><span>01 / SERTI</span></div>
+  </section>;
+}
+function StatementSection({ section, dict }: { section: SectionOf<'statement'>; dict: Dictionary }) {
+  return <section className="statement wine">
+    <p className="eyebrow">{dict.home.eyebrow}</p><h2><EditorialTitle text={section.title} /></h2><Ornament />
+    <div className="body-copy"><Paragraphs body={section.body} /></div>
+  </section>;
+}
+function CollectionSection({ section, locale, dict }: { section: SectionOf<'collection_rail'>; locale: Locale; dict: Dictionary }) {
+  return <section className="rail-section">
+    <div className="section-heading"><p className="eyebrow">{section.subtitle}</p><h2><EditorialTitle text={section.title} /></h2><Link className="text-link" href={section.collection.href}>{dict.ui.all} ↗</Link></div>
+    <Rail previous={dict.ui.previous} next={dict.ui.next}>{section.pieces.map(piece => <PieceCard key={piece.sku} piece={piece} locale={locale} dict={dict} />)}</Rail>
+    {!section.pieces.length && <p>{dict.ui.empty}</p>}
+  </section>;
+}
+function StorySection({ section }: { section: SectionOf<'story' | 'personalize' | 'banner'> }) {
+  return <section className={`editorial-section ${section.kind === 'personalize' ? 'wine' : ''}`}>
+    {section.image && <Media className="editorial-photo" image={section.image} />}
+    <div><p className="eyebrow">SERTI · Colombia</p><h2><EditorialTitle text={section.title} /></h2><div className="body-copy"><Paragraphs body={section.body} /></div><Action cta={section.cta} /></div>
+    {!section.image && <Ornament />}
+  </section>;
+}
+export function HomeSection({ section, locale, dict, firstHero }: { section: Section; locale: Locale; dict: Dictionary; firstHero: boolean }) {
+  switch (section.kind) {
+    case 'hero': return <HeroSection section={section} dict={dict} first={firstHero} />;
+    case 'statement': return <StatementSection section={section} dict={dict} />;
+    case 'stone_panels': return <StonePanels {...section} explore={dict.ui.explore} />;
+    case 'collection_rail': return <CollectionSection section={section} locale={locale} dict={dict} />;
+    default: return <StorySection section={section} />;
+  }
+}
