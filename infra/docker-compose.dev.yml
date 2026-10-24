@@ -1,0 +1,95 @@
+# Local development stack. Run from the repository root:
+#   cp .env.example .env
+#   docker compose -f infra/docker-compose.dev.yml up --build
+name: serti-dev
+
+x-backend: &backend
+  build:
+    context: ../backend
+    target: runtime
+    args:
+      REQUIREMENTS: dev
+  env_file: ../.env
+  volumes:
+    - ../backend:/app
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: ../.env
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  backend:
+    <<: *backend
+    command: sh -c "python manage.py migrate --noinput && python manage.py runserver 0.0.0.0:8000"
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request; urllib.request.urlopen('http://localhost:8000/api/v1/health/ready', timeout=3)"
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+
+  worker:
+    <<: *backend
+    command: celery -A config worker --loglevel=info
+
+  beat:
+    <<: *backend
+    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+
+  frontend:
+    build:
+      context: ../frontend
+      target: dev
+    environment:
+      NEXT_TELEMETRY_DISABLED: "1"
+      WATCHPACK_POLLING: "true"
+    volumes:
+      - ../frontend:/app
+      - /app/node_modules
+      - /app/.next
+
+  mailpit:
+    image: axllent/mailpit:latest
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: ../.env
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile.dev:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  caddy_data:
