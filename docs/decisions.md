@@ -89,6 +89,10 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 - **Contexto:** Next.js consulta la API desde una sola IP interna; el límite público por IP bloquearía todo el sitio.
 - **Decisión:** las peticiones con `X-Internal-Token` igual a `INTERNAL_API_TOKEN` (comparación en tiempo constante) quedan exentas del límite de lectura. El token vive solo en el servidor; nunca en variables `NEXT_PUBLIC_*`.
 
+### ADR-015 — El pago en línea vence con la reserva
+- **Decisión:** la firma de integridad de Wompi incluye `expiration-time` = fin de la reserva; Web Checkout por redirección (sin script de terceros); el estado del pago solo cambia por webhook verificado, sincronización desde el servidor o conciliación, nunca por la URL de retorno.
+- **Consecuencias:** se evita casi por completo cobrar una pieza ya liberada; el caso residual queda en `needs_attention`.
+
 ## Asuntos pendientes
 
 | ID | Pregunta | Responsable | Bloquea |
@@ -108,5 +112,7 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | P-18 | Plazo que da Wompi para pagar en efectivo en corresponsal Bancolombia | Equipo (soporte Wompi) | Fase 6 |
 | P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); el formato sigue pendiente | Cliente | Confirmar |
 | P-22 | Interpretación de dos notas manuscritas: "ipso facto al pasar por las categorías" y "(parallax)" | Cliente | Diseño del home |
+| P-23 | **Llaves sandbox de Wompi** (pública, privada, integridad, eventos). Al recibirlas: verificar con un evento real que la firma de los webhooks coincide (el ejemplo de la documentación de Wompi no es consistente con su propio algoritmo) | Cliente → equipo | Validación final de la Fase 6 |
+| P-24 | Límite de peticiones en Caddy para `/api/v1/payments/wompi/events` (evitar que eventos falsos llenen la tabla) | Equipo | Fase 9 |
 
 Resueltos: P-02, P-03 (DC-08) · P-05 (DC-03) · P-08 (DC-06) · P-15 (DC-13) · P-19 (DC-16) · P-20 (DC-15).

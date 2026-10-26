@@ -61,7 +61,30 @@ class QuoteSerializer(TotalsSerializer):
     )
 
 
-class CreatedOrderSerializer(serializers.Serializer[Any]):
+class WompiCheckoutSerializer(serializers.Serializer[Any]):
+    checkout_url = serializers.URLField()
+    fields = serializers.DictField(child=serializers.CharField())  # type: ignore[assignment]
+
+
+class LastAttemptSerializer(serializers.Serializer[Any]):
+    reference = serializers.CharField()
+    status = serializers.CharField()
+    payment_method_type = serializers.CharField(allow_null=True)
+
+
+class PaymentSummarySerializer(serializers.Serializer[Any]):
+    status = serializers.CharField()
+    last_attempt = LastAttemptSerializer(allow_null=True)
+    can_retry = serializers.BooleanField()
+
+
+class PaymentFieldsSerializer(serializers.Serializer[Any]):
+    wompi = WompiCheckoutSerializer(allow_null=True)
+    payment = PaymentSummarySerializer()
+    payment_unavailable = serializers.BooleanField()
+
+
+class CreatedOrderSerializer(PaymentFieldsSerializer):
     number = serializers.CharField()
     public_token = serializers.CharField()
     payment_channel = serializers.CharField()
@@ -81,7 +104,7 @@ class ShippingSummarySerializer(serializers.Serializer[Any]):
     municipality = serializers.CharField()
 
 
-class OrderDetailSerializer(TotalsSerializer):
+class OrderDetailSerializer(TotalsSerializer, PaymentFieldsSerializer):
     number = serializers.CharField()
     created_at = serializers.DateTimeField()
     locale = serializers.CharField()

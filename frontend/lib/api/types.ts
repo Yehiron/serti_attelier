@@ -30,3 +30,8 @@ export type CmsPage = { kind: PageKind; slug: string; title: string; body_html: 
 export type Personalization = { services: { id: string | number; title: string; description: string; image: Image | null; whatsapp_url: string | null }[] };
 export type Settings = { legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
 export type Problem = { code: string; title?: string; detail?: string; status?: number; skus?: string[]; errors?: Record<string, string[] | Record<string, string[]>> };
+
+export type WompiCheckout = { checkout_url: string; fields: Record<string, string> };
+export type PaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error' | 'expired' | 'awaiting_manual_payment';
+export type OrderPayment = { status: PaymentStatus; last_attempt: { reference: string; status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'VOIDED' | 'ERROR'; payment_method_type: string | null } | null; can_retry: boolean };
+export type PaymentDetails = { wompi: WompiCheckout | null; payment: OrderPayment; payment_unavailable?: boolean };

@@ -26,6 +26,11 @@ Wompi exige **una URL de eventos distinta por ambiente** (sandbox y producción)
 4. Wompi redirige a `redirect_url?id=<transaction_id>`. El frontend **solo muestra** lo que dice el backend.
 5. Wompi envía `transaction.updated` a `/api/v1/payments/wompi/events`.
 
+### Vencimiento del pago = vencimiento de la reserva (ADR-015)
+La firma de integridad incluye `expiration-time` igual a `reservation_expires_at` del pedido. Wompi rechaza pagos después de esa hora, así que un cliente no puede pagar una pieza cuya reserva ya se liberó. El caso residual (aprobación que llega tarde por un medio asíncrono) se marca `needs_attention` para reembolso manual.
+
+Usamos **Web Checkout** (redirección con un formulario GET a `https://checkout.wompi.co/p/`) en lugar del widget: ningún script de terceros corre en nuestras páginas. La redirección de vuelta **no** prueba el pago; el sitio pide al backend sincronizar la transacción (consulta con la llave privada) y, en paralelo, llegan el webhook y la conciliación.
+
 ### Validación del webhook
 
 Según la documentación de eventos:

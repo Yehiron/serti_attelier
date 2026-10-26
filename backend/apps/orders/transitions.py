@@ -1,10 +1,10 @@
 PAYMENT_TRANSITIONS: dict[str, frozenset[str]] = {
     "pending": frozenset({"approved", "declined", "error", "expired"}),
     "awaiting_manual_payment": frozenset({"approved", "expired"}),
-    "declined": frozenset({"pending"}),
-    "error": frozenset({"pending"}),
+    "declined": frozenset({"pending", "approved"}),
+    "error": frozenset({"pending", "approved"}),
     "approved": frozenset({"voided"}),
-    "expired": frozenset(),
+    "expired": frozenset({"approved"}),
     "voided": frozenset(),
 }
 FULFILLMENT_TRANSITIONS: dict[str, frozenset[str]] = {

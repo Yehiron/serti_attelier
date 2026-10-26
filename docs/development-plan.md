@@ -43,7 +43,7 @@ CMS (home por secciones, páginas, revisiones, vista previa con *Draft Mode*), `
 Carrito, `pricing`, cupones y precio rebajado (DC-02, P-04), envío gratis Colombia (DC-01), certificado (DC-15), consentimientos, `POST /orders` idempotente con reserva.
 **Hecho cuando:** la tabla de casos de precios pasa; doble clic en "Pagar" crea un solo pedido; pieza reservada por otro → mensaje correcto.
 
-### Fase 6 — Pagos
+### Fase 6 — Pagos ✅ (rama `fase-6-pagos`; pendiente validar con llaves sandbox reales)
 `WompiChannel` (firma, Widget, webhook, conciliación, pagos asíncronos) y `ManualChannel` (reserva 24 h, confirmación en el dashboard, vencimiento) (DC-14).
 **Hecho cuando:** E2E en sandbox — aprobado, rechazado y reintento, pendiente → conciliado, evento falso rechazado, efectivo en corresponsal reservado, pago manual confirmado y pago manual vencido.
 

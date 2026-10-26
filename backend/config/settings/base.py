@@ -228,3 +228,19 @@ CELERY_BEAT_SCHEDULE["cleanup-carts"] = {
 }
 
 SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {"PaymentChannelEnum": ["wompi", "manual"]}
+
+INSTALLED_APPS.append("apps.payments")
+PRIVATE_MEDIA_ROOT = env.path("DJANGO_PRIVATE_MEDIA_ROOT", default=BASE_DIR / "private_media")
+WOMPI_PUBLIC_KEY = env("WOMPI_PUBLIC_KEY", default="")
+WOMPI_PRIVATE_KEY = env("WOMPI_PRIVATE_KEY", default="")
+WOMPI_INTEGRITY_SECRET = env("WOMPI_INTEGRITY_SECRET", default="")
+WOMPI_EVENTS_SECRET = env("WOMPI_EVENTS_SECRET", default="")
+WOMPI_API_URL = env("WOMPI_API_URL", default="https://sandbox.wompi.co/v1")
+WOMPI_CHECKOUT_URL = env("WOMPI_CHECKOUT_URL", default="https://checkout.wompi.co/p/")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {"payment_sync": "10/min", "payment_attempts": "10/min"}
+)
+CELERY_BEAT_SCHEDULE["reconcile-payments"] = {
+    "task": "apps.payments.tasks.reconcile_pending",
+    "schedule": 300.0,
+}

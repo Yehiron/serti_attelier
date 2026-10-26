@@ -225,6 +225,10 @@ def create_order(
             raise CheckoutError(f"piece_{exc.state}", status=409, skus=[piece.sku]) from exc
         reservation.order = order
         reservation.save(update_fields=["order"])
+    if channel == "wompi":
+        from apps.payments.services import create_wompi_attempt
+
+        create_wompi_attempt(order)
     record("orders.created", obj=order, request=request, diff={"payment_channel": [None, channel]})
     transaction.on_commit(lambda: empty_cart(cart))
     return order, True

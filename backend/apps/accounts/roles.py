@@ -69,3 +69,12 @@ for role in (PROPIETARIO, OPERACIONES):
     ROLE_PERMISSIONS[role].update(
         f"promotions.{action}_coupon" for action in ("add", "change", "view", "delete")
     )
+
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {
+            "payments.view_paymentattempt",
+            "payments.view_paymentevent",
+            "payments.confirm_manual_payment",
+        }
+    )

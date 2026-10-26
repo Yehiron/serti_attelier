@@ -36,7 +36,10 @@ def manual_instructions(order: Order) -> str | None:
 
 
 def created_data(order: Order) -> dict[str, Any]:
+    from apps.payments.services import payment_data
+
     return {
+        **payment_data(order, include_customer=True),
         "number": order.number,
         "public_token": order.public_token,
         "payment_channel": order.payment_channel,
@@ -86,7 +89,10 @@ def order_detail(token: str) -> dict[str, Any]:
         "wants_certificate",
         "reservation_expires_at",
     )
+    from apps.payments.services import payment_data
+
     return {
+        **payment_data(order),
         **{f: getattr(order, f) for f in fields},
         "items": items,
         "shipping": {

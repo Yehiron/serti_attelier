@@ -1,10 +1,10 @@
-import type { Image, Money, Problem, SaleState } from './api/types.ts';
+import type { Image, Money, Problem, SaleState, WompiCheckout, PaymentDetails } from './api/types.ts';
 import type { Locale } from './i18n.ts';
 export type CartItem = { sku: string; slug: string; name: string; image: Image | null; price: Money; sale_price: Money | null; effective_price: Money; sale_state: SaleState; purchasable: boolean };
 export type Cart = { items: CartItem[]; removed: { sku: string; name: string; reason: 'sold' | 'preorder' | 'unavailable' }[]; count: number; subtotal: Money };
 export type Quote = { items: { sku: string; name: string; unit_price_cents: number; discount_cents: number }[]; subtotal_cents: number; discount_cents: number; shipping_cents: number; certificate_cents: number; total_cents: number; currency: 'COP'; coupon: { code: string; applied: boolean; reason: string | null } | null; payment_channels: ('wompi' | 'manual')[] };
-export type CreatedOrder = { number: string; public_token: string; payment_channel: 'wompi' | 'manual'; payment_status: string; total_cents: number; reservation_expires_at: string | null; manual_instructions: string | null };
-export type Order = Omit<CreatedOrder, 'public_token'> & Omit<Quote, 'items' | 'coupon' | 'payment_channels'> & { created_at: string; locale: Locale; fulfillment_status: string; items: { sku: string; name: string; image: Image | null; unit_price_cents: number; discount_cents: number; piece_number: string | null }[]; wants_certificate: boolean; shipping: { department: string; municipality: string } };
+export type CreatedOrder = { wompi: WompiCheckout | null; number: string; public_token: string; payment_channel: 'wompi' | 'manual'; payment_status: string; total_cents: number; reservation_expires_at: string | null; manual_instructions: string | null };
+export type Order = Omit<CreatedOrder, 'public_token'> & PaymentDetails & Omit<Quote, 'items' | 'coupon' | 'payment_channels'> & { created_at: string; locale: Locale; fulfillment_status: string; items: { sku: string; name: string; image: Image | null; unit_price_cents: number; discount_cents: number; piece_number: string | null }[]; wants_certificate: boolean; shipping: { department: string; municipality: string } };
 export const emptyCart: Cart = { items: [], removed: [], count: 0, subtotal: { amount_cents: 0, currency: 'COP' } };
 // Reconcile authoritative server items; keep removal notices until the shopper dismisses them.
 export function mergeCart(previous: Cart, incoming: Cart): Cart {
@@ -45,3 +45,14 @@ export function checkoutAttempt(storage: AttemptStorage, body: CheckoutPayload, 
 }
 export function clearAttempt(storage: AttemptStorage) { storage.removeItem(attemptStorageKey); }
 export function formatDeadline(value: string, locale: Locale) { return new Intl.DateTimeFormat(locale === 'es' ? 'es-CO' : 'en-US', { timeZone: 'America/Bogota', dateStyle: 'long', timeStyle: 'short' }).format(new Date(value)); }
+
+// One persisted key per order and failed reference: uncertain retries replay the same request.
+export function paymentAttemptKey(storage: AttemptStorage, token: string, reference: string, uuid: () => string) {
+  const name = `serti_payment_attempt:${token}`;
+  const raw = storage.getItem(name);
+  if (raw) {
+    try { const saved = JSON.parse(raw); if (saved.reference === reference && typeof saved.key === 'string') return saved.key as string; } catch { /* Replace malformed storage. */ }
+  }
+  const key = uuid(); storage.setItem(name, JSON.stringify({ reference, key })); return key;
+}
+export function clearPaymentAttempt(storage: AttemptStorage, token: string) { storage.removeItem(`serti_payment_attempt:${token}`); }

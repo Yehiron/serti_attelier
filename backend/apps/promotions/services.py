@@ -10,8 +10,9 @@ from django.db import transaction
 from django.http import HttpRequest
 
 from apps.audit.services import record
+from apps.orders.models import Order
 
-from .models import Coupon
+from .models import Coupon, CouponRedemption
 
 
 def email_digest(email: str) -> str:
@@ -49,9 +50,12 @@ def save_coupon(
     )
 
 
-def redeem_coupon() -> None:
-    """Phase 6: create a redemption only after payment approval, idempotently."""
-    raise NotImplementedError("Payment approval belongs to Phase 6")
+@transaction.atomic
+def redeem_coupon(order: Order) -> None:
+    if order.coupon_id:
+        CouponRedemption.objects.get_or_create(
+            order=order, defaults={"coupon_id": order.coupon_id, "email_hash": order.email_hash}
+        )
 
 
 @transaction.atomic

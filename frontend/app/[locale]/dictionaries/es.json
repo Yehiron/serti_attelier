@@ -240,6 +240,15 @@
     "orderFailed": "El pago no fue completado",
     "cancelled": "El pedido fue cancelado",
     "locationError": "No pudimos cargar los destinos. Intenta de nuevo.",
-    "removeError": "No pudimos quitar la pieza. Intenta de nuevo."
+    "removeError": "No pudimos quitar la pieza. Intenta de nuevo.",
+    "completePayment": "Completa tu pago",
+    "wompiRedirect": "Te llevamos al pago seguro de Wompi…",
+    "payWompi": "Pagar con Wompi",
+    "securePayment": "Pago seguro con tarjeta, PSE, Nequi, Daviplata, Bancolombia o efectivo en corresponsal",
+    "confirmingPayment": "Estamos confirmando tu pago… Los pagos por PSE o en efectivo pueden tardar un poco.",
+    "paymentRetryHelp": "Tu pago no se completó. Puedes intentarlo de nuevo mientras tu pieza siga reservada.",
+    "onlineUnavailable": "El pago en línea aún no está configurado.",
+    "confirmationEmail": "Te enviamos la confirmación a tu correo",
+    "syncDelayed": "La confirmación está tardando un poco. Actualizaremos el estado aquí."
   }
 }

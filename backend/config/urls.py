@@ -7,6 +7,7 @@ from drf_spectacular.views import SpectacularAPIView
 urlpatterns: list[URLPattern | URLResolver] = [
     path(settings.ADMIN_URL, include("apps.accounts.urls")),
     path(settings.ADMIN_URL, admin.site.urls),
+    path("api/v1/", include("apps.payments.urls")),
     path("api/v1/", include("apps.orders.urls")),
     path("api/v1/", include("apps.cms.api.urls")),
     path("api/v1/catalog/", include("apps.catalog.api.urls")),

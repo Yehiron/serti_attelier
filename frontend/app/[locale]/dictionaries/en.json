@@ -240,6 +240,15 @@
     "orderFailed": "Payment was not completed",
     "cancelled": "The order was cancelled",
     "locationError": "We could not load delivery locations. Please try again.",
-    "removeError": "We could not remove this piece. Please try again."
+    "removeError": "We could not remove this piece. Please try again.",
+    "completePayment": "Complete your payment",
+    "wompiRedirect": "Taking you to secure payment with Wompi…",
+    "payWompi": "Pay with Wompi",
+    "securePayment": "Secure payment by card, PSE, Nequi, Daviplata, Bancolombia or cash at a payment partner",
+    "confirmingPayment": "We’re confirming your payment… PSE and cash payments can take a little time.",
+    "paymentRetryHelp": "Your payment wasn’t completed. You can try again while your piece is still reserved.",
+    "onlineUnavailable": "Online payment hasn’t been set up yet.",
+    "confirmationEmail": "We’ve sent confirmation to your email",
+    "syncDelayed": "Confirmation is taking a little longer. We’ll update the status here."
   }
 }

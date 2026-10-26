@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api/problem';
 import { browserRequest, refreshCart } from '@/lib/cart';
 import { useCart } from '@/lib/use-cart';
 import { attemptStorageKey, checkoutAttempt, checkoutPayload, clearAttempt, couponMessageKey, fieldErrors, normalizePhone, readAttempt, type Attempt, type CreatedOrder, type Quote } from '@/lib/commerce';
+import { submitWompiCheckout } from '@/lib/wompi';
 import { href } from '@/lib/routes';
 import { CustomPieceLink } from './custom-piece-link';
 import { Media } from './media';
@@ -63,13 +64,20 @@ export function Checkout({ locale, dict, settings: initialSettings }: CommercePr
       if (!quote.payment_channels.includes(channel)) { fail(t.paymentUnavailable); return; }
     }
     lock.current = true; setBusy(true);
-    let attempt: Attempt | null = null;
+    let attempt: Attempt | null = null; let navigating = false;
     try {
       const body = checkoutPayload(new FormData(form.current!), { coupon, certificate, channel, terms: settings.legal_versions?.terms ?? null, privacy: settings.legal_versions?.privacy ?? null, locale });
       // Do not submit when persistence fails: a reload must not accidentally create another order.
       attempt = pending ?? checkoutAttempt(sessionStorage, body, () => crypto.randomUUID()); setPending(attempt);
       const order = await browserRequest<CreatedOrder>('orders', locale, { method: 'POST', headers: { 'Idempotency-Key': attempt.key }, body: JSON.stringify(attempt.body) });
-      clearAttempt(sessionStorage); setPending(null); void refreshCart(locale).catch(() => {}); router.replace(href('order', locale, order.public_token));
+      void refreshCart(locale).catch(() => {});
+      if (order.payment_channel === 'wompi' && order.wompi) {
+        setMessage(t.wompiRedirect);
+        await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())));
+        submitWompiCheckout(order.wompi); navigating = true;
+        return;
+      }
+      clearAttempt(sessionStorage); setPending(null); navigating = true; router.replace(href('order', locale, order.public_token));
     } catch (error) {
       if (error instanceof ApiError) {
         const { code } = error.problem;
@@ -88,7 +96,7 @@ export function Checkout({ locale, dict, settings: initialSettings }: CommercePr
         else if (code === 'cart_empty') { fail(t.empty); void refreshCart(locale).catch(() => {}); }
         else fail(t.error, fieldErrors(error.problem));
       } else fail(t.error);
-    } finally { lock.current = false; setBusy(false); }
+    } finally { if (!navigating) { lock.current = false; setBusy(false); } }
   }
   function field(name: string, label: string, autocomplete?: string, type = 'text', optional = false) {
     const id = name.replaceAll('.', '-'); return <label htmlFor={id}>{label}<input id={id} name={name} type={type} autoComplete={autocomplete} inputMode={type === 'tel' ? 'tel' : type === 'email' ? 'email' : undefined} required={!optional} maxLength={name === 'shipping.notes' ? 1000 : 254} aria-invalid={!!errors[name]} aria-describedby={errors[name] ? `${id}-error` : undefined} /><span className="field-error" id={`${id}-error`}>{errors[name]?.join(' ')}</span></label>;
@@ -97,7 +105,8 @@ export function Checkout({ locale, dict, settings: initialSettings }: CommercePr
   if (!recovered || !loaded) return <p role="status">{t.loading}</p>;
   if (!pending && !cart.items.length && !cartError) return <div className="empty-state"><h2>{t.empty}</h2><Link className="text-link" href={href('catalog', locale)}>{t.explore} ↗</Link></div>;
   return <form className="checkout-form" ref={form} noValidate onSubmit={event => { event.preventDefault(); void submit(); }}>
-    <div hidden={!message} ref={summary} tabIndex={-1} className={message ? 'error-summary' : ''} role={message ? 'alert' : undefined}>{message && <><p>{message}</p>{Object.entries(errors).map(([key, values]) => <a key={key} href={`#${key.replaceAll('.', '-')}`}>{values.join(' ')}</a>)}{conflict && <CustomPieceLink locale={locale} dict={dict} whatsapp={settings.whatsapp.general_url} />}</>}</div>
+    <p role="status" aria-live="polite">{busy ? (message === t.wompiRedirect ? t.wompiRedirect : t.submitting) : ''}</p>
+    <div hidden={!message || message === t.wompiRedirect} ref={summary} tabIndex={-1} className={message ? 'error-summary' : ''} role={message ? 'alert' : undefined}>{message && <><p>{message}</p>{Object.entries(errors).map(([key, values]) => <a key={key} href={`#${key.replaceAll('.', '-')}`}>{values.join(' ')}</a>)}{conflict && <CustomPieceLink locale={locale} dict={dict} whatsapp={settings.whatsapp.general_url} />}</>}</div>
     {pending && <div className="state-notice"><p>{t.resume}</p><p>{pending.body.contact.name} · {pending.body.contact.email}</p><button type="button" className="button" disabled={busy} onClick={() => { void submit(); }}>{busy ? t.submitting : t.retry}</button></div>}
     {cartError && <p role="alert">{t.error}<button type="button" className="text-link" onClick={() => { void refreshCart(locale).catch(() => {}); }}>{t.retry}</button></p>}
     <fieldset disabled={busy || !!pending} className="checkout-details"><legend className="sr-only">{t.checkout}</legend><section><p className="eyebrow">01</p><h2>{t.contact}</h2>{field('contact.name',t.name,'name')}{field('contact.email',t.email,'email','email')}{field('contact.phone',t.phone,'tel','tel')}</section>

@@ -13,3 +13,10 @@ CACHES = {"default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"
 PUBLIC_READ_RATE = "100000/min"
 
 COUPON_EMAIL_PEPPER = "test-coupon-pepper"
+
+# Deterministic payments: tests never inherit Wompi values from a developer's .env.
+# Tests that need Wompi configured use override_settings.
+WOMPI_PUBLIC_KEY = ""
+WOMPI_PRIVATE_KEY = ""
+WOMPI_INTEGRITY_SECRET = ""
+WOMPI_EVENTS_SECRET = ""

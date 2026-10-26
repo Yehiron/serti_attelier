@@ -170,7 +170,7 @@ def test_detail_queries(
     add(client, piece)
     submit(client, payload)
     token = Order.objects.get().public_token
-    with django_assert_max_num_queries(2):
+    with django_assert_max_num_queries(3):
         assert client.get(f"/api/v1/orders/{token}").status_code == 200
 
 

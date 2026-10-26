@@ -423,3 +423,8 @@ button:disabled { cursor: wait; }
   .sticky-piece-cta .add-to-cart .button { max-width: 100%; width: 100%; }
   .sticky-piece-cta .add-to-cart [role=alert] { font-size: 11px; max-height: 25dvh; overflow-y: auto; }
 }
+
+.order-payment { display: grid; justify-items: start; gap: 16px; }
+.order-payment .payment-secondary { background: transparent; color: var(--ink, #29251f); border: 1px solid currentColor; }
+.payment-notice { font-size: .875rem; opacity: .8; }
+#order-heading:focus-visible { outline: 2px solid currentColor; outline-offset: 8px; }
