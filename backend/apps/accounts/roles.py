@@ -83,3 +83,8 @@ for role in (PROPIETARIO, OPERACIONES):
     ROLE_PERMISSIONS[role].update(
         {"notifications.view_notificationdelivery", "notifications.resend_notificationdelivery"}
     )
+
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {"orders.export_orders", "orders.add_ordernote", "orders.view_ordernote"}
+    )

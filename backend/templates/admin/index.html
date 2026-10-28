@@ -1,0 +1,31 @@
+{% extends "admin/index.html" %}
+{% load i18n %}
+{% block content %}
+{% if shop_metrics %}
+<div class="flex flex-col gap-6">
+  <h1 class="text-2xl font-semibold">{% translate "Indicadores de la tienda" %}</h1>
+  <div class="grid gap-4 lg:grid-cols-4">
+  {% for card in shop_metrics.sales %}
+    <div class="border rounded p-4"><h2>{{ card.label }}</h2><strong class="text-2xl">{{ card.total }}</strong><p>{{ card.count }} {% translate "ventas confirmadas" %}</p></div>
+  {% endfor %}
+  </div>
+  <a class="border rounded p-4 text-red-600 font-semibold" href="{{ shop_metrics.attention_url }}">{% translate "Pedidos que requieren atención" %}: {{ shop_metrics.attention }}</a>
+  <div class="grid gap-6 lg:grid-cols-2">
+  {% for field, rows in shop_metrics.groups.items %}
+    <section class="border rounded p-4"><h2 class="font-semibold">{% if field == "payment_status" %}{% translate "Pedidos por estado de pago" %}{% else %}{% translate "Pedidos por estado operativo" %}{% endif %}</h2>
+    <table class="w-full">{% for row in rows %}<tr><td><a {% if row.highlight %}class="text-red-600 font-semibold"{% endif %} href="{{ row.url }}">{{ row.label }}</a></td><td>{{ row.count }}</td></tr>{% endfor %}</table></section>
+  {% endfor %}
+  </div>
+  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Ventas por mes" %}</h2>
+  {% for row in shop_metrics.monthly %}<div class="py-2">{{ row.label }} · {{ row.total }} · {{ row.count }}<div style="height:8px;background:#591e24;width:{{ row.width }}%;"></div></div>{% endfor %}</section>
+  <div class="grid gap-6 lg:grid-cols-2">
+  {% for kind, rows in shop_metrics.breakdowns.items %}
+    <section class="border rounded p-4"><h2 class="font-semibold">{% if kind == "categories" %}{% translate "Piezas vendidas por categoría · 90 días" %}{% else %}{% translate "Piezas vendidas por piedra · 90 días" %}{% endif %}</h2><table class="w-full">{% for row in rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>{% empty %}<tr><td>—</td></tr>{% endfor %}</table></section>
+  {% endfor %}
+  </div>
+  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Cupones usados · 30 días" %}</h2><p>{{ shop_metrics.discounts.count }} · {{ shop_metrics.discounts.formatted_total }}</p>
+  <table class="w-full">{% for row in shop_metrics.coupons %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>{{ row.formatted_total }}</td></tr>{% endfor %}</table></section>
+  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Salud del catálogo" %}</h2><table class="w-full">{% for row in shop_metrics.health %}<tr><td><a href="{{ row.url }}">{{ row.label }}</a></td><td>{{ row.count }}</td></tr>{% endfor %}</table></section>
+</div>
+{% else %}{{ block.super }}{% endif %}
+{% endblock %}

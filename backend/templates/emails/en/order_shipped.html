@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}
+{% block heading %}Your piece is on its way{% endblock %}
+{% block content %}
+<p style="font-size:15px;line-height:1.7;">Carrier: {{ order.carrier }}<br>
+{% if order.tracking_number %}Tracking: {{ order.tracking_number }}{% endif %}</p>
+{% if order.tracking_url %}{% include "emails/_button.html" with url=order.tracking_url label="Tracking" %}{% endif %}
+{% include "emails/_items.html" with piece_label="Piece no." %}
+<p style="font-size:15px;line-height:1.7;">Delivery: {{ order.customer_name }}<br>{{ address }}</p>
+{% include "emails/_button.html" with url=order_url label="View your order" %}
+<p style="font-size:13px;line-height:1.7;color:#736b51;">Store your piece separately in a dry place and avoid contact with perfumes, creams and chemicals.</p>
+{% endblock %}

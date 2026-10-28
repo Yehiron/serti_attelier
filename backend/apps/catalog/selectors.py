@@ -161,3 +161,24 @@ def piece_cta(piece: Piece, locale: str) -> dict[str, str | None]:
         "reason": piece.sale_state,
         "url": whatsapp_url(piece.sale_state, piece, locale),
     }
+
+
+def missing_english_translation() -> Q:
+    """Required English fields, plus translated Spanish text with no English counterpart."""
+    missing = Q()
+    for field in (
+        "name",
+        "slug",
+        "short_description",
+        "long_description",
+        "story",
+        "care",
+        "seo_title",
+        "seo_description",
+    ):
+        empty_en = Q(**{f"{field}_en": ""}) | Q(**{f"{field}_en__isnull": True})
+        if field in {"name", "slug", "short_description"}:
+            missing |= empty_en
+        else:
+            missing |= empty_en & ~Q(**{f"{field}_es": ""}) & Q(**{f"{field}_es__isnull": False})
+    return Q(status="published") & missing

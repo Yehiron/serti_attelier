@@ -1,0 +1,7 @@
+Tu pieza va en camino · {{ order.number }}
+Transportadora: {{ order.carrier }}
+{% if order.tracking_number %}Seguimiento: {{ order.tracking_number }}{% endif %}
+{% if order.tracking_url %}{{ order.tracking_url }}{% endif %}
+Entrega: {{ order.customer_name }}, {{ address }}
+Ver tu pedido: {{ order_url }}
+Guárdala por separado en un lugar seco y evita el contacto con perfumes, cremas y químicos.

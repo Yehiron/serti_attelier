@@ -1,6 +1,6 @@
 COMPOSE = docker compose -f infra/docker-compose.dev.yml
 
-.PHONY: up down logs ps test lint migrate shell
+.PHONY: up down logs ps test lint migrate shell e2e
 
 up: ## Start the local stack (https://serti.localhost)
 	$(COMPOSE) up --build -d
@@ -28,3 +28,9 @@ migrate:
 
 shell:
 	$(COMPOSE) exec backend python manage.py shell
+
+e2e: ## Browser tests (Playwright) against the running stack: make up && make seed first
+	cd frontend && npx playwright test
+
+seed: ## Demo catalog for development
+	$(COMPOSE) exec backend python manage.py seed_catalog

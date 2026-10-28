@@ -147,7 +147,7 @@ def test_every_template_has_no_forbidden_terms(order: Order, locale: str) -> Non
     context = order_context(order, locale)
     context.update(title="SERTI", event="needs_attention")
     paths = list((settings.BASE_DIR / "templates" / "emails" / locale).glob("*"))
-    assert len(paths) == 8
+    assert len(paths) == 10
     for path in paths:
         body = render_to_string(f"emails/{locale}/{path.name}", context)
         assert "factura" not in body.lower() and "invoice" not in body.lower()

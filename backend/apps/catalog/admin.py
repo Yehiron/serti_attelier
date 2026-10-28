@@ -6,7 +6,8 @@ from typing import Any, ClassVar
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
 from django.db.models import QuerySet
-from django.http import HttpRequest
+from django.http import HttpRequest, HttpResponseRedirect
+from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
@@ -18,6 +19,7 @@ from apps.inventory.services import set_preorder
 from . import services
 from .forms import PieceForm, ValidatedImageForm
 from .models import Category, Collection, CollectionPiece, Material, Piece, PieceImage, Stone
+from .selectors import missing_english_translation
 
 
 class TranslatedAdmin(TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
@@ -57,6 +59,24 @@ class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is u
     extra = 0
 
 
+class CatalogHealthFilter(admin.SimpleListFilter):
+    title = _("Salud del catálogo")
+    parameter_name = "health"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> list[tuple[str, str]]:
+        return [
+            ("missing_en", str(_("Sin traducción inglesa"))),
+            ("failed_images", str(_("Imágenes con errores"))),
+        ]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Piece]) -> QuerySet[Piece]:
+        if self.value() == "missing_en":
+            return queryset.filter(missing_english_translation())
+        if self.value() == "failed_images":
+            return queryset.filter(images__processing_status="failed").distinct()
+        return queryset
+
+
 @admin.register(Piece)
 class PieceAdmin(TranslatedAdmin):
     form = PieceForm
@@ -69,11 +89,34 @@ class PieceAdmin(TranslatedAdmin):
         "sale_state",
         "status",
     )
-    list_filter = ("status", "sale_state", "category", "stones", "collections", "is_new")
+    list_filter = (
+        "status",
+        "sale_state",
+        "category",
+        "stones",
+        "collections",
+        "is_new",
+        CatalogHealthFilter,
+    )
     search_fields = ("sku", "name_es", "name_en")
     readonly_fields = ("status", "sale_state", "published_at", "sold_at")
     inlines = (PieceImageInline, CollectionPieceInline)
-    actions = ("publish", "hide", "unhide", "archive", "preorder_on", "preorder_off")
+    actions = ("publish", "hide", "unhide", "archive", "preorder_on", "preorder_off", "duplicate")
+
+    def has_duplicate_permission(self, request: HttpRequest) -> bool:
+        return request.user.has_perm("catalog.add_piece") and request.user.has_perm(
+            "catalog.change_piece"
+        )
+
+    @admin.action(description=_("Duplicar como nueva pieza"), permissions=["duplicate"])
+    def duplicate(
+        self, request: HttpRequest, queryset: QuerySet[Piece]
+    ) -> HttpResponseRedirect | None:
+        copies = [services.duplicate_piece(piece, request.user) for piece in queryset]
+        if len(copies) == 1:
+            return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[copies[0].pk]))
+        self.message_user(request, _("Piezas duplicadas como borradores."))
+        return None
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Piece]:
         return Piece.objects.select_related("category").prefetch_related("images")
@@ -147,7 +190,7 @@ class PieceAdmin(TranslatedAdmin):
             try:
                 if action == "hide":
                     services.hide_pieces(Piece.objects.filter(pk=piece.pk), request.user, request)
-                elif action in ("preorder_on", "preorder_off"):
+                elif action in ("preorder_on", "preorder_off", "duplicate"):
                     set_preorder(piece, action == "preorder_on", request.user)
                 else:
                     function = {

@@ -4,16 +4,18 @@ import hashlib
 import json
 from datetime import timedelta
 from functools import partial
-from typing import Any
+from typing import Any, cast
 from uuid import UUID
 
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
+from django.db.models import Field
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 from django.utils.translation import override
 
+from apps.accounts.models import User
 from apps.audit.services import record
 from apps.cart.models import Cart
 from apps.cart.selectors import pieces
@@ -31,7 +33,7 @@ from apps.promotions.services import email_digest
 
 from . import events
 from .exceptions import CheckoutError
-from .models import Order, OrderItem, OrderStatusChange
+from .models import Order, OrderItem, OrderNote, OrderStatusChange
 from .selectors import legal_versions
 from .serializers import OrderInputSerializer
 from .transitions import FULFILLMENT_TRANSITIONS, PAYMENT_TRANSITIONS
@@ -240,7 +242,15 @@ def create_order(
 
 @transaction.atomic
 def transition_status(
-    order: Order, field: str, target: str, *, request: HttpRequest | None = None, note: str = ""
+    order: Order,
+    field: str,
+    target: str,
+    *,
+    request: HttpRequest | None = None,
+    note: str = "",
+    carrier: str | None = None,
+    tracking_number: str = "",
+    tracking_url: str = "",
 ) -> None:
     if field == "fulfillment_status" and (
         request is None or not request.user.has_perm("orders.change_fulfillment")
@@ -261,8 +271,26 @@ def transition_status(
         and order.payment_status != "approved"
     ):
         raise CheckoutError("invalid_transition")
+    updates = [field, "updated_at"]
+    if field == "fulfillment_status" and target == "shipped":
+        order.carrier = (carrier if carrier is not None else order.carrier).strip()
+        if not order.carrier:
+            raise ValidationError(_("Indica la transportadora antes de enviar."))
+        order.tracking_number = tracking_number.strip()
+        order.tracking_url = tracking_url.strip()
+        for name in ("carrier", "tracking_number", "tracking_url"):
+            cast("Field[Any, Any]", order._meta.get_field(name)).clean(getattr(order, name), order)
+        order.shipped_at = timezone.now()
+        updates += ["carrier", "tracking_number", "tracking_url", "shipped_at"]
+    if field == "fulfillment_status" and target == "delivered":
+        order.delivered_at = timezone.now()
+        updates.append("delivered_at")
     setattr(order, field, target)
-    order.save(update_fields=[field, "updated_at"])
+    order.save(update_fields=updates)
+    if field == "fulfillment_status" and target == "shipped":
+        from apps.notifications.services import enqueue
+
+        transaction.on_commit(partial(enqueue, order, "order_shipped"), robust=True)
     OrderStatusChange.objects.create(
         order=order,
         field=field,
@@ -300,3 +328,18 @@ def expire_stale_orders() -> int:
                 transaction.on_commit(partial(events.order_expired, pk), robust=True)
                 count += 1
     return count
+
+
+@transaction.atomic
+def add_order_note(order: Order, text: str, *, request: HttpRequest) -> OrderNote:
+    if not request.user.has_perm("orders.change_order") or not request.user.has_perm(
+        "orders.add_ordernote"
+    ):
+        raise PermissionDenied
+    note = OrderNote(order=order, author=cast(User, request.user), text=text.strip())
+    if not note.text:
+        raise ValidationError(_("Escribe una nota."))
+    note.full_clean()
+    note.save()
+    record("orders.note_added", actor=request.user, obj=note, request=request)
+    return note

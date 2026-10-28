@@ -2,7 +2,13 @@ from __future__ import annotations
 
 from django.db import models
 
-EVENTS = ("order_paid", "manual_payment_instructions", "reservation_expired", "needs_attention")
+EVENTS = (
+    "order_shipped",
+    "order_paid",
+    "manual_payment_instructions",
+    "reservation_expired",
+    "needs_attention",
+)
 STATUSES = ("queued", "sent", "failed", "gave_up", "skipped")
 
 

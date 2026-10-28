@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
@@ -18,6 +18,12 @@ def original_path(instance: PieceImage, filename: str) -> str:
 
 
 class NamedModel(models.Model):
+    if TYPE_CHECKING:
+        name_es: str
+        name_en: str
+        slug_es: str
+        slug_en: str
+
     name = models.CharField(max_length=200)
     slug = models.SlugField(max_length=220, blank=True)
     position = models.PositiveIntegerField(default=0)

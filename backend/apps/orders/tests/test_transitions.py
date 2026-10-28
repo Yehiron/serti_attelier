@@ -36,7 +36,9 @@ def test_every_transition(
         for target in table:
             Order.objects.filter(pk=order.pk).update(**{field: source})
             if field == "fulfillment_status":
-                Order.objects.filter(pk=order.pk).update(payment_status="approved")
+                Order.objects.filter(pk=order.pk).update(
+                    payment_status="approved", carrier="Transportadora"
+                )
             if target in table[source]:
                 transition_status(order, field, target, request=request)
                 order.refresh_from_db()

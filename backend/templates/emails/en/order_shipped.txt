@@ -1,0 +1,7 @@
+Your piece is on its way · {{ order.number }}
+Carrier: {{ order.carrier }}
+{% if order.tracking_number %}Tracking: {{ order.tracking_number }}{% endif %}
+{% if order.tracking_url %}{{ order.tracking_url }}{% endif %}
+Delivery: {{ order.customer_name }}, {{ address }}
+View your order: {{ order_url }}
+Store your piece separately in a dry place and avoid contact with perfumes, creams and chemicals.

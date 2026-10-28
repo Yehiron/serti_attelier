@@ -183,3 +183,60 @@ def save_piece_relations(piece: Piece, values: dict[str, Any]) -> None:
             if name == "related" and piece.pk in [item.pk for item in related]:
                 raise ValidationError(_("Una pieza no puede relacionarse consigo misma."))
             getattr(piece, name).set(related)
+
+
+@transaction.atomic
+def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
+    if (
+        actor is None
+        or not actor.has_perm("catalog.add_piece")
+        or not actor.has_perm("catalog.change_piece")
+    ):
+        raise PermissionDenied
+    source = Piece.objects.select_for_update().get(pk=piece.pk)
+    # Serialize copies of the same source; bounded identifiers retain room for suffixes.
+    index = 1
+    while Piece.objects.filter(sku=f"{source.sku[:25]}-COPIA-{index}").exists():
+        index += 1
+    suffix = f"-copia-{index}"
+    data = {
+        field.attname: getattr(source, field.attname)
+        for field in Piece._meta.concrete_fields
+        if not field.primary_key
+        and field.name
+        not in {
+            "sku",
+            "piece_number",
+            "status",
+            "sale_state",
+            "published_at",
+            "sold_at",
+            "name",
+            "name_es",
+            "name_en",
+            "slug",
+            "slug_es",
+            "slug_en",
+        }
+    }
+    data["sku"] = f"{source.sku[:25]}-COPIA-{index}"
+    for locale in ("es", "en"):
+        data[f"name_{locale}"] = (
+            f"{(getattr(source, f'name_{locale}') or source.name_es)[:192]} (copia)"
+        )
+        base = getattr(source, f"slug_{locale}") or source.slug_es or source.sku.lower()
+        slug = base[:190] + suffix
+        collision = 1
+        while Piece.objects.filter(**{f"slug_{locale}": slug}).exists():
+            collision += 1
+            slug = f"{base[:180]}{suffix}-{collision}"
+        data[f"slug_{locale}"] = slug
+    copy = Piece.objects.create(**data)
+    copy.stones.set(source.stones.all())
+    copy.materials.set(source.materials.all())
+    for link in CollectionPiece.objects.filter(piece=source):
+        CollectionPiece.objects.create(
+            piece=copy, collection=link.collection, position=link.position
+        )
+    record("catalog.piece_duplicated", actor=actor, obj=copy, diff={"source": [None, source.pk]})
+    return copy

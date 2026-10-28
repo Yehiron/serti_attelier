@@ -4,6 +4,7 @@ import secrets
 from typing import Any, TypeVar
 
 from django.conf import settings
+from django.core.validators import MaxLengthValidator, URLValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
@@ -67,6 +68,13 @@ class Order(models.Model):
     privacy_version = models.PositiveIntegerField()
     privacy_consent_at = models.DateTimeField()
     needs_attention = models.BooleanField(default=False)
+    carrier = models.CharField(_("Transportadora"), max_length=200, blank=True)
+    tracking_number = models.CharField(_("Número de seguimiento"), max_length=200, blank=True)
+    tracking_url = models.URLField(
+        _("Enlace de seguimiento"), blank=True, validators=[URLValidator(schemes=["https"])]
+    )
+    shipped_at = models.DateTimeField(null=True, blank=True, editable=False)
+    delivered_at = models.DateTimeField(null=True, blank=True, editable=False)
     paid_at = models.DateTimeField(null=True, blank=True)
     reservation_expires_at = models.DateTimeField(null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -74,7 +82,10 @@ class Order(models.Model):
 
     class Meta:
         verbose_name = _("pedido")
-        permissions = [("change_fulfillment", "Puede cambiar el estado operativo")]
+        permissions = [
+            ("change_fulfillment", "Puede cambiar el estado operativo"),
+            ("export_orders", "Puede exportar pedidos"),
+        ]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(
@@ -155,3 +166,20 @@ class OrderStatusChange(ImmutableModel):
 
     def __str__(self) -> str:
         return f"{self.order_id}: {self.to_state}"
+
+
+class OrderNote(ImmutableModel):
+    order = models.ForeignKey(Order, on_delete=models.PROTECT, related_name="notes")
+    author = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT)
+    text = models.TextField(
+        _("Nota interna"), max_length=2000, validators=[MaxLengthValidator(2000)]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    objects = ImmutableQuerySet["OrderNote"].as_manager()
+
+    class Meta:
+        verbose_name = _("nota interna")
+        ordering = ["created_at", "pk"]
+
+    def __str__(self) -> str:
+        return str(self.pk)

@@ -175,6 +175,7 @@ SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="SERTI <no-reply@serti.localhost>")
 UNFOLD = {
+    "DASHBOARD_CALLBACK": "apps.orders.metrics.dashboard_callback",
     "SITE_TITLE": "SERTI",
     "SITE_HEADER": "SERTI",
     "COLORS": {
@@ -216,10 +217,11 @@ INTERNAL_API_TOKEN = env("INTERNAL_API_TOKEN", default="")
 COUPON_EMAIL_PEPPER = env("COUPON_EMAIL_PEPPER", default="")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
     {
-        "cart_add": "30/min",
-        "checkout_quote": "20/min",
-        "orders_minute": "5/min",
-        "orders_hour": "20/hour",
+        # Production defaults; development can raise them (e.g. for browser tests from one IP).
+        "cart_add": env("THROTTLE_CART_ADD", default="30/min"),
+        "checkout_quote": env("THROTTLE_CHECKOUT_QUOTE", default="20/min"),
+        "orders_minute": env("THROTTLE_ORDERS_MINUTE", default="5/min"),
+        "orders_hour": env("THROTTLE_ORDERS_HOUR", default="20/hour"),
     }
 )
 CELERY_BEAT_SCHEDULE["cleanup-carts"] = {

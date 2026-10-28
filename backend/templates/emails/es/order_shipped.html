@@ -1,0 +1,11 @@
+{% extends "emails/base.html" %}
+{% block heading %}Tu pieza va en camino{% endblock %}
+{% block content %}
+<p style="font-size:15px;line-height:1.7;">Transportadora: {{ order.carrier }}<br>
+{% if order.tracking_number %}Seguimiento: {{ order.tracking_number }}{% endif %}</p>
+{% if order.tracking_url %}{% include "emails/_button.html" with url=order.tracking_url label="Seguimiento" %}{% endif %}
+{% include "emails/_items.html" with piece_label="Pieza n.º" %}
+<p style="font-size:15px;line-height:1.7;">Entrega: {{ order.customer_name }}<br>{{ address }}</p>
+{% include "emails/_button.html" with url=order_url label="Ver tu pedido" %}
+<p style="font-size:13px;line-height:1.7;color:#736b51;">Guárdala por separado en un lugar seco y evita el contacto con perfumes, cremas y químicos.</p>
+{% endblock %}

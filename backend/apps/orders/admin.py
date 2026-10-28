@@ -8,14 +8,18 @@ from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
+from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
 
 from apps.accounts.models import User
 from apps.core.exceptions import DomainError
+from apps.core.formatting import format_cop
 
-from .models import Order, OrderItem, OrderStatusChange
-from .services import transition_status
+from .exports import export_orders
+from .forms import FulfillmentForm
+from .models import Order, OrderItem, OrderNote, OrderStatusChange
+from .services import add_order_note, transition_status
 
 
 class ReadOnlyInline(TabularInline):  # type: ignore[misc]
@@ -41,6 +45,38 @@ class HistoryInline(ReadOnlyInline):
     readonly_fields = fields
 
 
+class HasCouponFilter(admin.SimpleListFilter):
+    title = _("Cupón")
+    parameter_name = "has_coupon"
+
+    def lookups(self, request: HttpRequest, model_admin: Any) -> list[tuple[str, str]]:
+        return [("yes", str(_("Con cupón"))), ("no", str(_("Sin cupón")))]
+
+    def queryset(self, request: HttpRequest, queryset: QuerySet[Order]) -> QuerySet[Order]:
+        if self.value() in {"yes", "no"}:
+            return queryset.filter(coupon__isnull=self.value() == "no")
+        return queryset
+
+
+class NoteInline(TabularInline):  # type: ignore[misc]
+    model = OrderNote
+    extra = 0
+    fields = ("text", "author", "created_at")
+    readonly_fields = ("author", "created_at")
+    can_delete = False
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("orders.change_order") and request.user.has_perm(
+            "orders.add_ordernote"
+        )
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return False
+
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("orders.view_ordernote")
+
+
 @admin.register(Order)
 class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     list_display = (
@@ -52,6 +88,7 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
         "fulfillment_status",
         "payment_channel",
         "wants_certificate",
+        "attention_badge",
     )
     list_filter = (
         "payment_status",
@@ -59,10 +96,13 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
         "payment_channel",
         "created_at",
         "needs_attention",
+        "wants_certificate",
+        HasCouponFilter,
     )
-    search_fields = ("number", "customer_email", "customer_phone")
-    inlines = (ItemInline, HistoryInline)
-    actions = ("prepare", "ship", "deliver", "cancel", "confirm_manual")
+    search_fields = ("number", "customer_name", "customer_email", "customer_phone", "items__sku")
+    date_hierarchy = "created_at"
+    inlines = (ItemInline, HistoryInline, NoteInline)
+    actions = ("fulfillment", "export_csv", "confirm_manual")
     readonly_fields = tuple(f.name for f in Order._meta.fields)
 
     def get_inlines(self, request: HttpRequest, obj: Any = None) -> tuple[Any, ...]:
@@ -157,27 +197,64 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
 
     @admin.display(description=_("Total COP"))
     def total_cop(self, obj: Order) -> str:
-        return f"$ {obj.total_cents // 100:,}.{obj.total_cents % 100:02d}"
+        return format_cop(obj.total_cents, "es")
 
-    def _move(self, request: HttpRequest, queryset: QuerySet[Order], target: str) -> None:
-        for order in queryset:
-            try:
-                transition_status(order, "fulfillment_status", target, request=request)
-            except DomainError:
-                self.message_user(request, f"{order.number}: transición inválida.", messages.ERROR)
+    @admin.display(description=_("Requiere atención"), ordering="needs_attention")
+    def attention_badge(self, obj: Order) -> str:
+        if obj.needs_attention:
+            return format_html(
+                '<span class="bg-red-100 text-red-700 rounded px-2 py-1">{}</span>',
+                _("Atención"),
+            )
+        return "—"
 
-    @admin.action(description=_("Preparar"), permissions=["fulfillment"])
-    def prepare(self, request: HttpRequest, queryset: QuerySet[Order]) -> None:
-        self._move(request, queryset, "preparing")
+    def save_model(self, request: HttpRequest, obj: Order, form: Any, change: bool) -> None:
+        # Order fields are immutable through this form; writes use domain services.
+        return
 
-    @admin.action(description=_("Marcar enviado"), permissions=["fulfillment"])
-    def ship(self, request: HttpRequest, queryset: QuerySet[Order]) -> None:
-        self._move(request, queryset, "shipped")
+    def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
+        instances = formset.save(commit=False)
+        if formset.model is OrderNote:
+            formset.new_objects = [
+                add_order_note(form.instance, note.text, request=request) for note in instances
+            ]
 
-    @admin.action(description=_("Marcar entregado"), permissions=["fulfillment"])
-    def deliver(self, request: HttpRequest, queryset: QuerySet[Order]) -> None:
-        self._move(request, queryset, "delivered")
+    @admin.action(description=_("Cambiar estado operativo"), permissions=["fulfillment"])
+    def fulfillment(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
+        if not self.has_fulfillment_permission(request):
+            raise PermissionDenied
+        form = FulfillmentForm(request.POST if "apply" in request.POST else None)
+        if "apply" in request.POST and form.is_valid():
+            for order in queryset:
+                try:
+                    transition_status(
+                        order,
+                        "fulfillment_status",
+                        form.cleaned_data["target"],
+                        request=request,
+                        note=form.cleaned_data["note"],
+                        carrier=form.cleaned_data["carrier"],
+                        tracking_number=form.cleaned_data["tracking_number"],
+                        tracking_url=form.cleaned_data["tracking_url"],
+                    )
+                except (DomainError, ValidationError) as exc:
+                    form.add_error(None, f"{order}: {exc}")
+            if not form.errors:
+                return HttpResponseRedirect(request.get_full_path())
+        return TemplateResponse(
+            request,
+            "admin/orders/fulfillment.html",
+            {
+                **self.admin_site.each_context(request),
+                "form": form,
+                "orders": queryset,
+                "title": _("Cambiar estado operativo"),
+            },
+        )
 
-    @admin.action(description=_("Cancelar"), permissions=["fulfillment"])
-    def cancel(self, request: HttpRequest, queryset: QuerySet[Order]) -> None:
-        self._move(request, queryset, "cancelled")
+    def has_export_permission(self, request: HttpRequest) -> bool:
+        return request.user.has_perm("orders.export_orders")
+
+    @admin.action(description=_("Exportar CSV"), permissions=["export"])
+    def export_csv(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
+        return export_orders(queryset, request=request)

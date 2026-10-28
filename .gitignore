@@ -29,3 +29,5 @@ next-env.d.ts
 .vscode/
 caddy-root.crt
 backend/private_media/
+frontend/test-results/
+frontend/playwright-report/

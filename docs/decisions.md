@@ -93,6 +93,10 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 - **Decisión:** la firma de integridad de Wompi incluye `expiration-time` = fin de la reserva; Web Checkout por redirección (sin script de terceros); el estado del pago solo cambia por webhook verificado, sincronización desde el servidor o conciliación, nunca por la URL de retorno.
 - **Consecuencias:** se evita casi por completo cobrar una pieza ya liberada; el caso residual queda en `needs_attention`.
 
+### ADR-016 — Estado de la pieza en vivo en la ficha
+- **Contexto:** la ficha se cachea 60 s (ADR-013); una pieza recién reservada o vendida podía seguir mostrando "Agregar al carrito".
+- **Decisión:** el servidor prepara el botón de cada estado y el navegador muestra el del estado real (`catalog/pieces/status`) al cargar y al volver a la pestaña. El checkout sigue siendo la garantía final (409).
+
 ## Asuntos pendientes
 
 | ID | Pregunta | Responsable | Bloquea |

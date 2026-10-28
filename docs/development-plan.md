@@ -51,7 +51,7 @@ Carrito, `pricing`, cupones y precio rebajado (DC-02, P-04), envío gratis Colom
 Adaptadores de correo y WhatsApp Cloud, plantillas ES/EN, entregas idempotentes, reintentos.
 **Hecho cuando:** un pago aprobado genera exactamente un correo al comprador, uno a SERTI y un WhatsApp a SERTI; con el proveedor caído, se reintenta y el pedido sigue pagado.
 
-### Fase 8 — Operación y pulido
+### Fase 8 — Operación y pulido ✅ (rama `fase-8-operacion`; E2E en CI pasa a la Fase 9)
 Gestión de pedidos en el dashboard (filtros, transiciones, historial), indicadores, estados vacíos/carga/error, revisión visual completa con el cliente en móvil.
 **Hecho cuando:** el cliente completa un pedido de punta a punta en *staging* desde su celular y lo gestiona desde el dashboard.
 

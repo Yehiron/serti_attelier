@@ -123,11 +123,13 @@ def render_email(delivery: NotificationDelivery, order: Order) -> EmailContent:
     else:
         titles = {
             "es": {
+                "order_shipped": "Tu pieza va en camino",
                 "order_paid": "Confirmación de compra",
                 "manual_payment_instructions": "Instrucciones de pago",
                 "reservation_expired": "Tu reserva venció",
             },
             "en": {
+                "order_shipped": "Your piece is on its way",
                 "order_paid": "Purchase confirmation",
                 "manual_payment_instructions": "Payment instructions",
                 "reservation_expired": "Your reservation expired",

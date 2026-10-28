@@ -49,7 +49,9 @@ Si un cambio en el frontend no se refleja en el navegador (la detección de camb
 
 Datos de ejemplo para desarrollo: `docker compose -f infra/docker-compose.dev.yml exec backend python manage.py seed_catalog`.
 
-Otros comandos: `make test`, `make lint`, `make logs`, `make migrate`, `make down`.
+Pruebas de navegador (Playwright, escritorio y móvil) contra el stack en marcha: `make seed` una vez y luego `make e2e`. Cada prueba de compra crea su propia pieza única (`manage.py e2e_piece`, solo con DEBUG) y simula Wompi sin salir a internet.
+
+Otros comandos: `make test`, `make lint`, `make e2e`, `make seed`, `make logs`, `make migrate`, `make down`.
 
 ### Estructura
 
