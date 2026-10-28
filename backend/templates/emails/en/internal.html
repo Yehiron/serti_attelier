@@ -1,0 +1,19 @@
+{% extends "emails/base.html" %}
+
+{% block content %}
+{{ title }} · {{ order.number }}<br>
+Date: {{ date }}<br>
+Customer: {{ order.customer_name }}<br>
+Email: {{ order.customer_email }}<br>
+Phone: {{ order.customer_phone }}<br>
+{% for item in items %}Piece: {{ item.name }} · SKU {{ item.sku }}{% if item.number %} · No. {{ item.number }}{% endif %} · {{ item.price }}<br>
+{% endfor %}Total: {{ total }}<br>
+Channel: {{ order.payment_channel }}<br>
+Status: {{ purchase_status }}<br>
+Certificate of authenticity requested: {{ certificate }} · {{ certificate_price }}<br>
+Delivery address: {{ address }}<br>
+Delivery notes: {{ order.shipping_notes }}<br>
+{% if event == 'needs_attention' %}URGENT · Reason: {{ reason }}<br>
+Requires a refund or contact with the customer.<br>
+{% endif %}Manage order: <a href="{{ admin_url }}" style="color:#591e24;">Manage order</a>
+{% endblock %}

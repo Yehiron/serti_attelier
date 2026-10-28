@@ -3,6 +3,7 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import timedelta
+from functools import partial
 from typing import Any
 from uuid import UUID
 
@@ -28,6 +29,7 @@ from apps.promotions.models import Coupon
 from apps.promotions.selectors import coupon_rules
 from apps.promotions.services import email_digest
 
+from . import events
 from .exceptions import CheckoutError
 from .models import Order, OrderItem, OrderStatusChange
 from .selectors import legal_versions
@@ -230,6 +232,8 @@ def create_order(
 
         create_wompi_attempt(order)
     record("orders.created", obj=order, request=request, diff={"payment_channel": [None, channel]})
+    if channel == "manual":
+        transaction.on_commit(lambda: events.manual_order_created(order.pk), robust=True)
     transaction.on_commit(lambda: empty_cart(cart))
     return order, True
 
@@ -293,5 +297,6 @@ def expire_stale_orders() -> int:
                 and not order.reservations.filter(status__in=["active", "converted"]).exists()
             ):
                 transition_status(order, "payment_status", "expired", note="reservation_expired")
+                transaction.on_commit(partial(events.order_expired, pk), robust=True)
                 count += 1
     return count

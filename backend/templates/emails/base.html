@@ -1,0 +1,25 @@
+{% load i18n %}<!doctype html>
+<html lang="{{ locale }}"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="color-scheme" content="light"><title>{{ title }}</title></head>
+<body style="margin:0;padding:0;background-color:#e9e3d0;color:#24241e;font-family:Helvetica,Arial,sans-serif;-webkit-text-size-adjust:100%;">
+<div style="display:none;max-height:0;overflow:hidden;mso-hide:all;">{% block preheader %}{{ title }} · {{ order.number }}{% endblock %}</div>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="background-color:#e9e3d0;">
+<tr><td align="center" style="padding:32px 12px;">
+<table role="presentation" width="600" cellspacing="0" cellpadding="0" border="0" style="width:100%;max-width:600px;background-color:#fbf9f3;">
+  <tr><td align="center" style="background-color:#fbf9f3;padding:32px 24px 22px;border-bottom:1px solid #a9946f;">
+    <img src="{{ monogram_url }}" width="72" height="72" alt="SERTI" style="display:block;border:0;width:72px;height:72px;">
+    <p style="margin:14px 0 0;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:#591e24;">{% block eyebrow %}SERTI · {{ order.number }}{% endblock %}</p>
+  </td></tr>
+  <tr><td style="padding:36px 32px 8px;">
+    <h1 style="margin:0 0 12px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-weight:400;font-size:34px;line-height:1.15;color:#591e24;">{% block heading %}{{ title }}{% endblock %}</h1>
+    {% block content %}{% endblock %}
+  </td></tr>
+  <tr><td style="padding:24px 32px 32px;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-top:1px solid #a9946f;padding-top:20px;font-size:13px;line-height:1.7;color:#4a4a40;">
+      {% block footer %}{% endblock %}
+      {% if support_email %}<a href="mailto:{{ support_email }}" style="color:#591e24;">{{ support_email }}</a>{% endif %}{% if support_email and whatsapp_url %} · {% endif %}{% if whatsapp_url %}<a href="{{ whatsapp_url }}" style="color:#591e24;">WhatsApp</a>{% endif %}{% if instagram_url %} · <a href="{{ instagram_url }}" style="color:#591e24;">Instagram</a>{% endif %}{% if facebook_url %} · <a href="{{ facebook_url }}" style="color:#591e24;">Facebook</a>{% endif %}
+      <p style="margin:12px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#736b51;">SERTI · Colombia</p>
+    </td></tr></table>
+  </td></tr>
+</table>
+</td></tr></table>
+</body></html>

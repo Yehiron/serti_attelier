@@ -78,3 +78,8 @@ for role in (PROPIETARIO, OPERACIONES):
             "payments.confirm_manual_payment",
         }
     )
+
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {"notifications.view_notificationdelivery", "notifications.resend_notificationdelivery"}
+    )

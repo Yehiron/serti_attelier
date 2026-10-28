@@ -1,0 +1,24 @@
+This piece is yours alone.
+{{ order.number }} · {{ date }}
+
+Thank you for choosing SERTI. Your payment was approved and we are preparing your piece with the care it deserves.
+
+{% for item in items %}- {{ item.name }}{% if item.number %} (Piece no. {{ item.number }}){% endif %}: {{ item.price }}
+{% endfor %}Subtotal: {{ subtotal }}
+{% if order.discount_cents %}Discount: -{{ discount }}
+{% endif %}Shipping: free in Colombia
+{% if order.wants_certificate %}Certificate of authenticity: {% if order.certificate_cents %}{{ certificate_price }}{% else %}included{% endif %}
+{% endif %}Total paid: {{ total }}
+
+Delivery: {{ order.customer_name }}, {{ address }}
+Status: Payment approved
+
+View your order: {{ order_url }}
+
+Caring for your piece: store it separately in a dry place and avoid perfume, lotions and chemicals.
+
+This is a purchase confirmation, not an electronic tax document.
+{% if support_email or whatsapp_url %}
+Questions? Write to us:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
+{% endif %}
+SERTI · Colombia

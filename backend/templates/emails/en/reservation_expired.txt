@@ -1,0 +1,12 @@
+Your reservation expired
+{{ order.number }}
+
+Your order's reservation ended without a confirmed payment, so the piece is available again if it hasn't found its owner.
+
+Back to the pieces: {{ catalog_url }}
+{% if whatsapp_url %}
+Fell in love with a piece that's gone? We can create a unique piece for you on WhatsApp: {{ whatsapp_url }}
+{% endif %}{% if support_email or whatsapp_url %}
+Questions? Write to us:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
+{% endif %}
+SERTI · Colombia

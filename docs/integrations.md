@@ -78,6 +78,8 @@ Sandbox con los datos de prueba de Wompi (tarjetas aprobada y rechazada, Nequi, 
 
 ## Correo transaccional
 
+**Implementación (Fase 7):** SMTP estándar de Django, configurado por variables de entorno (`EMAIL_HOST`, `EMAIL_PORT`, `EMAIL_HOST_USER`, `EMAIL_HOST_PASSWORD`, `EMAIL_USE_TLS`/`EMAIL_USE_SSL`). Funciona con cualquiera de los proveedores candidatos (SES, Postmark y Resend ofrecen SMTP), así que P-13 se decide sin cambiar código. Envíos asíncronos, idempotentes, con hasta 5 intentos (1, 5, 15 y 60 min); si fallan, el pedido y el pago no cambian. Se guarda solo el *hash* del destinatario y el tipo de error.
+
 - Proveedor por decidir (P-13): **Amazon SES** (más económico), **Postmark** (mejor entregabilidad transaccional) o **Resend** (API simple). Recomendación: Postmark o SES.
 - Dominio del cliente con **SPF, DKIM y DMARC** configurados antes del lanzamiento.
 - Plantillas HTML + texto plano, ES/EN, con identidad SERTI (paleta DC-06), probadas en Gmail, Outlook y Apple Mail.
@@ -102,6 +104,24 @@ El correo de confirmación incluye: número de pedido, piezas, precios, descuent
 - Meta cobra **por mensaje de plantilla entregado**, con tarifa por categoría y país. Verificar la tarifa vigente para Colombia al configurar la cuenta.
 - Variables: `WHATSAPP_PHONE_NUMBER_ID`, `WHATSAPP_ACCESS_TOKEN` (token de sistema, no personal), `WHATSAPP_ORDERS_RECIPIENT`, `WHATSAPP_TEMPLATE_NEW_ORDER`.
 - Si WhatsApp falla, el correo a SERTI sigue saliendo; reintentos con *backoff*; el pago no se toca (ADR-009).
+
+### Plantillas a registrar en Meta (categoría *utility*, idioma `es`)
+Implementado en la Fase 7 (`backend/apps/notifications/adapters.py`). Mientras no estén el número dedicado y la verificación (P-06), `WHATSAPP_PROVIDER=log` simula el envío sin red.
+
+`nuevo_pedido`:
+```text
+Nuevo pedido {{1}}. Cliente: {{2}}. Piezas: {{3}}. Total: {{4}}.
+Destino: {{5}}. Certificado: {{6}}. Revisar pedido: {{7}}
+```
+
+`pedido_requiere_atencion`:
+```text
+URGENTE: el pedido {{1}} requiere atención. Cliente: {{2}}. Piezas: {{3}}.
+Total: {{4}}. Destino: {{5}}. Certificado: {{6}}. Revisar pedido: {{7}}.
+Motivo: {{8}}. Requiere reembolso o contacto con el cliente.
+```
+
+API: `POST https://graph.facebook.com/{WHATSAPP_API_VERSION}/{WHATSAPP_PHONE_NUMBER_ID}/messages` (versión por defecto `v26.0`, verificada en la documentación de Meta en octubre de 2026).
 
 ### Botón flotante y CTA (COM-04, CAT-07, DC-09)
 - Enlaces `https://wa.me/<número>?text=<mensaje URL-encoded>`; **no** usan la API ni tienen costo.

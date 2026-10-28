@@ -1,0 +1,6 @@
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0 4px;border-top:1px solid #a9946f;">
+{% for item in items %}<tr>
+  <td style="padding:14px 0;border-bottom:1px solid #e1d9c0;font-family:'Cormorant Garamond',Georgia,serif;font-size:20px;color:#24241e;">{{ item.name }}{% if item.number %}<br><span style="font-family:Helvetica,Arial,sans-serif;font-size:12px;color:#736b51;">{{ piece_label }} {{ item.number }}</span>{% endif %}</td>
+  <td align="right" style="padding:14px 0;border-bottom:1px solid #e1d9c0;font-size:15px;white-space:nowrap;vertical-align:top;">{{ item.price }}</td>
+</tr>{% endfor %}
+</table>

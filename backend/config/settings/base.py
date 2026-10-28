@@ -244,3 +244,20 @@ CELERY_BEAT_SCHEDULE["reconcile-payments"] = {
     "task": "apps.payments.tasks.reconcile_pending",
     "schedule": 300.0,
 }
+
+# Transactional notifications; SMTP provider remains deployment-specific (P-13).
+INSTALLED_APPS.append("apps.notifications")
+SERTI_ORDERS_EMAIL = env("SERTI_ORDERS_EMAIL", default="")
+EMAIL_TIMEOUT = env.int("EMAIL_TIMEOUT", default=15)
+WHATSAPP_PROVIDER = env("WHATSAPP_PROVIDER", default="log")
+WHATSAPP_API_VERSION = env("WHATSAPP_API_VERSION", default="v26.0")
+WHATSAPP_PHONE_NUMBER_ID = env("WHATSAPP_PHONE_NUMBER_ID", default="")
+WHATSAPP_ACCESS_TOKEN = env("WHATSAPP_ACCESS_TOKEN", default="")
+WHATSAPP_ORDERS_RECIPIENT = env("WHATSAPP_ORDERS_RECIPIENT", default="")
+WHATSAPP_TEMPLATE_NEW_ORDER = env("WHATSAPP_TEMPLATE_NEW_ORDER", default="")
+WHATSAPP_TEMPLATE_NEEDS_ATTENTION = env("WHATSAPP_TEMPLATE_NEEDS_ATTENTION", default="")
+WHATSAPP_TEMPLATE_LANG = env("WHATSAPP_TEMPLATE_LANG", default="es")
+CELERY_BEAT_SCHEDULE["retry-notifications"] = {
+    "task": "apps.notifications.tasks.retry_failed",
+    "schedule": 600.0,
+}

@@ -47,7 +47,7 @@ Carrito, `pricing`, cupones y precio rebajado (DC-02, P-04), envío gratis Colom
 `WompiChannel` (firma, Widget, webhook, conciliación, pagos asíncronos) y `ManualChannel` (reserva 24 h, confirmación en el dashboard, vencimiento) (DC-14).
 **Hecho cuando:** E2E en sandbox — aprobado, rechazado y reintento, pendiente → conciliado, evento falso rechazado, efectivo en corresponsal reservado, pago manual confirmado y pago manual vencido.
 
-### Fase 7 — Notificaciones
+### Fase 7 — Notificaciones ✅ (rama `fase-7-notificaciones`; WhatsApp en modo simulado hasta P-06)
 Adaptadores de correo y WhatsApp Cloud, plantillas ES/EN, entregas idempotentes, reintentos.
 **Hecho cuando:** un pago aprobado genera exactamente un correo al comprador, uno a SERTI y un WhatsApp a SERTI; con el proveedor caído, se reintenta y el pedido sigue pagado.
 

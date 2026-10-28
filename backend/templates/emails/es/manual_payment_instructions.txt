@@ -1,0 +1,24 @@
+Tu pieza está reservada
+{{ order.number }} · {{ date }}
+
+Recibimos tu pedido. Te reservamos la pieza mientras completas el pago:
+
+{{ instructions }}
+
+Paga antes de: {{ deadline }}
+
+{% for item in items %}- {{ item.name }}{% if item.number %} (Pieza n.º {{ item.number }}){% endif %}: {{ item.price }}
+{% endfor %}Subtotal: {{ subtotal }}
+{% if order.discount_cents %}Descuento: -{{ discount }}
+{% endif %}Envío: gratis en Colombia
+{% if order.wants_certificate %}Certificado de autenticidad: {% if order.certificate_cents %}{{ certificate_price }}{% else %}incluido{% endif %}
+{% endif %}Total a pagar: {{ total }}
+
+SERTI confirmará tu pago al recibirlo y te enviará la confirmación de compra.
+Ver tu pedido: {{ order_url }}
+
+Esta es una confirmación de compra; no es un comprobante fiscal electrónico.
+{% if support_email or whatsapp_url %}
+¿Preguntas? Escríbenos:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
+{% endif %}
+SERTI · Colombia

@@ -174,6 +174,7 @@ def _approve(
                 },
             ) from None
         order.needs_attention = True
+        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
     transition_status(order, "payment_status", "approved", request=request)
     order.payment_status = "approved"
     order.paid_at = timezone.now()
@@ -202,6 +203,7 @@ def apply_transaction(tx: WompiTransaction, *, source: str) -> str:
         .exists()
     ):
         order.needs_attention = True
+        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
         order.save(update_fields=["needs_attention"])
         record("payments.mismatch", obj=attempt)
         outcome = "mismatch"
@@ -213,6 +215,7 @@ def apply_transaction(tx: WompiTransaction, *, source: str) -> str:
         order.payment_status in {"approved", "voided"} or attempt.status == "VOIDED"
     ):
         order.needs_attention = True
+        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
         order.save(update_fields=["needs_attention"])
         outcome = "mismatch"
     elif (tx.status not in {"APPROVED", "VOIDED"} and attempt.status != "PENDING") or (
@@ -231,6 +234,7 @@ def apply_transaction(tx: WompiTransaction, *, source: str) -> str:
         elif tx.status == "VOIDED" and order.payment_status == "approved":
             transition_status(order, "payment_status", "voided")
             order.needs_attention = True
+            transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
             order.save(update_fields=["needs_attention"])
         if tx.status != "APPROVED":
             record(f"payments.{tx.status.lower()}", obj=attempt)

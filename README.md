@@ -2,7 +2,7 @@
 
 Plataforma de venta de joyería de piezas únicas para SERTI: sitio público en español e inglés, compra como invitado, pagos con Wompi y panel administrativo.
 
-> Estado: **Fase 4 — sitio público y contenido editable**. Catálogo, dashboard con roles y 2FA, CMS con vista previa y sitio en ES/EN; el carrito y los pagos llegan en las Fases 5 y 6.
+> Estado: **Fase 7 — notificaciones**. Catálogo de piezas únicas, dashboard con roles y 2FA, CMS con vista previa, sitio en ES/EN, carrito y checkout invitado, pagos con Wompi y pago manual, y correos/WhatsApp de pedidos. Pendiente: Fases 8 (operación y pulido) y 9 (producción).
 
 ## Documentación
 

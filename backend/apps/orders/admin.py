@@ -66,9 +66,10 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     readonly_fields = tuple(f.name for f in Order._meta.fields)
 
     def get_inlines(self, request: HttpRequest, obj: Any = None) -> tuple[Any, ...]:
+        from apps.notifications.admin import DeliveryInline
         from apps.payments.admin import AttemptInline, OrderEventInline
 
-        return (*self.inlines, AttemptInline, OrderEventInline)
+        return (*self.inlines, AttemptInline, OrderEventInline, DeliveryInline)
 
     def change_view(
         self,
