@@ -19,17 +19,28 @@ class PieceReservation(models.Model):
         RELEASED = "released", _("Liberada")
         CONVERTED = "converted", _("Convertida")
 
-    piece = models.ForeignKey(Piece, on_delete=models.PROTECT, related_name="reservations")
-    order = models.ForeignKey(
-        "orders.Order", null=True, blank=True, on_delete=models.PROTECT, related_name="reservations"
+    piece = models.ForeignKey(
+        Piece, verbose_name=_("Pieza"), on_delete=models.PROTECT, related_name="reservations"
     )
-    kind = models.CharField(max_length=6, choices=Kind)
-    status = models.CharField(max_length=9, choices=Status, default=Status.ACTIVE)
-    reference = models.CharField(max_length=64, blank=True)
-    expires_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
+    order = models.ForeignKey(
+        "orders.Order",
+        verbose_name=_("Pedido"),
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="reservations",
+    )
+    kind = models.CharField(verbose_name=_("Tipo"), max_length=6, choices=Kind)
+    status = models.CharField(
+        verbose_name=_("Estado"), max_length=9, choices=Status, default=Status.ACTIVE
+    )
+    reference = models.CharField(verbose_name=_("Referencia"), max_length=64, blank=True)
+    expires_at = models.DateTimeField(verbose_name=_("Vence el"))
+    created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
 
     class Meta:
+        verbose_name = _("reserva de pieza")
+        verbose_name_plural = _("reservas de piezas")
         constraints = [
             models.UniqueConstraint(
                 fields=["piece"],
@@ -38,7 +49,6 @@ class PieceReservation(models.Model):
             )
         ]
         indexes = [models.Index(fields=["status", "expires_at"])]
-        verbose_name = _("reserva de pieza")
 
     def __str__(self) -> str:
         return f"{self.piece_id}: {self.status}"
@@ -61,18 +71,30 @@ class PieceStatusChange(models.Model):
         RELEASED = "released", _("Liberada")
         ADMIN = "admin", _("Administración")
 
-    piece = models.ForeignKey(Piece, on_delete=models.PROTECT, related_name="status_changes")
-    from_state = models.CharField(max_length=12, choices=Piece.SaleState)
-    to_state = models.CharField(max_length=12, choices=Piece.SaleState)
-    reason = models.CharField(max_length=30, choices=Reason)
-    ref = models.CharField(max_length=64, blank=True)
-    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
-    at = models.DateTimeField(auto_now_add=True)
+    piece = models.ForeignKey(
+        Piece, verbose_name=_("Pieza"), on_delete=models.PROTECT, related_name="status_changes"
+    )
+    from_state = models.CharField(
+        verbose_name=_("Estado anterior"), max_length=12, choices=Piece.SaleState
+    )
+    to_state = models.CharField(
+        verbose_name=_("Estado nuevo"), max_length=12, choices=Piece.SaleState
+    )
+    reason = models.CharField(verbose_name=_("Motivo"), max_length=30, choices=Reason)
+    ref = models.CharField(verbose_name=_("Referencia"), max_length=64, blank=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Responsable"),
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+    at = models.DateTimeField(verbose_name=_("Fecha"), auto_now_add=True)
     objects = ImmutableStatusQuerySet.as_manager()
 
     class Meta:
-        ordering = ["-at"]
         verbose_name = _("cambio de estado de pieza")
+        verbose_name_plural = _("cambios de estado de piezas")
+        ordering = ["-at"]
 
     def __str__(self) -> str:
         return f"{self.piece_id}: {self.from_state} → {self.to_state}"

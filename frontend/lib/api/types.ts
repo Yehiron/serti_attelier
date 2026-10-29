@@ -6,7 +6,7 @@ export type Category = Taxon & { children: Taxon[] };
 export type Taxonomy = { categories: Category[]; collections: Taxon[]; stones: Taxon[]; materials: Taxon[] };
 export type SaleState = 'available' | 'reserved' | 'sold' | 'preorder';
 export type LiveState = SaleState | 'unavailable';
-export type PieceCard = Named & { sku: string; category: Named | null; stones: Named[]; price: Money; sale_price: Money | null; sale_state: SaleState; is_new: boolean; image: Image | null };
+export type PieceCard = Named & { sku: string; category: Named | null; stones: Named[]; price: Money; sale_price: Money | null; sale_state: SaleState; is_new: boolean; image: Image | null; hover_image?: Image | null };
 export type PieceDetail = PieceCard & {
   piece_number: string; short_description: string; long_description: string; story: string; care: string;
   attributes: { ring_size?: string | number; length_mm?: number; metal?: string; metal_purity?: string; carats?: number; weight_g?: number; dimensions_mm?: string }; materials: Named[]; collections: Named[];

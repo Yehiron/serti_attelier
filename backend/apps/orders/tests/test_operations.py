@@ -509,3 +509,84 @@ def test_shipped_delivery_sends_once(
     deliver(delivery.pk)
     assert len(mail.outbox) == 1
     assert "Tu pieza va en camino" in mail.outbox[0].subject
+
+
+@pytest.mark.parametrize(
+    "field,value,label",
+    [
+        ("payment_status", "approved", "Aprobado"),
+        ("payment_status", "awaiting_manual_payment", "Pendiente de pago manual"),
+        ("payment_status", "expired", "Vencido"),
+        ("fulfillment_status", "unfulfilled", "Sin preparar"),
+        ("fulfillment_status", "shipped", "Enviado"),
+    ],
+)
+def test_metric_status_labels_preserve_filters(
+    order: Order, operator: User, field: str, value: str, label: str
+) -> None:
+    from urllib.parse import parse_qs, urlsplit
+
+    from django.utils.translation import override
+
+    Order.objects.filter(pk=order.pk).update(**{field: value})
+    with override("es"):
+        row = compute_metrics()["groups"][field][0]
+        assert str(row["label"]) == label
+        assert parse_qs(urlsplit(row["url"]).query) == {field: [value]}
+        assert row["highlight"] == (value == "awaiting_manual_payment")
+        browser = Client()
+        browser.force_login(operator)
+        response = browser.get(row["url"])
+        assert response.status_code == 200
+        assert response.context["cl"].result_count == row["count"] == 1
+
+
+def test_spanish_admin_labels_and_login() -> None:
+    from django.apps import apps
+    from django.utils.translation import override
+
+    titles = {
+        "catalog": "Catálogo",
+        "inventory": "Inventario",
+        "orders": "Pedidos",
+        "payments": "Pagos",
+        "promotions": "Promociones",
+        "notifications": "Notificaciones",
+        "core": "Configuración",
+        "cms": "Contenido",
+        "accounts": "Cuentas",
+        "audit": "Auditoría",
+        "cart": "Carritos",
+        "pricing": "Precios",
+        "axes": "Seguridad de acceso",
+        "otp_totp": "Verificación en dos pasos",
+    }
+    with override("es"):
+        for label, title in titles.items():
+            config = apps.get_app_config(label)
+            assert str(config.verbose_name) == title
+            if label not in ("axes", "otp_totp"):
+                for model in config.get_models():
+                    assert "verbose_name" in model._meta.original_attrs
+                    assert "verbose_name_plural" in model._meta.original_attrs
+        for model_name, plural in (
+            ("catalog.Collection", "colecciones"),
+            ("catalog.PieceImage", "imágenes de piezas"),
+            ("core.SiteSettings", "configuración del sitio"),
+            ("axes.AccessAttempt", "intentos de acceso"),
+            ("axes.AccessFailureLog", "fallos de acceso"),
+            ("axes.AccessLog", "registros de acceso"),
+            ("otp_totp.TOTPDevice", "TOTP devices"),
+        ):
+            assert str(apps.get_model(model_name)._meta.verbose_name_plural) == plural
+        for label in ("axes", "otp_totp"):
+            for model in apps.get_app_config(label).get_models():
+                if model in site._registry:
+                    assert reverse(f"admin:{label}_{model._meta.model_name}_changelist")
+        response = Client().get(reverse("admin:login"), HTTP_ACCEPT_LANGUAGE="es")
+        assert response.status_code == 200
+        html = response.content.decode()
+        assert "Volver al sitio" in html
+        assert "Iniciar sesión" in html
+        assert "Return to site" not in html
+        assert "Claro" in html and "Oscuro" in html and "Sistema" in html

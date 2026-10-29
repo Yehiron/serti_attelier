@@ -8,25 +8,38 @@ from django.utils.translation import gettext_lazy as _
 
 
 class Coupon(models.Model):
-    code = models.CharField(max_length=50)
+    code = models.CharField(verbose_name=_("Código"), max_length=50)
     kind = models.CharField(
-        max_length=7, choices=[("percent", _("Porcentaje")), ("fixed", _("Fijo"))]
+        verbose_name=_("Tipo"),
+        max_length=7,
+        choices=[("percent", _("Porcentaje")), ("fixed", _("Fijo"))],
     )
-    value = models.PositiveBigIntegerField()
-    starts_at = models.DateTimeField(null=True, blank=True)
-    ends_at = models.DateTimeField(null=True, blank=True)
-    max_uses = models.PositiveIntegerField(null=True, blank=True)
-    max_uses_per_email = models.PositiveIntegerField(null=True, blank=True)
-    min_subtotal_cents = models.PositiveBigIntegerField(default=0)
-    applies_to_sale_items = models.BooleanField(default=False)
-    categories = models.ManyToManyField("catalog.Category", blank=True)
-    collections = models.ManyToManyField("catalog.Collection", blank=True)
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    value = models.PositiveBigIntegerField(verbose_name=_("Valor"))
+    starts_at = models.DateTimeField(verbose_name=_("Válido desde"), null=True, blank=True)
+    ends_at = models.DateTimeField(verbose_name=_("Válido hasta"), null=True, blank=True)
+    max_uses = models.PositiveIntegerField(verbose_name=_("Usos máximos"), null=True, blank=True)
+    max_uses_per_email = models.PositiveIntegerField(
+        verbose_name=_("Usos máximos por correo"), null=True, blank=True
+    )
+    min_subtotal_cents = models.PositiveBigIntegerField(
+        verbose_name=_("Subtotal mínimo (centavos)"), default=0
+    )
+    applies_to_sale_items = models.BooleanField(
+        verbose_name=_("Aplica a piezas en oferta"), default=False
+    )
+    categories = models.ManyToManyField(
+        "catalog.Category", verbose_name=_("Categorías"), blank=True
+    )
+    collections = models.ManyToManyField(
+        "catalog.Collection", verbose_name=_("Colecciones"), blank=True
+    )
+    is_active = models.BooleanField(verbose_name=_("Activo"), default=True)
+    created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True)
 
     class Meta:
         verbose_name = _("cupón")
+        verbose_name_plural = _("cupones")
         constraints = [
             models.UniqueConstraint(Upper("code"), name="coupon_upper_code_unique"),
             models.CheckConstraint(
@@ -63,10 +76,14 @@ class Coupon(models.Model):
 
 
 class CouponRedemption(models.Model):
-    coupon = models.ForeignKey(Coupon, on_delete=models.PROTECT)
-    order = models.OneToOneField("orders.Order", on_delete=models.PROTECT)
-    email_hash = models.CharField(max_length=64)
-    created_at = models.DateTimeField(auto_now_add=True)
+    coupon = models.ForeignKey(Coupon, verbose_name=_("Cupón"), on_delete=models.PROTECT)
+    order = models.OneToOneField("orders.Order", verbose_name=_("Pedido"), on_delete=models.PROTECT)
+    email_hash = models.CharField(verbose_name=_("Huella del correo"), max_length=64)
+    created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
+
+    class Meta:
+        verbose_name = _("uso de cupón")
+        verbose_name_plural = _("usos de cupones")
 
     def __str__(self) -> str:
         return f"{self.coupon_id}: {self.order_id}"

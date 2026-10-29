@@ -17,16 +17,29 @@ class ImmutableQuerySet(models.QuerySet["AuditLog"]):
 
 
 class AuditLog(models.Model):
-    actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
-    actor_repr = models.CharField(max_length=150, blank=True)
-    action = models.CharField(max_length=80)
-    content_type = models.ForeignKey(ContentType, null=True, on_delete=models.SET_NULL)
-    object_id = models.CharField(max_length=255, null=True)  # noqa: DJ001 - nullable audit target
-    object_repr = models.CharField(max_length=300, null=True)  # noqa: DJ001 - nullable audit target
-    diff = models.JSONField(default=dict)
-    ip = models.GenericIPAddressField(null=True)
-    user_agent = models.CharField(max_length=300, blank=True)
-    at = models.DateTimeField(auto_now_add=True, db_index=True)
+    actor = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Responsable"),
+        null=True,
+        on_delete=models.SET_NULL,
+    )
+    actor_repr = models.CharField(
+        verbose_name=_("Nombre del responsable"), max_length=150, blank=True
+    )
+    action = models.CharField(verbose_name=_("Acción"), max_length=80)
+    content_type = models.ForeignKey(
+        ContentType, verbose_name=_("Tipo de objeto"), null=True, on_delete=models.SET_NULL
+    )
+    object_id = models.CharField(  # noqa: DJ001 - nullable audit target
+        verbose_name=_("Identificador del objeto"), max_length=255, null=True
+    )
+    object_repr = models.CharField(  # noqa: DJ001 - nullable audit target
+        verbose_name=_("Descripción del objeto"), max_length=300, null=True
+    )
+    diff = models.JSONField(verbose_name=_("Cambios"), default=dict)
+    ip = models.GenericIPAddressField(verbose_name=_("Dirección IP"), null=True)
+    user_agent = models.CharField(verbose_name=_("Navegador"), max_length=300, blank=True)
+    at = models.DateTimeField(verbose_name=_("Fecha"), auto_now_add=True, db_index=True)
 
     objects = ImmutableQuerySet.as_manager()
 

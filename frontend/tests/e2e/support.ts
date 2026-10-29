@@ -12,8 +12,8 @@ function manage(...args: string[]): string {
 export type Piece = { sku: string; slug_es: string; slug_en: string; name: string };
 
 /** A fresh, published, available unique piece for this test only. */
-export function createPiece(): Piece {
-  const lines = manage('e2e_piece').trim().split('\n');
+export function createPiece({ hover = false } = {}): Piece {
+  const lines = manage('e2e_piece', ...(hover ? ['--hover'] : [])).trim().split('\n');
   return JSON.parse(lines[lines.length - 1]) as Piece;
 }
 

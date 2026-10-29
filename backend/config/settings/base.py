@@ -38,8 +38,8 @@ INSTALLED_APPS = [
     "drf_spectacular",
     "apps.core",
     "django_otp",
-    "django_otp.plugins.otp_totp",
-    "axes",
+    "config.admin_apps.SpanishTOTPConfig",
+    "config.admin_apps.SpanishAxesConfig",
     "apps.accounts",
     "apps.audit",
     "apps.catalog",
@@ -107,6 +107,7 @@ AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.NumericPasswordValidator"},
 ]
 
+LOCALE_PATHS = [BASE_DIR / "locale"]
 LANGUAGE_CODE = "es"
 LANGUAGES = [("es", "Español"), ("en", "English")]
 TIME_ZONE = "America/Bogota"

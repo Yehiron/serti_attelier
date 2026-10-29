@@ -1,0 +1,288 @@
+msgid ""
+msgstr ""
+"Language: es\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Plural-Forms: nplurals=2; plural=(n != 1);\n"
+
+msgid "Return to site"
+msgstr "Volver al sitio"
+
+msgid "access attempt"
+msgstr "intento de acceso"
+
+msgid "access attempts"
+msgstr "intentos de acceso"
+
+msgid "access failure"
+msgstr "fallo de acceso"
+
+msgid "access failures"
+msgstr "fallos de acceso"
+
+msgid "access log"
+msgstr "registro de acceso"
+
+msgid "access logs"
+msgstr "registros de acceso"
+
+msgid "access attempt expiration"
+msgstr "vencimiento de intento de acceso"
+
+msgid "access attempt expirations"
+msgstr "vencimientos de intentos de acceso"
+
+msgid "Action"
+msgstr "Acción"
+
+msgid "Add"
+msgstr "Añadir"
+
+msgid "Add row"
+msgstr "Añadir fila"
+
+msgid "After you"
+msgstr "Después de ti"
+
+msgid "All applications"
+msgstr "Todas las aplicaciones"
+
+msgid "Apply Filters"
+msgstr "Aplicar filtros"
+
+msgid "Available shortcuts"
+msgstr "Atajos disponibles"
+
+msgid "Cancel"
+msgstr "Cancelar"
+
+msgid "Change"
+msgstr "Cambiar"
+
+msgid "Change password"
+msgstr "Cambiar contraseña"
+
+msgid "Changelist shortcuts"
+msgstr "Atajos de la lista"
+
+msgid "Choose file to upload"
+msgstr "Seleccionar archivo para subir"
+
+msgid "Clear"
+msgstr "Limpiar"
+
+msgid "Clear all filters"
+msgstr "Limpiar todos los filtros"
+
+msgid "Clear selection"
+msgstr "Limpiar selección"
+
+msgid "Click here to select the objects across all pages"
+msgstr "Seleccionar los objetos de todas las páginas"
+
+msgid "Click to cancel"
+msgstr "Cancelar"
+
+msgid "Click to download"
+msgstr "Descargar"
+
+msgid "Close"
+msgstr "Cerrar"
+
+msgid "Command tool shortcuts"
+msgstr "Atajos de la herramienta de comandos"
+
+msgid "Create new record"
+msgstr "Crear registro"
+
+msgid "Dark"
+msgstr "Oscuro"
+
+msgid "Date/time"
+msgstr "Fecha y hora"
+
+msgid "Delete"
+msgstr "Eliminar"
+
+msgid "False"
+msgstr "Falso"
+
+msgid "Filters"
+msgstr "Filtros"
+
+msgid "Forgotten your password or username?"
+msgstr "¿Olvidaste tu contraseña o nombre de usuario?"
+
+msgid "General"
+msgstr "General"
+
+msgid "Global shortcuts"
+msgstr "Atajos globales"
+
+msgid "Go back"
+msgstr "Volver"
+
+msgid "Hide counts"
+msgstr "Ocultar cantidades"
+
+msgid "History"
+msgstr "Historial"
+
+msgid "Home"
+msgstr "Inicio"
+
+msgid "Image preview"
+msgstr "Vista previa de imagen"
+
+msgid "Light"
+msgstr "Claro"
+
+msgid "Log in"
+msgstr "Iniciar sesión"
+
+msgid "Log in again"
+msgstr "Iniciar sesión de nuevo"
+
+msgid "Log out"
+msgstr "Cerrar sesión"
+
+msgid "Navigate"
+msgstr "Navegar"
+
+msgid "Next"
+msgstr "Siguiente"
+
+msgid "No data"
+msgstr "Sin datos"
+
+msgid "No results found"
+msgstr "No se encontraron resultados"
+
+msgid "No, take me back"
+msgstr "No, volver"
+
+msgid "Nothing matched your search"
+msgstr "No hay coincidencias para tu búsqueda"
+
+msgid "Objects"
+msgstr "Objetos"
+
+msgid "Open command tool"
+msgstr "Abrir herramienta de comandos"
+
+msgid "Open selection"
+msgstr "Abrir selección"
+
+msgid "Open selection in new tab"
+msgstr "Abrir selección en una pestaña nueva"
+
+msgid "Open shortcuts list"
+msgstr "Abrir lista de atajos"
+
+msgid "Previous"
+msgstr "Anterior"
+
+msgid "Recent actions"
+msgstr "Acciones recientes"
+
+msgid "Recent searches"
+msgstr "Búsquedas recientes"
+
+msgid "Record picture"
+msgstr "Imagen del registro"
+
+msgid "Remove from sorting"
+msgstr "Quitar del orden"
+
+msgid "Reset filters"
+msgstr "Restablecer filtros"
+
+msgid "Run"
+msgstr "Ejecutar"
+
+msgid "Run the selected action"
+msgstr "Ejecutar la acción seleccionada"
+
+msgid "Save"
+msgstr "Guardar"
+
+msgid "Save and add another"
+msgstr "Guardar y añadir otro"
+
+msgid "Save and continue editing"
+msgstr "Guardar y continuar editando"
+
+msgid "Save and view"
+msgstr "Guardar y ver"
+
+msgid "Save as new"
+msgstr "Guardar como nuevo"
+
+msgid "Search apps and models..."
+msgstr "Buscar aplicaciones y modelos…"
+
+msgid "Select"
+msgstr "Seleccionar"
+
+msgid "Show all"
+msgstr "Mostrar todo"
+
+msgid "Show counts"
+msgstr "Mostrar cantidades"
+
+msgid "Submit"
+msgstr "Enviar"
+
+msgid "Summary"
+msgstr "Resumen"
+
+msgid "System"
+msgstr "Sistema"
+
+msgid "This item will be deleted."
+msgstr "Se eliminará este elemento."
+
+msgid "This page yielded into no results."
+msgstr "Esta página no tiene resultados."
+
+msgid "Toggle dark/light mode"
+msgstr "Alternar modo claro u oscuro"
+
+msgid "Toggle filter"
+msgstr "Mostrar u ocultar filtro"
+
+msgid "Toggle password visibility"
+msgstr "Mostrar u ocultar contraseña"
+
+msgid "Toggle sidebar"
+msgstr "Mostrar u ocultar barra lateral"
+
+msgid "Toggle sorting"
+msgstr "Cambiar orden"
+
+msgid "True"
+msgstr "Verdadero"
+
+msgid "Type to search"
+msgstr "Escribe para buscar"
+
+msgid "Unknown"
+msgstr "Desconocido"
+
+msgid "Unknown content"
+msgstr "Contenido desconocido"
+
+msgid "User"
+msgstr "Usuario"
+
+msgid "View"
+msgstr "Ver"
+
+msgid "View on site"
+msgstr "Ver en el sitio"
+
+msgid "View site"
+msgstr "Ver el sitio"
+
+msgid "You have been successfully logged out from the administration"
+msgstr "Has cerrado sesión en la administración"
+

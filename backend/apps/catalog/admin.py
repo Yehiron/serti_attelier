@@ -5,6 +5,7 @@ from typing import Any, ClassVar
 
 from django.contrib import admin, messages
 from django.core.exceptions import ValidationError
+from django.core.files.storage import default_storage
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponseRedirect
 from django.urls import reverse
@@ -17,7 +18,7 @@ from apps.core.exceptions import DomainError
 from apps.inventory.services import set_preorder
 
 from . import services
-from .forms import PieceForm, ValidatedImageForm
+from .forms import PieceForm, PieceImageForm, PieceImageFormSet, ValidatedImageForm
 from .models import Category, Collection, CollectionPiece, Material, Piece, PieceImage, Stone
 from .selectors import missing_english_translation
 
@@ -47,11 +48,39 @@ admin.site.register(Material, TranslatedAdmin)
 
 class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     model = PieceImage
-    form: Any = ValidatedImageForm
+    form: Any = PieceImageForm
+    formset = PieceImageFormSet
     extra = 0
-    fields = ("original", "alt", "position", "is_primary", "processing_status", "error")
-    readonly_fields = ("processing_status", "error")
+    fields = (
+        "preview",
+        "original",
+        "alt",
+        "position",
+        "is_primary",
+        "is_hover",
+        "processing_status",
+        "error",
+    )
+    readonly_fields = ("preview", "processing_status", "error")
     ordering = ("position",)
+
+    @admin.display(description=_("Vista previa"))
+    def preview(self, obj: PieceImage) -> str:
+        paths = obj.renditions.get("webp", {}) if obj.processing_status == "ready" else {}
+        src = (
+            default_storage.url(paths[min(paths, key=int)])
+            if paths
+            else (obj.original.url if obj.original else None)
+        )
+        return (
+            format_html(
+                '<img src="{}" alt="{}" style="width:64px;height:80px;object-fit:contain">',
+                src,
+                obj.alt,
+            )
+            if src
+            else "—"
+        )
 
 
 class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is untyped.
@@ -229,7 +258,7 @@ class PieceAdmin(TranslatedAdmin):
 
 @admin.register(PieceImage)
 class PieceImageAdmin(TabbedTranslationAdmin[PieceImage], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
-    form: Any = ValidatedImageForm
+    form: Any = PieceImageForm
     readonly_fields = ("renditions", "width", "height", "processing_status", "error")
 
     def save_model(self, request: HttpRequest, obj: PieceImage, form: Any, change: bool) -> None:

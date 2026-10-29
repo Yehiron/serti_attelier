@@ -15,19 +15,21 @@ def validate_https(value: str) -> None:
 
 
 class Timestamped(models.Model):
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True)
 
     class Meta:
         abstract = True
 
 
 class Illustrated(Timestamped):
-    image = models.ImageField(upload_to="cms/", blank=True)
-    image_alt = models.CharField(max_length=300, blank=True)
-    renditions = models.JSONField(default=dict, blank=True, editable=False)
-    width = models.PositiveIntegerField(default=0, editable=False)
-    height = models.PositiveIntegerField(default=0, editable=False)
+    image = models.ImageField(verbose_name=_("Imagen"), upload_to="cms/", blank=True)
+    image_alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300, blank=True)
+    renditions = models.JSONField(
+        verbose_name=_("Versiones de imagen"), default=dict, blank=True, editable=False
+    )
+    width = models.PositiveIntegerField(verbose_name=_("Ancho"), default=0, editable=False)
+    height = models.PositiveIntegerField(verbose_name=_("Alto"), default=0, editable=False)
 
     class Meta:
         abstract = True
@@ -54,21 +56,25 @@ class Page(Timestamped):
         PERSONALIZE = "personalize", _("Personalización")
         CONTACT = "contact", _("Contacto")
 
-    kind = models.CharField(max_length=20, choices=Kind, unique=True)
-    title = models.CharField(max_length=250)
-    slug = models.SlugField(max_length=250, blank=True)
-    body = models.TextField(blank=True)
+    kind = models.CharField(verbose_name=_("Tipo"), max_length=20, choices=Kind, unique=True)
+    title = models.CharField(verbose_name=_("Título"), max_length=250)
+    slug = models.SlugField(verbose_name=_("Slug"), max_length=250, blank=True)
+    body = models.TextField(verbose_name=_("Contenido"), blank=True)
     status = models.CharField(
+        verbose_name=_("Estado"),
         max_length=10,
         choices=[("draft", _("Borrador")), ("published", _("Publicada"))],
         default="draft",
         editable=False,
     )
-    version = models.PositiveIntegerField(default=0, editable=False)
-    published_at = models.DateTimeField(null=True, blank=True, editable=False)
+    version = models.PositiveIntegerField(verbose_name=_("Versión"), default=0, editable=False)
+    published_at = models.DateTimeField(
+        verbose_name=_("Publicada el"), null=True, blank=True, editable=False
+    )
 
     class Meta:
         verbose_name = _("página")
+        verbose_name_plural = _("páginas")
         constraints = [
             models.UniqueConstraint(fields=["slug_es"], name="cms_page_slug_es_unique"),
             models.UniqueConstraint(
@@ -87,6 +93,7 @@ class HomeSection(Illustrated):
 
     objects: MultilingualManager[HomeSection] = MultilingualManager()
     kind = models.CharField(
+        verbose_name=_("Tipo"),
         max_length=24,
         choices=[
             ("hero", _("Portada")),
@@ -98,9 +105,10 @@ class HomeSection(Illustrated):
             ("banner", _("Banner")),
         ],
     )
-    position = models.PositiveIntegerField(default=0)
-    is_visible = models.BooleanField(default=True)
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
+    is_visible = models.BooleanField(verbose_name=_("Visible"), default=True)
     title = models.CharField(
+        verbose_name=_("Título"),
         max_length=300,
         blank=True,
         help_text=_(
@@ -108,10 +116,11 @@ class HomeSection(Illustrated):
             "Ejemplo: Un poco de tierra. / Un poco de eternidad."
         ),
     )
-    subtitle = models.TextField(blank=True)
-    body = models.TextField(blank=True)
-    cta_label = models.CharField(max_length=150, blank=True)
+    subtitle = models.TextField(verbose_name=_("Subtítulo"), blank=True)
+    body = models.TextField(verbose_name=_("Contenido"), blank=True)
+    cta_label = models.CharField(verbose_name=_("Texto del enlace"), max_length=150, blank=True)
     cta_kind = models.CharField(
+        verbose_name=_("Tipo de enlace"),
         max_length=20,
         default="none",
         choices=[
@@ -129,21 +138,43 @@ class HomeSection(Illustrated):
         ],
     )
     cta_category = models.ForeignKey(
-        "catalog.Category", on_delete=models.PROTECT, null=True, blank=True
+        "catalog.Category",
+        verbose_name=_("Categoría del enlace"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
     )
-    cta_stone = models.ForeignKey("catalog.Stone", on_delete=models.PROTECT, null=True, blank=True)
+    cta_stone = models.ForeignKey(
+        "catalog.Stone",
+        verbose_name=_("Piedra del enlace"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
     cta_collection = models.ForeignKey(
         "catalog.Collection",
+        verbose_name=_("Colección del enlace"),
         on_delete=models.PROTECT,
         null=True,
         blank=True,
         related_name="cta_sections",
     )
-    cta_piece = models.ForeignKey("catalog.Piece", on_delete=models.PROTECT, null=True, blank=True)
-    cta_page = models.ForeignKey(Page, on_delete=models.PROTECT, null=True, blank=True)
-    cta_external_url = models.URLField(blank=True, validators=[validate_https])
+    cta_piece = models.ForeignKey(
+        "catalog.Piece",
+        verbose_name=_("Pieza del enlace"),
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+    )
+    cta_page = models.ForeignKey(
+        Page, verbose_name=_("Página del enlace"), on_delete=models.PROTECT, null=True, blank=True
+    )
+    cta_external_url = models.URLField(
+        verbose_name=_("Enlace externo"), blank=True, validators=[validate_https]
+    )
     collection = models.ForeignKey(
         "catalog.Collection",
+        verbose_name=_("Colección"),
         on_delete=models.PROTECT,
         null=True,
         blank=True,
@@ -151,8 +182,9 @@ class HomeSection(Illustrated):
     )
 
     class Meta:
-        ordering = ["position", "pk"]
         verbose_name = _("sección del inicio")
+        verbose_name_plural = _("secciones del inicio")
+        ordering = ["position", "pk"]
         permissions = [("publish_content", "Puede publicar y restaurar contenido")]
 
     def __str__(self) -> str:
@@ -171,14 +203,20 @@ class ImmutableQuerySet(models.QuerySet[SnapshotT]):
 
 
 class ImmutableSnapshot(models.Model):
-    snapshot = models.JSONField()
+    snapshot = models.JSONField(verbose_name=_("Copia de publicación"))
     # SET_NULL + name snapshot (like the audit log): a staff member who published content
     # must remain deletable when they leave, without losing who published what.
     published_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Publicado por"),
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
-    published_by_repr = models.CharField(max_length=150, blank=True)
-    published_at = models.DateTimeField(auto_now_add=True)
+    published_by_repr = models.CharField(
+        verbose_name=_("Nombre de quien publicó"), max_length=150, blank=True
+    )
+    published_at = models.DateTimeField(verbose_name=_("Publicada el"), auto_now_add=True)
 
     class Meta:
         abstract = True
@@ -196,25 +234,31 @@ class ImmutableSnapshot(models.Model):
 
 
 class HomePublication(ImmutableSnapshot):
-    note = models.CharField(max_length=300, blank=True)
+    note = models.CharField(verbose_name=_("Nota"), max_length=300, blank=True)
     # Keep editable source separate from the public snapshot, including hidden sections.
-    draft_snapshot = models.JSONField(default=list, editable=False)
+    draft_snapshot = models.JSONField(
+        verbose_name=_("Copia del borrador"), default=list, editable=False
+    )
     objects = ImmutableQuerySet["HomePublication"].as_manager()
 
     class Meta(ImmutableSnapshot.Meta):
         verbose_name = _("publicación del inicio")
+        verbose_name_plural = _("publicaciones del inicio")
 
     def __str__(self) -> str:
         return str(self.published_at)
 
 
 class PageRevision(ImmutableSnapshot):
-    page = models.ForeignKey(Page, on_delete=models.PROTECT, related_name="revisions")
-    version = models.PositiveIntegerField()
+    page = models.ForeignKey(
+        Page, verbose_name=_("Página"), on_delete=models.PROTECT, related_name="revisions"
+    )
+    version = models.PositiveIntegerField(verbose_name=_("Versión"))
     objects = ImmutableQuerySet["PageRevision"].as_manager()
 
     class Meta(ImmutableSnapshot.Meta):
         verbose_name = _("revisión de página")
+        verbose_name_plural = _("revisiones de páginas")
         constraints = [
             models.UniqueConstraint(fields=["page", "version"], name="cms_page_version_unique")
         ]
@@ -229,15 +273,18 @@ class PersonalizationService(Illustrated):
         whatsapp_message_en: str
 
     objects: MultilingualManager[PersonalizationService] = MultilingualManager()
-    title = models.CharField(max_length=250)
-    description = models.TextField(blank=True)
-    whatsapp_message = models.TextField(default="Hola SERTI, me interesa {service}. {url}")
-    is_active = models.BooleanField(default=False)
-    position = models.PositiveIntegerField(default=0)
+    title = models.CharField(verbose_name=_("Título"), max_length=250)
+    description = models.TextField(verbose_name=_("Descripción"), blank=True)
+    whatsapp_message = models.TextField(
+        verbose_name=_("Mensaje de WhatsApp"), default="Hola SERTI, me interesa {service}. {url}"
+    )
+    is_active = models.BooleanField(verbose_name=_("Activo"), default=False)
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
 
     class Meta:
-        ordering = ["position", "pk"]
         verbose_name = _("servicio de personalización")
+        verbose_name_plural = _("servicios de personalización")
+        ordering = ["position", "pk"]
 
     def __str__(self) -> str:
         return self.title

@@ -29,6 +29,7 @@ def cart_data(cart: Cart | None, removed: list[dict[str, Any]] | None = None) ->
                 "slug": piece.slug,
                 "name": piece.name,
                 "image": PieceListSerializer().get_image(piece),
+                "hover_image": PieceListSerializer().get_hover_image(piece),
                 "price": Money(piece.price_cents).as_dict(),
                 "sale_price": Money(piece.sale_price_cents).as_dict()
                 if piece.sale_price_cents is not None

@@ -113,6 +113,22 @@ class Command(BaseCommand):
                 save_piece_image(photo)
                 # Publish synchronously even when a separate worker processes uploads.
                 process_piece_image(photo.pk)
+                if index % 2 == 0:
+                    # Alternate view shown on card hover (desktop).
+                    alternate = Image.new("RGB", (960, 1200), colors[(index + 2) % 4])
+                    ImageDraw.Draw(alternate).text((40, 580), f"{name} · detalle", fill="#e9e3d0")
+                    output = BytesIO()
+                    alternate.save(output, format="PNG")
+                    hover = PieceImage(
+                        piece=piece,
+                        original=ContentFile(output.getvalue(), name="placeholder-alt.png"),
+                        alt_es=f"{name}, detalle",
+                        alt_en=f"Unique jewel {index + 1}, detail",
+                        position=1,
+                        is_hover=True,
+                    )
+                    save_piece_image(hover)
+                    process_piece_image(hover.pk)
                 publish_piece(piece, None)
                 if index % 4 == 1:
                     set_preorder(piece, True, None)

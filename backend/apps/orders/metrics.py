@@ -7,7 +7,7 @@ from typing import Any, cast
 from urllib.parse import urlencode
 
 from django.core.cache import cache
-from django.db.models import Count, Q, Sum
+from django.db.models import Count, Field, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpRequest
 from django.urls import reverse
@@ -65,9 +65,10 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
     ]
     groups = {}
     for field in ("payment_status", "fulfillment_status"):
+        labels = dict(cast("Field[Any, Any]", Order._meta.get_field(field)).flatchoices)
         groups[field] = [
             {
-                "label": row[field],
+                "label": labels.get(row[field], row[field]),
                 "count": row["count"],
                 "url": admin_link("orders_order", {field: row[field]}),
                 "highlight": row[field] == "awaiting_manual_payment",
@@ -185,7 +186,7 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
 def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[str, Any]:
     if not request.user.has_perm("orders.view_order"):
         return context
-    key = f"orders:dashboard:v1:{timezone.now().astimezone(BOGOTA).date().isoformat()}"
+    key = f"orders:dashboard:v2:{timezone.now().astimezone(BOGOTA).date().isoformat()}"
     metrics = cache.get(key)
     if metrics is None:
         metrics = compute_metrics()

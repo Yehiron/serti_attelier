@@ -301,3 +301,13 @@ def test_totp_views_enforce_csrf(staff: User) -> None:
     client = Client(enforce_csrf_checks=True)
     client.force_login(staff)
     assert client.post(reverse("admin-2fa-verify"), {"token": code(device)}).status_code == 403
+
+
+def test_unverified_session_does_not_see_dashboard_sections(client: Client, staff: User) -> None:
+    staff.is_superuser = True
+    staff.save()
+    TOTPDevice.objects.create(user=staff, confirmed=True)
+    login(client, staff)
+    page = client.get(reverse("admin-2fa-verify")).content.decode()
+    assert "Verificar acceso" in page
+    assert reverse("admin:catalog_piece_changelist") not in page

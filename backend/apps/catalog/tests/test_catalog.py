@@ -201,7 +201,9 @@ def test_seed_idempotent() -> None:
         call_command("seed_catalog", stdout=StringIO())
     assert Piece.objects.count() == 12
     assert list(Piece.objects.values_list("pk", flat=True)) == ids
-    assert PieceImage.objects.filter(processing_status="ready").count() == 12
+    # One primary per piece plus a hover image on every other piece.
+    assert PieceImage.objects.filter(processing_status="ready").count() == 18
+    assert PieceImage.objects.filter(is_hover=True).count() == 6
     assert set(Piece.objects.values_list("sale_state", flat=True)) == {
         "available",
         "sold",

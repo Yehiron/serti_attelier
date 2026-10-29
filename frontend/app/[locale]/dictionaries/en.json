@@ -67,6 +67,8 @@
     "updated": "Last updated",
     "empty": "No pieces here yet.",
     "emptyHelp": "Try another stone, widen your price range or explore all jewelry.",
+    "noMatches": "No pieces found for “{query}”.",
+    "noMatchesHelp": "Check the spelling or search by stone, material or type of jewel.",
     "clear": "Clear filters",
     "results": "pieces",
     "filters": "Filters",

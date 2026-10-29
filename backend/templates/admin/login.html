@@ -12,7 +12,7 @@
 {% endblock %}
 
 {% block content %}
-    {% include "unfold/helpers/unauthenticated_title.html" with title=site_title|default:_('Django site admin') subtitle=_('Welcome back to') %}
+    {% include "unfold/helpers/unauthenticated_title.html" with title=site_title|default:_('Administración de SERTI') subtitle=_('Bienvenido a') %}
 
     {% include "unfold/helpers/messages.html" %}
 
@@ -24,8 +24,8 @@
 
             {% if user.is_authenticated %}
                 {% blocktranslate trimmed asvar message %}
-                    You are authenticated as {{ username }}, but are not authorized to
-                    access this page. Would you like to login to a different account?
+                    Has iniciado sesión como {{ username }}, pero no tienes autorización para
+                    acceder a esta página. ¿Quieres iniciar sesión con otra cuenta?
                 {% endblocktranslate %}
 
                 {% include "unfold/helpers/messages/error.html" with error=message %}
@@ -44,7 +44,7 @@
 
         <div class="flex flex-col gap-3 mt-6">
             {% component "unfold/components/button.html" with submit=1 variant="primary" class="submit-row w-full" %}
-                {% translate 'Log in' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
+                {% translate 'Iniciar sesión' %} <span class="material-symbols-outlined relative right-0 transition-all group-hover:-right-1 text-sm">arrow_forward</span>
             {% endcomponent %}
 
             {% url 'admin_password_reset' as password_reset_url %}

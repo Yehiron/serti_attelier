@@ -21,11 +21,28 @@ from apps.catalog.services import publish_piece, save_piece, save_piece_image, s
 from apps.catalog.tasks import process_piece_image
 
 
+def add_image(piece: Piece, text: str, color: str, **fields: Any) -> None:
+    image = Image.new("RGB", (960, 1200), color)
+    ImageDraw.Draw(image).text((40, 580), text, fill="#e9e3d0")
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    photo = PieceImage(
+        piece=piece,
+        original=ContentFile(buffer.getvalue(), name="e2e.png"),
+        alt_es=text,
+        alt_en=text,
+        **fields,
+    )
+    save_piece_image(photo)
+    process_piece_image(photo.pk)
+
+
 class Command(BaseCommand):
     help = "Crea una pieza única publicada para pruebas E2E (solo con DEBUG)."
 
     def add_arguments(self, parser: CommandParser) -> None:
         parser.add_argument("--price-pesos", type=int, default=1_200_000)
+        parser.add_argument("--hover", action="store_true", help="Añade imagen al pasar el cursor.")
 
     def handle(self, *args: Any, **options: Any) -> None:
         if not settings.DEBUG:
@@ -49,19 +66,9 @@ class Command(BaseCommand):
         )
         save_piece(piece, actor=None)
         save_piece_relations(piece, {"stones": [stone]})
-        image = Image.new("RGB", (960, 1200), "#4e7366")
-        ImageDraw.Draw(image).text((40, 580), name, fill="#e9e3d0")
-        buffer = BytesIO()
-        image.save(buffer, format="PNG")
-        photo = PieceImage(
-            piece=piece,
-            original=ContentFile(buffer.getvalue(), name="e2e.png"),
-            alt_es=name,
-            alt_en=name,
-            is_primary=True,
-        )
-        save_piece_image(photo)
-        process_piece_image(photo.pk)
+        add_image(piece, name, "#4e7366", is_primary=True)
+        if options["hover"]:
+            add_image(piece, f"{name} detalle", "#2f3b33", position=1, is_hover=True)
         publish_piece(piece, None)
         self.stdout.write(
             json.dumps(

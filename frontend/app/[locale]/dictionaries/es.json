@@ -67,6 +67,8 @@
     "updated": "Última actualización",
     "empty": "Aún no hay piezas aquí.",
     "emptyHelp": "Prueba otra piedra, amplía el rango de precio o explora toda la joyería.",
+    "noMatches": "No encontramos piezas para «{query}».",
+    "noMatchesHelp": "Revisa la ortografía o busca por piedra, material o tipo de joya.",
     "clear": "Limpiar filtros",
     "results": "piezas",
     "filters": "Filtros",

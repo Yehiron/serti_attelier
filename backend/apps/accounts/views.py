@@ -83,6 +83,9 @@ def token_page(request: HttpRequest, device: TOTPDevice, *, setup_mode: bool) ->
             form.add_error("token", _("Código inválido. Espera unos segundos e intenta de nuevo."))
     context = {
         **admin.site.each_context(request),
+        # Not verified yet: do not reveal the dashboard sections in the sidebar.
+        "available_apps": [],
+        "sidebar_navigation": [],
         "form": form,
         "setup": setup_mode,
         "title": _("Configurar verificación en dos pasos") if setup_mode else _("Verificar acceso"),

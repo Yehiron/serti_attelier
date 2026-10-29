@@ -24,9 +24,9 @@ class NamedModel(models.Model):
         slug_es: str
         slug_en: str
 
-    name = models.CharField(max_length=200)
-    slug = models.SlugField(max_length=220, blank=True)
-    position = models.PositiveIntegerField(default=0)
+    name = models.CharField(verbose_name=_("Nombre"), max_length=200)
+    slug = models.SlugField(verbose_name=_("Slug"), max_length=220, blank=True)
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
 
     class Meta:
         abstract = True
@@ -47,8 +47,10 @@ class NamedModel(models.Model):
 
 
 class CoveredModel(NamedModel):
-    description = models.TextField(blank=True)
-    cover_image = models.ImageField(upload_to="catalog/covers/", blank=True)
+    description = models.TextField(verbose_name=_("Descripción"), blank=True)
+    cover_image = models.ImageField(
+        verbose_name=_("Imagen de portada"), upload_to="catalog/covers/", blank=True
+    )
 
     class Meta(NamedModel.Meta):
         abstract = True
@@ -56,16 +58,22 @@ class CoveredModel(NamedModel):
 
 class Category(CoveredModel):
     objects: MultilingualManager[Category] = MultilingualManager()
-    seo_title = models.CharField(max_length=200, blank=True)
-    seo_description = models.TextField(blank=True)
+    seo_title = models.CharField(verbose_name=_("Título SEO"), max_length=200, blank=True)
+    seo_description = models.TextField(verbose_name=_("Descripción SEO"), blank=True)
     parent = models.ForeignKey(
-        "self", null=True, blank=True, on_delete=models.PROTECT, related_name="children"
+        "self",
+        verbose_name=_("Categoría superior"),
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="children",
     )
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(verbose_name=_("Activo"), default=True)
 
     class Meta(CoveredModel.Meta):
-        abstract = False
         verbose_name = _("categoría")
+        verbose_name_plural = _("categorías")
+        abstract = False
         constraints = [
             *CoveredModel.Meta.constraints,
             models.CheckConstraint(
@@ -85,32 +93,35 @@ class Category(CoveredModel):
 
 class Collection(CoveredModel):
     objects: MultilingualManager[Collection] = MultilingualManager()
-    seo_title = models.CharField(max_length=200, blank=True)
-    seo_description = models.TextField(blank=True)
-    is_active = models.BooleanField(default=True)
+    seo_title = models.CharField(verbose_name=_("Título SEO"), max_length=200, blank=True)
+    seo_description = models.TextField(verbose_name=_("Descripción SEO"), blank=True)
+    is_active = models.BooleanField(verbose_name=_("Activo"), default=True)
     pieces: models.ManyToManyField[Piece, CollectionPiece] = models.ManyToManyField(
-        "Piece", through="CollectionPiece", related_name="collections"
+        "Piece", verbose_name=_("Piezas"), through="CollectionPiece", related_name="collections"
     )
 
     class Meta(CoveredModel.Meta):
-        abstract = False
         verbose_name = _("colección")
+        verbose_name_plural = _("colecciones")
+        abstract = False
 
 
 class Stone(CoveredModel):
     objects: MultilingualManager[Stone] = MultilingualManager()
 
     class Meta(CoveredModel.Meta):
-        abstract = False
         verbose_name = _("piedra")
+        verbose_name_plural = _("piedras")
+        abstract = False
 
 
 class Material(NamedModel):
     objects: MultilingualManager[Material] = MultilingualManager()
 
     class Meta(NamedModel.Meta):
-        abstract = False
         verbose_name = _("material")
+        verbose_name_plural = _("materiales")
+        abstract = False
 
 
 class Piece(NamedModel):
@@ -128,40 +139,65 @@ class Piece(NamedModel):
         SOLD = "sold", _("Vendida")
         PREORDER = "preorder", _("Preventa")
 
-    sku = models.CharField(max_length=40, unique=True)
-    piece_number = models.CharField(max_length=20, blank=True)
-    short_description = models.TextField(blank=True)
-    long_description = models.TextField(blank=True)
-    story = models.TextField(blank=True)
-    care = models.TextField(blank=True)
-    seo_title = models.CharField(max_length=200, blank=True)
-    seo_description = models.TextField(blank=True)
+    sku = models.CharField(verbose_name=_("SKU"), max_length=40, unique=True)
+    piece_number = models.CharField(verbose_name=_("Número de pieza"), max_length=20, blank=True)
+    short_description = models.TextField(verbose_name=_("Descripción corta"), blank=True)
+    long_description = models.TextField(verbose_name=_("Descripción larga"), blank=True)
+    story = models.TextField(verbose_name=_("Historia"), blank=True)
+    care = models.TextField(verbose_name=_("Cuidados"), blank=True)
+    seo_title = models.CharField(verbose_name=_("Título SEO"), max_length=200, blank=True)
+    seo_description = models.TextField(verbose_name=_("Descripción SEO"), blank=True)
     category = models.ForeignKey(
-        Category, on_delete=models.PROTECT, related_name="pieces", null=True, blank=True
+        Category,
+        verbose_name=_("Categoría"),
+        on_delete=models.PROTECT,
+        related_name="pieces",
+        null=True,
+        blank=True,
     )
-    stones = models.ManyToManyField(Stone, related_name="pieces", blank=True)
-    materials = models.ManyToManyField(Material, related_name="pieces", blank=True)
+    stones = models.ManyToManyField(
+        Stone, verbose_name=_("Piedras"), related_name="pieces", blank=True
+    )
+    materials = models.ManyToManyField(
+        Material, verbose_name=_("Materiales"), related_name="pieces", blank=True
+    )
     related = models.ManyToManyField(
         "self",
+        verbose_name=_("Piezas relacionadas"),
         symmetrical=False,
         blank=True,
         through="PieceRelation",
         through_fields=("source", "target"),
     )
-    status = models.CharField(max_length=12, choices=Status, default=Status.DRAFT)
-    sale_state = models.CharField(
-        max_length=12, choices=SaleState, default=SaleState.AVAILABLE, editable=False
+    status = models.CharField(
+        verbose_name=_("Estado"), max_length=12, choices=Status, default=Status.DRAFT
     )
-    is_new = models.BooleanField(default=False)
-    price_cents = models.BigIntegerField()
-    sale_price_cents = models.BigIntegerField(null=True, blank=True)
-    attributes = models.JSONField(default=dict, blank=True, validators=[validate_attributes])
-    published_at = models.DateTimeField(null=True, blank=True, editable=False)
-    sold_at = models.DateTimeField(null=True, blank=True, editable=False)
+    sale_state = models.CharField(
+        verbose_name=_("Estado de venta"),
+        max_length=12,
+        choices=SaleState,
+        default=SaleState.AVAILABLE,
+        editable=False,
+    )
+    is_new = models.BooleanField(verbose_name=_("Novedad"), default=False)
+    price_cents = models.BigIntegerField(verbose_name=_("Precio (centavos)"))
+    sale_price_cents = models.BigIntegerField(
+        verbose_name=_("Precio de oferta (centavos)"), null=True, blank=True
+    )
+    attributes = models.JSONField(
+        verbose_name=_("Atributos"), default=dict, blank=True, validators=[validate_attributes]
+    )
+    published_at = models.DateTimeField(
+        verbose_name=_("Publicada el"), null=True, blank=True, editable=False
+    )
+    sold_at = models.DateTimeField(
+        verbose_name=_("Vendida el"), null=True, blank=True, editable=False
+    )
 
     class Meta(NamedModel.Meta):
-        abstract = False
         verbose_name = _("pieza")
+        verbose_name_plural = _("piezas")
+        abstract = False
         permissions = [("change_piece_price", "Puede cambiar precios de piezas")]
         constraints = [
             *NamedModel.Meta.constraints,
@@ -193,11 +229,15 @@ class Piece(NamedModel):
 
 
 class CollectionPiece(models.Model):
-    collection = models.ForeignKey(Collection, on_delete=models.CASCADE)
-    piece = models.ForeignKey(Piece, on_delete=models.CASCADE)
-    position = models.PositiveIntegerField(default=0)
+    collection = models.ForeignKey(
+        Collection, verbose_name=_("Colección"), on_delete=models.CASCADE
+    )
+    piece = models.ForeignKey(Piece, verbose_name=_("Pieza"), on_delete=models.CASCADE)
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
 
     class Meta:
+        verbose_name = _("pieza de colección")
+        verbose_name_plural = _("piezas de colecciones")
         ordering = ["position", "pk"]
         constraints = [
             models.UniqueConstraint(fields=["collection", "piece"], name="unique_collection_piece")
@@ -215,27 +255,54 @@ class PieceImage(models.Model):
         READY = "ready", _("Lista")
         FAILED = "failed", _("Fallida")
 
-    piece = models.ForeignKey(Piece, on_delete=models.CASCADE, related_name="images")
-    original = models.ImageField(upload_to=original_path)
-    renditions = models.JSONField(default=dict, blank=True)
-    width = models.PositiveIntegerField(default=0)
-    height = models.PositiveIntegerField(default=0)
-    alt = models.CharField(max_length=300)
-    position = models.PositiveIntegerField(default=0)
-    is_primary = models.BooleanField(default=False)
-    processing_status = models.CharField(
-        max_length=8, choices=ProcessingStatus, default=ProcessingStatus.PENDING
+    piece = models.ForeignKey(
+        Piece, verbose_name=_("Pieza"), on_delete=models.CASCADE, related_name="images"
     )
-    error = models.CharField(max_length=200, blank=True)
+    original = models.ImageField(verbose_name=_("Archivo original"), upload_to=original_path)
+    renditions = models.JSONField(verbose_name=_("Versiones de imagen"), default=dict, blank=True)
+    width = models.PositiveIntegerField(verbose_name=_("Ancho"), default=0)
+    height = models.PositiveIntegerField(verbose_name=_("Alto"), default=0)
+    alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300)
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
+    is_primary = models.BooleanField(
+        default=False,
+        verbose_name=_("Imagen principal"),
+        help_text=_("Se muestra como imagen principal de la pieza y de sus tarjetas."),
+    )
+    is_hover = models.BooleanField(
+        default=False,
+        verbose_name=_("Imagen al pasar el cursor"),
+        help_text=_(
+            "Opcional. Se muestra al pasar el cursor sobre la tarjeta en computador. "
+            "Usa una foto alternativa de la misma pieza."
+        ),
+    )
+    processing_status = models.CharField(
+        verbose_name=_("Estado de procesamiento"),
+        max_length=8,
+        choices=ProcessingStatus,
+        default=ProcessingStatus.PENDING,
+    )
+    error = models.CharField(verbose_name=_("Error"), max_length=200, blank=True)
 
     class Meta:
-        ordering = ["position", "pk"]
         verbose_name = _("imagen de pieza")
+        verbose_name_plural = _("imágenes de piezas")
+        ordering = ["position", "pk"]
         constraints = [
             models.UniqueConstraint(
                 fields=["piece"],
                 condition=models.Q(is_primary=True),
                 name="one_primary_image_per_piece",
+            ),
+            models.UniqueConstraint(
+                fields=["piece"],
+                condition=models.Q(is_hover=True),
+                name="one_hover_image_per_piece",
+            ),
+            models.CheckConstraint(
+                condition=~models.Q(is_primary=True, is_hover=True),
+                name="image_not_primary_and_hover",
             ),
             models.UniqueConstraint(
                 fields=["piece", "position"], name="unique_image_position_per_piece"
@@ -247,10 +314,19 @@ class PieceImage(models.Model):
 
 
 class PieceRelation(models.Model):
-    source = models.ForeignKey(Piece, on_delete=models.CASCADE, related_name="outgoing_relations")
-    target = models.ForeignKey(Piece, on_delete=models.CASCADE, related_name="incoming_relations")
+    source = models.ForeignKey(
+        Piece, verbose_name=_("Origen"), on_delete=models.CASCADE, related_name="outgoing_relations"
+    )
+    target = models.ForeignKey(
+        Piece,
+        verbose_name=_("Destino"),
+        on_delete=models.CASCADE,
+        related_name="incoming_relations",
+    )
 
     class Meta:
+        verbose_name = _("relación de piezas")
+        verbose_name_plural = _("relaciones de piezas")
         constraints = [
             models.UniqueConstraint(fields=["source", "target"], name="unique_related_piece"),
             models.CheckConstraint(

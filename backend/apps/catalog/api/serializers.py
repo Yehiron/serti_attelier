@@ -82,6 +82,7 @@ class PieceListSerializer(serializers.ModelSerializer[Piece]):
     price = serializers.SerializerMethodField()
     sale_price = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
+    hover_image = serializers.SerializerMethodField()
 
     class Meta:
         model = Piece
@@ -96,6 +97,7 @@ class PieceListSerializer(serializers.ModelSerializer[Piece]):
             "sale_state",
             "is_new",
             "image",
+            "hover_image",
         )
 
     @extend_schema_field(NamedSerializer(allow_null=True))
@@ -121,6 +123,18 @@ class PieceListSerializer(serializers.ModelSerializer[Piece]):
                 image
                 for image in obj.images.all()
                 if image.is_primary and image.processing_status == "ready"
+            ),
+            None,
+        )
+        return dict(ImageSerializer(image).data) if image else None
+
+    @extend_schema_field(ImageSerializer(allow_null=True))
+    def get_hover_image(self, obj: Piece) -> dict[str, Any] | None:
+        image = next(
+            (
+                image
+                for image in obj.images.all()
+                if image.is_hover and image.processing_status == "ready"
             ),
             None,
         )

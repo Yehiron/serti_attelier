@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from django import forms
@@ -5,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from unfold.widgets import UnfoldAdminIntegerFieldWidget
 
 from .images import validated_image
-from .models import Piece
+from .models import Piece, PieceImage
 
 
 class PesosField(forms.IntegerField):
@@ -22,9 +24,11 @@ class PesosField(forms.IntegerField):
 if TYPE_CHECKING:
     BasePieceForm = forms.ModelForm[Piece]
     BaseImageForm = forms.ModelForm[Any]
+    BaseImageFormSet = forms.BaseInlineFormSet[PieceImage, Piece]
 else:
     BasePieceForm = forms.ModelForm
     BaseImageForm = forms.ModelForm
+    BaseImageFormSet = forms.BaseInlineFormSet
 
 
 class PieceForm(BasePieceForm):
@@ -53,3 +57,31 @@ class ValidatedImageForm(BaseImageForm):
                 except forms.ValidationError as exc:
                     self.add_error(name, exc)
         return cleaned
+
+
+class PieceImageForm(ValidatedImageForm):
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean()
+        if cleaned.get("is_primary") and cleaned.get("is_hover"):
+            self.add_error(
+                "is_hover", _("Una imagen no puede ser principal y al pasar el cursor a la vez.")
+            )
+        return cleaned
+
+
+class PieceImageFormSet(BaseImageFormSet):
+    def clean(self) -> None:
+        if any(self.errors):
+            return
+        active = [
+            form.cleaned_data
+            for form in self.forms
+            if form.cleaned_data and not form.cleaned_data.get("DELETE")
+        ]
+        if sum(bool(row.get("is_hover")) for row in active) > 1:
+            raise forms.ValidationError(
+                _("Selecciona solo una imagen al pasar el cursor por pieza.")
+            )
+        if sum(bool(row.get("is_primary")) for row in active) > 1:
+            raise forms.ValidationError(_("Selecciona solo una imagen principal por pieza."))
+        super().clean()
