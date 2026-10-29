@@ -55,10 +55,16 @@ services:
   worker:
     <<: *backend
     command: celery -A config worker --loglevel=info
+    # The image healthcheck probes the web port, which Celery does not serve.
+    healthcheck:
+      disable: true
 
   beat:
     <<: *backend
     command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    # The image healthcheck probes the web port, which Celery does not serve.
+    healthcheck:
+      disable: true
 
   frontend:
     build:
