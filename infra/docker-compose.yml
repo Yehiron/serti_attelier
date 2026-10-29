@@ -1,0 +1,168 @@
+# Production stack for the VPS (docs/deployment.md).
+#   cp .env.production.example .env.production   # fill in real values
+#   docker compose -f infra/docker-compose.yml --env-file .env.production up -d --build
+# Only Caddy publishes ports. Data lives in named volumes; encrypted backups land in
+# BACKUP_DIR on the host so they can be copied off the server.
+name: serti
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "5"
+
+x-backend: &backend
+  build:
+    context: ../backend
+    target: runtime
+  image: serti-backend:${SERTI_VERSION:-latest}
+  env_file: ../.env.production
+  environment:
+    DJANGO_SETTINGS_MODULE: config.settings.prod
+  restart: unless-stopped
+  logging: *logging
+  volumes:
+    - static:/srv/static
+    - media:/srv/media
+    - private_media:/srv/private_media
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
+services:
+  db:
+    image: postgres:16-alpine
+    env_file: ../.env.production
+    restart: unless-stopped
+    logging: *logging
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    # Append-only so queued notifications survive a restart.
+    command: ["redis-server", "--appendonly", "yes", "--maxmemory-policy", "noeviction"]
+    restart: unless-stopped
+    logging: *logging
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  # One-off: schema migrations and static files before the app starts.
+  migrate:
+    <<: *backend
+    restart: "no"
+    command: sh -c "python manage.py migrate --noinput && python manage.py collectstatic --noinput"
+    healthcheck:
+      disable: true
+
+  backend:
+    <<: *backend
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  worker:
+    <<: *backend
+    command: celery -A config worker --loglevel=info --concurrency=2
+    healthcheck:
+      test: ["CMD-SHELL", "celery -A config inspect ping -d celery@$$HOSTNAME --timeout 5 | grep -q pong"]
+      interval: 60s
+      timeout: 15s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  beat:
+    <<: *backend
+    command: celery -A config beat --loglevel=info --schedule=/tmp/celerybeat-schedule
+    healthcheck:
+      disable: true
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+  frontend:
+    build:
+      context: ../frontend
+      target: runtime
+      args:
+        # NEXT_PUBLIC_* values are inlined at build time.
+        NEXT_PUBLIC_CART_ENABLED: ${NEXT_PUBLIC_CART_ENABLED:-false}
+    image: serti-frontend:${SERTI_VERSION:-latest}
+    env_file: ../.env.production
+    environment:
+      API_INTERNAL_URL: http://backend:8000/api/v1
+    restart: unless-stopped
+    logging: *logging
+    depends_on:
+      backend:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    env_file: ../.env.production
+    restart: unless-stopped
+    logging: *logging
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+      - "${HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+      - static:/srv/static:ro
+      - media:/srv/media:ro
+    networks:
+      default:
+        # Fixed so gunicorn can trust exactly this peer (FORWARDED_ALLOW_IPS).
+        ipv4_address: 172.30.0.10
+    depends_on:
+      - backend
+      - frontend
+
+  # Daily encrypted database + media backups (infra/scripts/backup.sh).
+  backup:
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    image: serti-backup:${SERTI_VERSION:-latest}
+    env_file: ../.env.production
+    restart: unless-stopped
+    logging: *logging
+    volumes:
+      - ${BACKUP_DIR:-/var/backups/serti}:/backups
+      # Writable only so restore.sh can put files back.
+      - media:/srv/media
+      - private_media:/srv/private_media
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  redis_data:
+  static:
+  media:
+  private_media:
+  caddy_data:
+  caddy_config:
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24

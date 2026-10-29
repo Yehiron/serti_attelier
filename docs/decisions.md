@@ -97,6 +97,11 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 - **Contexto:** la ficha se cachea 60 s (ADR-013); una pieza recién reservada o vendida podía seguir mostrando "Agregar al carrito".
 - **Decisión:** el servidor prepara el botón de cada estado y el navegador muestra el del estado real (`catalog/pieces/status`) al cargar y al volver a la pestaña. El checkout sigue siendo la garantía final (409).
 
+### ADR-017 — CSP sin nonces en el sitio público
+- **Contexto:** en Next.js 16 la CSP con *nonce* obliga a renderizar cada página en el servidor y es incompatible con el prerenderizado parcial que usa el sitio (ADR-013); el SRI por hashes sigue siendo experimental.
+- **Decisión:** Caddy envía una CSP por zona. Sitio público: `script-src 'self' 'unsafe-inline'`, sin `unsafe-eval`, sin orígenes de terceros, `form-action 'self' https://checkout.wompi.co`, `frame-ancestors 'none'`. Panel: además `unsafe-eval` (Alpine.js de Unfold), restringido a la ruta del panel. API y `/media` con políticas cerradas (`default-src 'none'`, `/media` en *sandbox*).
+- **Consecuencias:** la defensa contra XSS descansa en el escape de React/Django y en la ausencia de HTML libre (el CMS no acepta HTML arbitrario); la CSP bloquea exfiltración a otros orígenes y *clickjacking*. Revisar cuando el SRI de Next.js sea estable.
+
 ## Asuntos pendientes
 
 | ID | Pregunta | Responsable | Bloquea |
@@ -117,6 +122,5 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); el formato sigue pendiente | Cliente | Confirmar |
 | P-22 | Interpretación de dos notas manuscritas: "ipso facto al pasar por las categorías" y "(parallax)" | Cliente | Diseño del home |
 | P-23 | **Llaves sandbox de Wompi** (pública, privada, integridad, eventos). Al recibirlas: verificar con un evento real que la firma de los webhooks coincide (el ejemplo de la documentación de Wompi no es consistente con su propio algoritmo) | Cliente → equipo | Validación final de la Fase 6 |
-| P-24 | Límite de peticiones en Caddy para `/api/v1/payments/wompi/events` (evitar que eventos falsos llenen la tabla) | Equipo | Fase 9 |
 
-Resueltos: P-02, P-03 (DC-08) · P-05 (DC-03) · P-08 (DC-06) · P-15 (DC-13) · P-19 (DC-16) · P-20 (DC-15).
+Resueltos: P-02, P-03 (DC-08) · P-05 (DC-03) · P-08 (DC-06) · P-15 (DC-13) · P-19 (DC-16) · P-20 (DC-15) · P-24 (Fase 9: límite por IP en el webhook y como máximo un evento inválido guardado por IP y minuto).

@@ -19,3 +19,5 @@ Pillow==13.0.0
 
 Markdown==3.11.2
 nh3==0.3.7
+
+sentry-sdk==2.73.0

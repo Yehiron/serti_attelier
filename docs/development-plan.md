@@ -55,7 +55,9 @@ Adaptadores de correo y WhatsApp Cloud, plantillas ES/EN, entregas idempotentes,
 Gestión de pedidos en el dashboard (filtros, transiciones, historial), indicadores, estados vacíos/carga/error, revisión visual completa con el cliente en móvil.
 **Hecho cuando:** el cliente completa un pedido de punta a punta en *staging* desde su celular y lo gestiona desde el dashboard.
 
-### Fase 9 — Producción
+### Fase 9 — Producción 🟡 (rama `fase-9-produccion`: preparación lista y probada en local; falta el despliegue)
+**Preparado:** stack de producción (`infra/docker-compose.yml`), Caddy con HTTPS, cabeceras y CSP por zona (ADR-017), Gunicorn, Sentry opcional con limpieza de datos, logs JSON, límite del webhook (P-24), `check_production`, copias cifradas con restauración probada, `deploy.sh`, E2E en CI y guía en `docs/deployment.md`.
+**Falta:** dominio y acceso al VPS, llaves de Wompi (P-11/P-23), proveedor de correo (P-13), contenido real y el despliegue autorizado.
 *Hardening* (`check --deploy`, cabeceras, CSP), OWASP ZAP *baseline*, pruebas de carga básicas, backups y prueba de restauración, Sentry, *uptime*, SPF/DKIM/DMARC, despliegue en el VPS con el dominio del cliente (DC-12). **Solo con autorización explícita.**
 **Hecho cuando:** checklist de lanzamiento firmado por el cliente.
 

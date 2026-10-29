@@ -139,14 +139,15 @@ CELERY_TASK_ACKS_LATE = True
 CELERY_WORKER_PREFETCH_MULTIPLIER = 1
 CELERY_TASK_TIME_LIMIT = 120
 
-LOGGING = {
+LOGGING: dict[str, Any] = {
     "version": 1,
     "disable_existing_loggers": False,
     "formatters": {
         "plain": {"format": "%(asctime)s %(levelname)s %(name)s %(message)s"},
     },
+    "filters": {"redact": {"()": "apps.core.observability.RedactionFilter"}},
     "handlers": {
-        "console": {"class": "logging.StreamHandler", "formatter": "plain"},
+        "console": {"class": "logging.StreamHandler", "formatter": "plain", "filters": ["redact"]},
     },
     "root": {"handlers": ["console"], "level": env("DJANGO_LOG_LEVEL", default="INFO")},
 }
@@ -263,3 +264,5 @@ CELERY_BEAT_SCHEDULE["retry-notifications"] = {
     "task": "apps.notifications.tasks.retry_failed",
     "schedule": 600.0,
 }
+
+THROTTLE_WOMPI_EVENTS = env("THROTTLE_WOMPI_EVENTS", default="120/min")

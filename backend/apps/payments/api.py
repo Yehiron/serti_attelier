@@ -17,6 +17,7 @@ from apps.orders.models import Order
 from apps.orders.response_serializers import OrderDetailSerializer, WompiCheckoutSerializer
 from apps.orders.selectors import order_detail
 
+from .protection import rate_allowed, store_invalid
 from .services import apply_transaction, checkout_data, create_wompi_attempt, record_event
 from .wompi import WompiClient, WompiTransaction, verify_event
 
@@ -93,19 +94,23 @@ def wompi_events(request: HttpRequest) -> JsonResponse:
     raw = request.read(65537)
     if len(raw) > 65536:
         return JsonResponse({}, status=413)
+    if not rate_allowed(request):
+        return JsonResponse({}, status=429)
     try:
         body: Any = json.loads(raw)
     except (ValueError, UnicodeDecodeError, RecursionError):
         return JsonResponse({}, status=400)
     if not isinstance(body, dict):
-        record_event(None, outcome="rejected_checksum", source="webhook", checksum_valid=False)
+        if store_invalid(request):
+            record_event(None, outcome="rejected_checksum", source="webhook", checksum_valid=False)
         return JsonResponse({})
     data = body.get("data")
     tx = WompiTransaction.parse(data.get("transaction")) if isinstance(data, dict) else None
     valid = verify_event(body)
     event = body.get("event")
     if not valid:
-        record_event(tx, outcome="rejected_checksum", source="webhook", checksum_valid=False)
+        if store_invalid(request):
+            record_event(tx, outcome="rejected_checksum", source="webhook", checksum_valid=False)
     elif event != "transaction.updated" or tx is None:
         record_event(
             tx,

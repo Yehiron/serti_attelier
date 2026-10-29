@@ -101,6 +101,53 @@ jobs:
           target: runtime
           push: false
 
+  e2e:
+    runs-on: ubuntu-latest
+    needs: [backend, frontend]
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Development environment (throwaway values, fake Wompi keys)
+        run: |
+          cp .env.example .env
+          {
+            echo "INTERNAL_API_TOKEN=ci-$(openssl rand -hex 24)"
+            echo "COUPON_EMAIL_PEPPER=ci-$(openssl rand -hex 24)"
+            echo "NEXT_PUBLIC_CART_ENABLED=true"
+            echo "WOMPI_PUBLIC_KEY=pub_test_dev_fake"
+            echo "WOMPI_INTEGRITY_SECRET=test_integrity_ci_fake"
+            echo "WOMPI_EVENTS_SECRET=test_events_ci_fake"
+            echo "SERTI_ORDERS_EMAIL=pedidos@serti.localhost"
+            echo "THROTTLE_ORDERS_MINUTE=60/min"
+            echo "THROTTLE_ORDERS_HOUR=1000/hour"
+          } >> .env
+      - name: Start stack
+        run: |
+          make up
+          for i in $(seq 60); do curl -fs http://localhost:8090/api/v1/health/ready && break; sleep 5; done
+          make seed
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Playwright
+        run: npx playwright test
+        working-directory: frontend
+      - name: Stack logs
+        if: failure()
+        run: docker compose -f infra/docker-compose.dev.yml logs --tail=200
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: frontend/playwright-report
+          retention-days: 7
+
   secrets:
     runs-on: ubuntu-latest
     steps:

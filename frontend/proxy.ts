@@ -21,6 +21,7 @@ export function proxy(request: NextRequest) {
       response.cookies.set(localeCookie, pathLocale, {
         maxAge: ONE_YEAR,
         sameSite: "lax",
+        httpOnly: true,
         secure: request.nextUrl.protocol === "https:",
         path: "/",
       });

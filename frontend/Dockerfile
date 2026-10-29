@@ -12,7 +12,10 @@ CMD ["npm", "run", "dev", "--", "--hostname", "0.0.0.0"]
 
 FROM deps AS build
 COPY . .
-ENV NEXT_TELEMETRY_DISABLED=1
+# NEXT_PUBLIC_* values are inlined into the client bundle at build time.
+ARG NEXT_PUBLIC_CART_ENABLED=false
+ENV NEXT_TELEMETRY_DISABLED=1 \
+    NEXT_PUBLIC_CART_ENABLED=$NEXT_PUBLIC_CART_ENABLED
 RUN npm run build
 
 FROM node:24-alpine AS runtime

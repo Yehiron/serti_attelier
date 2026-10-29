@@ -1,0 +1,62 @@
+# Production entry point (docs/deployment.md). HTTPS certificates are automatic once the
+# client's domain points at the VPS. Variables come from .env.production.
+{
+	email {$ACME_EMAIL}
+	admin off
+}
+
+(security_headers) {
+	header {
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		X-Frame-Options "DENY"
+		Cross-Origin-Opener-Policy "same-origin"
+		-Server
+	}
+}
+
+{$SITE_DOMAIN} {
+	import security_headers
+	encode zstd gzip
+	request_body {
+		max_size 20MB
+	}
+
+	# Django static files (admin) and public uploads, straight from the volumes.
+	handle /static/* {
+		root * /srv
+		header Cache-Control "public, max-age=86400"
+		file_server
+	}
+	handle /media/* {
+		root * /srv
+		# Uploaded files are only images; never let them run as documents.
+		header Content-Security-Policy "default-src 'none'; img-src 'self'; sandbox"
+		header Cache-Control "public, max-age=604800"
+		file_server
+	}
+
+	# API: JSON only.
+	handle /api/* {
+		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
+		reverse_proxy backend:8000
+	}
+
+	# Dashboard (Unfold uses inline scripts and Alpine.js expressions).
+	handle /{$DJANGO_ADMIN_URL}* {
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
+		reverse_proxy backend:8000
+	}
+
+	# Public site (Next.js). Nonces are incompatible with prerendered shells (ADR-017).
+	handle {
+		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+		reverse_proxy frontend:3000
+	}
+}
+
+www.{$SITE_DOMAIN} {
+	redir https://{$SITE_DOMAIN}{uri} permanent
+}

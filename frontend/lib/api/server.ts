@@ -11,7 +11,8 @@ export const siteUrl = process.env.PUBLIC_SITE_URL ?? 'https://serti.localhost';
 export async function request<T>(path: string, locale: Locale, query = '', preview?: string): Promise<T> {
   const params = new URLSearchParams(query); params.set('locale', locale);
   if (preview) params.set('preview', preview);
-  const headers: Record<string, string> = { Accept: 'application/json' };
+  // Internal calls skip Caddy: declare the scheme so Django's HTTPS redirect does not apply.
+  const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
   if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
   try {
     const response = await fetch(`${(process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '')}/${path}?${params}`, { headers, cache: 'no-store', signal: AbortSignal.timeout(8000) });

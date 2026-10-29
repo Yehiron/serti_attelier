@@ -35,7 +35,11 @@ class ReadyView(APIView):
 
     @extend_schema(responses={200: _status_schema, 503: _status_schema})
     def get(self, request: Request) -> Response:
-        checks = {"database": health.check_database(), "redis": health.check_redis()}
+        checks = {
+            "database": health.check_database(),
+            "redis": health.check_redis(),
+            "migrations": health.check_migrations(),
+        }
         ready = all(checks.values())
         return Response(
             {"status": "ok" if ready else "unavailable", "checks": checks},
