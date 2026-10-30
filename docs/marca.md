@@ -24,6 +24,8 @@ Son 5 piezas, cada una en 2 o 3 colores. En el sitio están en `frontend/public/
 - **Favicon e ícono de iOS:** monograma vino sobre crema.
 - **Correos:** monograma vino.
 - **Certificado de autenticidad:** monograma floral vino como encabezado (ver abajo).
+- **Marca de agua:** monograma sin texto (`monogram-mark.webp`, coloreado con máscara CSS) al 8 % en los desplegables del menú, que son translúcidos con desenfoque, y al 6 % en crema detrás del menú del celular.
+- **Favoritos:** corazón simétrico propio con el monograma en el centro óptico. Vacío: contorno y monograma vino. Guardado: relleno **esmeralda `#0b6e4f`** con monograma crema y un pulso breve al agregarlo (sin animación con «reducir movimiento»). El corazón del encabezado se pone esmeralda cuando hay favoritos. El esmeralda es un acento funcional, no un color de la paleta, y tiene contraste 4,5:1 sobre crema.
 
 ### Reglas
 

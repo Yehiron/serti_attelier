@@ -16,6 +16,8 @@
   --color-olive: #7a7256;
   --color-olive-deep: #58513d;
   --color-ink: #330414;
+  /* Accent for saved favourites only (not a brand colour): deep emerald, 4.5:1 on cream. */
+  --color-emerald: #0b6e4f;
 
   --font-serif: "Ninna", var(--font-cormorant), "Cormorant Garamond", Georgia, serif;
   --font-sans: var(--font-inter), "Inter", Arial, sans-serif;
@@ -109,7 +111,12 @@ body:has(.home-page) .site-header.over-hero { margin-bottom: -90px; background: 
 .desktop-nav { display: flex; gap: clamp(12px,1.6vw,28px); align-items: center; margin-left: auto; font-size: 12px; font-weight: 400; }
 .desktop-nav > a, .desktop-nav > details > summary { padding: 12px 0; }
 .desktop-nav details { position: relative; }
-.desktop-nav details > div { position: absolute; background: var(--color-cream); color: var(--color-wine); padding: 18px 24px; min-width: 200px; left: -24px; top: 44px; box-shadow: 0 10px 24px #33041418; }
+.desktop-nav details > div { position: absolute; isolation: isolate; overflow: hidden; background: color-mix(in srgb, var(--color-cream) 80%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15); color: var(--color-wine); padding: 22px 30px 28px 26px; min-width: 250px; left: -26px; top: 44px; border: 1px solid #ffffff50; box-shadow: 0 18px 40px #33041422; }
+/* Brand watermark: the text-free monogram, tinted through a mask so its colour follows the theme. */
+.desktop-nav details > div::after, .menu-dialog::after { content: ''; position: absolute; z-index: -1; pointer-events: none; aspect-ratio: 240 / 206; background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; }
+.desktop-nav details > div::after { right: -26px; bottom: -22px; width: 150px; opacity: .08; }
+.menu-dialog { isolation: isolate; }
+.menu-dialog::after { position: fixed; right: -12vw; bottom: -6vh; width: min(78vw, 420px); color: var(--color-cream); opacity: .06; }
 .desktop-nav details[open] > div, .menu-dialog details[open] > div { animation: menu-in .22s var(--ease-editorial) both; }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .desktop-nav summary, .menu-dialog summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; }
@@ -122,7 +129,7 @@ body:has(.home-page) .site-header.over-hero { margin-bottom: -90px; background: 
 [aria-current=page] { text-decoration: underline; text-underline-offset: 6px; }
 .utilities { display: flex; align-items: center; gap: 16px; margin-left: auto; white-space: nowrap; }
 .utilities > a { display: inline-flex; align-items: center; min-width: 24px; justify-content: center; font-size: 13px; }
-.utilities > a.wishlist-utility { font-size: 28px; position: relative; }
+.utilities > a.wishlist-utility { font-size: 27px; position: relative; }
 .utilities small { font-size: 10px; position: absolute; top: -2px; right: -5px; }
 .utilities svg { width: 20px; height: 20px; stroke: currentColor; stroke-width: 1.3; fill: none; }
 .utilities > .menu-trigger { display: none; min-width: 36px; height: 36px; font-size: 23px; justify-content: center; }
@@ -185,7 +192,18 @@ body:has(dialog[open]) { overflow: hidden; }
 /* Touch screens never show it, and a hidden lazy image is never downloaded. */
 @media not ((hover: hover) and (pointer: fine)) { .piece-photo .hover-image { display: none; } }
 .image-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 150px; font-size: 11px; color: var(--color-ink); }
-.wish-button { display: flex; align-items: center; justify-content: center; width: 40px; height: 40px; font-size: 28px; background: var(--color-cream); color: var(--color-wine); border-radius: 50%; }
+.wish-button { display: flex; align-items: center; justify-content: center; width: 42px; height: 42px; font-size: 24px; background: var(--color-cream); color: var(--color-wine); border-radius: 50%; }
+.wish-button:hover .heart:not(.is-filled) svg { fill: #651c3214; }
+.heart { position: relative; display: inline-block; width: 1em; height: .906em; line-height: 0; }
+.heart svg { width: 100%; height: 100%; overflow: visible; fill: transparent; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; transition: fill .25s ease, stroke .25s ease; }
+/* Monogram centred on the optical centre of the heart (its widest part, not the box centre). */
+.heart-mark { position: absolute; left: 50%; top: 42%; width: 58%; aspect-ratio: 240 / 206; transform: translate(-50%, -50%); background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; transition: background-color .25s ease; }
+.heart.is-filled svg { fill: var(--color-emerald); stroke: var(--color-emerald); }
+.heart.is-filled .heart-mark { background: var(--color-cream); }
+/* In the header the outline keeps the header colour so it stays visible over the wine hero. */
+.wishlist-utility .heart.is-filled svg { stroke: currentColor; }
+.heart.is-pop { animation: heart-pop .45s var(--ease-editorial); }
+@keyframes heart-pop { 0% { transform: scale(1); } 40% { transform: scale(1.22); } 100% { transform: scale(1); } }
 .piece-photo .wish-button { position: absolute; top: 12px; right: 12px; }
 .card-caption { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; margin-top: 18px; }
 .card-caption h3,.card-caption h2 { font-size: 27px; letter-spacing: -.02em; }
@@ -365,7 +383,7 @@ legend { padding: 0 0 14px; }
  .card-caption h3,.card-caption h2 { font-size: 23px; }
  .card-caption p { font-size: 11px; }
  .badge { font-size: 9px; }
- .wish-button { width: 36px; height: 36px; font-size: 25px; }
+ .wish-button { width: 38px; height: 38px; font-size: 22px; }
  .piece-photo .wish-button { top: 8px; right: 8px; }
  .piece-page { padding: 0 0 120px; }
  .piece-detail-layout { display: block; }
