@@ -247,8 +247,9 @@ legend { padding: 0 0 14px; }
 /* Catalogue filters: refined rows (name left, value right) with the stones as chips. */
 .filter-form { display: flex; flex-direction: column; font-size: 13px; }
 .filter-form h2 { font-size: 30px; margin-bottom: 18px; }
-.filter-form > fieldset, .filter-form > label { padding: 16px 0; border-top: 1px solid #7a725640; }
-.filter-form > label:last-of-type { border-bottom: 1px solid #7a725640; }
+.filter-form > :is(fieldset, label, .filter-select, .filter-range) { padding: 16px 0; border-top: 1px solid #7a725640; }
+/* The last row (before the button and the clear link) closes the list. */
+.filter-form > :is(fieldset, label, .filter-select, .filter-range):nth-last-child(3) { border-bottom: 1px solid #7a725640; }
 .filter-form legend { float: left; width: 100%; padding: 0; margin-bottom: 12px; font-family: var(--font-serif); font-size: 19px; color: var(--color-wine); }
 .filter-form fieldset { display: flex; flex-wrap: wrap; gap: 8px; }
 .filter-form label.checkbox-label { position: relative; display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border: 1px solid #651c3240; border-radius: 999px; font-size: 12px; letter-spacing: .04em; color: var(--color-wine); cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
@@ -260,15 +261,47 @@ legend { padding: 0 0 14px; }
 .filter-form label.checkbox-label:has(input:checked) { background: var(--color-wine); border-color: var(--color-wine); color: var(--color-cream); }
 .filter-form label.checkbox-label:has(input:focus-visible) { outline: 2px solid var(--color-wine); outline-offset: 2px; }
 .filter-form label:not(.checkbox-label) { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; font-family: var(--font-serif); font-size: 19px; color: var(--color-wine); }
-.filter-form select, .filter-form input:not([type=checkbox]) { border: 0; min-height: 30px; padding: 4px 0; text-align: right; text-align-last: right; font-family: var(--font-sans); font-size: 12px; color: var(--color-olive-deep); background-color: transparent; }
+.filter-form select, .filter-form input:not([type=checkbox]):not([type=range]) { border: 0; min-height: 30px; padding: 4px 0; text-align: right; text-align-last: right; font-family: var(--font-sans); font-size: 12px; color: var(--color-olive-deep); background-color: transparent; }
 .filter-form select { appearance: none; -webkit-appearance: none; padding-right: 20px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23651c32' stroke-width='1.2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
-.filter-form input:not([type=checkbox]) { border-bottom: 1px dotted #7a725699; -moz-appearance: textfield; }
+.filter-form input:not([type=checkbox]):not([type=range]) { border-bottom: 1px dotted #7a725699; -moz-appearance: textfield; }
 .filter-form input::-webkit-inner-spin-button, .filter-form input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
 .filter-form input::placeholder { color: #58513db3; }
 .filter-form select:focus-visible, .filter-form input:focus-visible { outline: 2px solid var(--color-wine); outline-offset: 2px; }
 /* Long labels: name above, value below, so nothing is cut in the narrow column. */
 .filter-form label:has(input[type=number]), .filter-form label:has([name=availability]) { grid-template-columns: 1fr; gap: 6px; }
 .filter-form label:has(input[type=number]) input, .filter-form label:has([name=availability]) select { text-align: left; text-align-last: left; }
+/* Enhanced filter row: unfolds its options in place instead of the browser's list. */
+.filter-row-name { font-family: var(--font-serif); font-size: 19px; color: var(--color-wine); }
+.filter-select { display: grid; grid-template-columns: auto 1fr; align-items: center; column-gap: 10px; }
+.filter-select-trigger { justify-self: end; display: inline-flex; align-items: center; gap: 9px; min-height: 30px; font-size: 12px; color: var(--color-olive-deep); text-align: right; }
+.filter-select-trigger::after { content: ''; width: 6px; height: 6px; border: solid var(--color-wine); border-width: 0 1.2px 1.2px 0; transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
+.filter-select.is-open .filter-select-trigger::after { transform: translateY(1px) rotate(-135deg); }
+.filter-select-trigger:hover { color: var(--color-wine); }
+.filter-select ul { grid-column: 1 / -1; list-style: none; margin: 12px 0 0; padding: 4px 0; max-height: 264px; overflow-y: auto; border-left: 1px solid #651c3230; scrollbar-width: thin; animation: menu-in .22s var(--ease-editorial) both; }
+.filter-select ul:focus-visible { outline: 2px solid var(--color-wine); outline-offset: 2px; }
+.filter-select li { position: relative; padding: 8px 12px 8px 28px; font-size: 13px; line-height: 1.4; color: var(--color-ink); cursor: pointer; }
+.filter-select li.is-child { padding-left: 44px; font-size: 12px; color: var(--color-olive-deep); }
+.filter-select li::before { content: ''; position: absolute; left: 13px; top: 50%; width: 6px; height: 6px; border-radius: 50%; background: var(--color-wine); transform: translateY(-50%) scale(0); transition: transform .2s var(--ease-editorial); }
+.filter-select li.is-child::before { left: 29px; }
+.filter-select li.is-active { background: #651c320d; color: var(--color-wine); }
+.filter-select li[aria-selected=true] { color: var(--color-wine); }
+.filter-select li[aria-selected=true]::before { transform: translateY(-50%) scale(1); }
+/* Price: two-thumb slider (two native range inputs over one track). */
+.filter-range-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: 4px 10px; }
+.filter-range output { font-size: 12px; color: var(--color-olive-deep); font-variant-numeric: tabular-nums; }
+.price-slider { position: relative; height: 34px; margin-top: 12px; }
+.price-track { position: absolute; left: 11px; right: 11px; top: 50%; height: 2px; transform: translateY(-50%); background: #7a725659; border-radius: 2px; }
+.price-fill { position: absolute; top: 0; bottom: 0; background: var(--color-wine); border-radius: 2px; }
+.price-slider input[type=range] { position: absolute; inset: 0; width: 100%; height: 34px; min-height: 0; margin: 0; padding: 0; border: 0; background: none; -webkit-appearance: none; appearance: none; pointer-events: none; }
+.price-slider input[type=range]::-webkit-slider-runnable-track { height: 34px; background: none; }
+.price-slider input[type=range]::-moz-range-track { background: none; }
+.price-slider input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; pointer-events: auto; width: 22px; height: 22px; margin-top: 6px; border-radius: 50%; background: var(--color-cream); border: 1.5px solid var(--color-wine); box-shadow: 0 2px 6px #33041430; cursor: grab; transition: transform .15s; }
+.price-slider input[type=range]::-moz-range-thumb { pointer-events: auto; width: 20px; height: 20px; border-radius: 50%; background: var(--color-cream); border: 1.5px solid var(--color-wine); box-shadow: 0 2px 6px #33041430; cursor: grab; }
+.price-slider input[type=range]:active::-webkit-slider-thumb { transform: scale(1.12); cursor: grabbing; }
+.price-slider input[type=range]:focus-visible { outline: none; }
+.price-slider input[type=range]:focus-visible::-webkit-slider-thumb { outline: 2px solid var(--color-wine); outline-offset: 2px; }
+.price-slider input[type=range]:focus-visible::-moz-range-thumb { outline: 2px solid var(--color-wine); outline-offset: 2px; }
+@media (pointer: coarse) { .price-slider input[type=range]::-webkit-slider-thumb { width: 26px; height: 26px; margin-top: 4px; } .price-track { left: 13px; right: 13px; } }
 .filter-form .button { margin-top: 26px; min-height: 46px; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
 .filter-form .text-link { margin-top: 14px; align-self: center; font-size: 11px; letter-spacing: .1em; border: 0; color: var(--color-olive-deep); }
 .piece-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 45px 24px; }
