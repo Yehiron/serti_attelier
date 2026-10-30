@@ -3,12 +3,12 @@
 {% block heading %}Tu pieza está reservada{% endblock %}
 {% block content %}
 <p style="margin:0;font-size:15px;line-height:1.7;">Recibimos tu pedido. Te reservamos la pieza mientras completas el pago:</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#efe9d8;"><tr><td style="padding:18px 20px;font-size:15px;line-height:1.7;">{{ instructions|linebreaksbr }}</td></tr></table>
-<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#736b51;">Paga antes de</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;"><strong style="color:#591e24;">{{ deadline }}</strong></p>
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#f2e7dd;"><tr><td style="padding:18px 20px;font-size:15px;line-height:1.7;">{{ instructions|linebreaksbr }}</td></tr></table>
+<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">Paga antes de</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;"><strong style="color:#651c32;">{{ deadline }}</strong></p>
 {% include "emails/_items.html" with piece_label="Pieza n.º" %}
 {% include "emails/_totals.html" with l_subtotal="Subtotal" l_discount="Descuento" l_shipping="Envío" l_free_shipping="Gratis en Colombia" l_certificate="Certificado de autenticidad" l_included="Incluido" l_total="Total a pagar" %}
 <p style="margin:20px 0 0;font-size:14px;line-height:1.7;">SERTI confirmará tu pago al recibirlo y te enviará la confirmación de compra.</p>
 {% include "emails/_button.html" with url=order_url label="Ver tu pedido" %}
-<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#736b51;">Esta es una confirmación de compra; no es un comprobante fiscal electrónico.</p>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#58513d;">Esta es una confirmación de compra; no es un comprobante fiscal electrónico.</p>
 {% endblock %}
 {% block footer %}{% if support_email or whatsapp_url %}<p style="margin:0 0 4px;">¿Preguntas sobre tu pedido? Escríbenos:</p>{% endif %}{% endblock %}

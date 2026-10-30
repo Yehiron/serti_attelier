@@ -32,3 +32,7 @@ caddy-root.crt
 backend/private_media/
 frontend/test-results/
 frontend/playwright-report/
+
+# Ninna (Margot Lévêque): trial files for local preview only. Licensed webfonts
+# are installed on the server; never commit font files (docs/marca.md).
+frontend/public/fonts/

@@ -5,10 +5,10 @@
 <p style="margin:0;font-size:15px;line-height:1.7;">Thank you for choosing SERTI. Your payment was approved and we are preparing your piece with the care it deserves.</p>
 {% include "emails/_items.html" with piece_label="Piece no." %}
 {% include "emails/_totals.html" with l_subtotal="Subtotal" l_discount="Discount" l_shipping="Shipping" l_free_shipping="Free in Colombia" l_certificate="Certificate of authenticity" l_included="Included" l_total="Total paid" %}
-<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#736b51;">Delivery</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">{{ order.customer_name }}<br>{{ address }}</p>
-<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#736b51;">Status</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">Payment approved · {{ date }}</p>
+<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">Delivery</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">{{ order.customer_name }}<br>{{ address }}</p>
+<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">Status</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">Payment approved · {{ date }}</p>
 {% include "emails/_button.html" with url=order_url label="View your order" %}
-<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#736b51;">Caring for your piece</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">Store it separately in a dry place and avoid contact with perfume, lotions and chemicals.</p>
-<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#736b51;">This is a purchase confirmation, not an electronic tax document.</p>
+<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">Caring for your piece</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;">Store it separately in a dry place and avoid contact with perfume, lotions and chemicals.</p>
+<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#58513d;">This is a purchase confirmation, not an electronic tax document.</p>
 {% endblock %}
 {% block footer %}{% if support_email or whatsapp_url %}<p style="margin:0 0 4px;">Questions about your order? Write to us:</p>{% endif %}{% endblock %}

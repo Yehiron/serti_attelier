@@ -8,7 +8,7 @@ import type { Taxonomy } from '@/lib/api/types';
 import { href, routeDecision } from '@/lib/routes';
 import { useWishlist } from '@/lib/use-wishlist';
 import { CartUtility } from './cart';
-import { Monogram } from './media';
+import { BrandLogo, Wordmark } from './media';
 export function Navigation({ locale, dict, taxonomy, whatsapp }: { locale: Locale; dict: Dictionary; taxonomy: Taxonomy; whatsapp?: string | null }) {
   const routePathname = usePathname();
   // Normalize both the SSR internal path and the public browser path identically.
@@ -66,9 +66,9 @@ export function Navigation({ locale, dict, taxonomy, whatsapp }: { locale: Local
     {(['personalize', 'story', 'contact'] as const).map(key => <Link key={key} href={href(key, locale)} aria-current={current(href(key, locale))}>{dict.nav[key]}</Link>)}
   </>;
   return <header className={`site-header ${home && !scrolled ? 'over-hero' : ''}`}>
-    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><Monogram /></Link>
+    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><BrandLogo /></Link>
     <nav ref={desktopNav} className="desktop-nav" aria-label={dict.nav.menu}>{links}</nav>
     <div className="utilities">{process.env.NEXT_PUBLIC_CART_ENABLED === 'true' && <CartUtility locale={locale} dict={dict} whatsapp={whatsapp} />}<Link href={href('search', locale)} aria-label={dict.nav.search}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10" cy="10" r="6.5"/><path d="m15 15 6 6"/></svg></Link><Link className="wishlist-utility" href={href('wishlist', locale)} aria-label={`${dict.nav.wishlist} (${wishes.length})`}>♡<small>{wishes.length || ''}</small></Link><a href={alternate} hrefLang={locale === 'es' ? 'en' : 'es'} aria-label={dict.nav.language}>{locale === 'es' ? 'EN' : 'ES'}</a><button className="menu-trigger" onClick={() => dialog.current?.showModal()} aria-label={dict.nav.menu}>☰</button></div>
-    <dialog ref={dialog} className="menu-dialog" aria-label={dict.nav.menu} onClose={() => setOpenMenu(null)} onClick={event => { if ((event.target as HTMLElement).closest('a')) dialog.current?.close(); }}><div className="menu-top"><Monogram /><button onClick={() => dialog.current?.close()}>{dict.nav.close} ×</button></div><nav aria-label={dict.nav.menu}>{links}</nav><a href={alternate}>{dict.nav.otherLanguage}</a></dialog>
+    <dialog ref={dialog} className="menu-dialog" aria-label={dict.nav.menu} onClose={() => setOpenMenu(null)} onClick={event => { if ((event.target as HTMLElement).closest('a')) dialog.current?.close(); }}><div className="menu-top"><Wordmark /><button onClick={() => dialog.current?.close()}>{dict.nav.close} ×</button></div><nav aria-label={dict.nav.menu}>{links}</nav><a href={alternate}>{dict.nav.otherLanguage}</a></dialog>
   </header>;
 }

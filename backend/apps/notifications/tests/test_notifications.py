@@ -133,7 +133,7 @@ def test_confirmation_email(order: Order, locale: str, certificate: bool) -> Non
         ).replace("Gratis en", "gratis en")
         assert "factura" not in body.lower() and "invoice" not in body.lower()
     assert 'lang="' + locale + '"' in html and "/brand/monogram-email.png" in html
-    assert "#591e24" in html and "#e9e3d0" in html
+    assert "#651c32" in html and "#ead9cb" in html
     before = len(mail.outbox)
     send_delivery(delivery.pk)
     assert len(mail.outbox) == before

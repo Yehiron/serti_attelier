@@ -3,6 +3,17 @@ import type { Image as ApiImage } from '@/lib/api/types';
 export function Media({ image, className = '', priority = false, sizes = '(max-width: 700px) 100vw, 50vw' }: { image: ApiImage; className?: string; priority?: boolean; sizes?: string }) {
   return <img className={className} src={image.src} srcSet={image.srcset || undefined} sizes={sizes} width={image.width || 960} height={image.height || 1200} alt={image.alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} />;
 }
-export function Ornament() { return <img className="ornament" src="/brand/ornament.webp" width="502" height="353" alt="" loading="lazy" />; }
-export function Monogram() { return <img className="monogram" src="/brand/monogram.webp" width="512" height="512" alt="SERTI" />; }
+/* Official logo files (docs/marca.md). Wine is for light backgrounds and gold for wine/dark
+   ones: both are rendered and CSS shows the one that fits; a hidden lazy image is never fetched. */
+type Tone = 'wine' | 'gold';
+const tones: Tone[] = ['wine', 'gold'];
+export function Ornament() {
+  return <span className="ornament">{tones.map(tone => <img key={tone} className={`tone-${tone}`} src={`/brand/logo/ornament-${tone}.webp`} width="684" height="255" alt="" loading="lazy" />)}</span>;
+}
+/** Header brand: the wordmark, or only the monogram on narrow screens (one file is downloaded). */
+export function BrandLogo() {
+  return <span className="brand-logo">{tones.map(tone => <picture key={tone} className={`tone-${tone}`}><source media="(max-width: 760px)" srcSet={`/brand/logo/monogram-${tone}.webp`} width={542} height={468} /><img src={`/brand/logo/wordmark-${tone}.webp`} width="716" height="230" alt="SERTI Jewelry Atelier" /></picture>)}</span>;
+}
+export function Wordmark() { return <img className="wordmark" src="/brand/logo/wordmark-gold.webp" width="720" height="232" alt="SERTI Jewelry Atelier" />; }
+export function Signature() { return <img className="signature" src="/brand/logo/monogram-tagline-gold.webp" width="602" height="530" alt="SERTI · Timeless and Sophisticated" loading="lazy" />; }
 export function Leather() { return <div className="leather"><img src="/brand/brand-leather.webp" width="1284" height="2778" alt="" loading="lazy" /></div>; }

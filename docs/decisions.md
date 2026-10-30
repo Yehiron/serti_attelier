@@ -15,7 +15,7 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | DC-03 | 2026-10-23 | Lista de deseos **en el navegador** | `localStorage`; sin backend ni datos personales |
 | DC-04 | 2026-10-23 | **Aceptan el costo por mensaje** de WhatsApp Business | El aviso de pedido a SERTI por WhatsApp entra en el MVP |
 | DC-05 | 2026-10-23 | Personalización: **información + contacto directo por WhatsApp**, sin formulario | Página editorial con CTA por servicio |
-| DC-06 | 2026-10-23 | **Se mantiene la paleta del prototipo** | Tokens: vino `#591e24`, crema `#e9e3d0`, papel `#dbd4b7`, oliva `#736b51`, tinta `#24241e`, mineral `#4e7366`, oro `#a9946f` |
+| DC-06 | 2026-10-23 · act. 2026-10-30 | ~~Se mantiene la paleta del prototipo~~ → **Identidad oficial de la carpeta Marca**: logos, paleta y tipografía Ninna (`docs/marca.md`) | Vino `#651c32`, carmesí `#8a1538`, crema `#ead9cb`, ciruela `#330414`, oliva `#7a7256`; Ninna para títulos (requiere licencia web), Inter para texto |
 | DC-07 | 2026-10-23 | Las **fotografías llegan después** | Desarrollo con marcadores; guía de fotografía para el cliente |
 | DC-08 | 2026-10-23 | **Todas las piezas son únicas** (1 de 1) | Sin variantes ni inventario por cantidades; la pieza tiene estado de venta |
 | DC-09 | 2026-10-23 | Pieza agotada → **ofrecer fabricar una pieza única** | CTA "Creemos una pieza única para ti" a WhatsApp |
@@ -122,5 +122,6 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); el formato sigue pendiente | Cliente | Confirmar |
 | P-22 | Interpretación de dos notas manuscritas: "ipso facto al pasar por las categorías" y "(parallax)" | Cliente | Diseño del home |
 | P-23 | **Llaves sandbox de Wompi** (pública, privada, integridad, eventos). Al recibirlas: verificar con un evento real que la firma de los webhooks coincide (el ejemplo de la documentación de Wompi no es consistente con su propio algoritmo) | Cliente → equipo | Validación final de la Fase 6 |
+| P-25 | Marca: archivos vectoriales de los logos, ortografía «Attelier» vs «Atelier», y **compra de la licencia web de Ninna** (los archivos entregados son de prueba) | Cliente | Lanzamiento |
 
 Resueltos: P-02, P-03 (DC-08) · P-05 (DC-03) · P-08 (DC-06) · P-15 (DC-13) · P-19 (DC-16) · P-20 (DC-15) · P-24 (Fase 9: límite por IP en el webhook y como máximo un evento inválido guardado por IP y minuto).

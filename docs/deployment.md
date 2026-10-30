@@ -60,6 +60,17 @@ Completar `.env.production` (cada `CHANGE-ME`):
 - SMTP y `SERTI_ORDERS_EMAIL` cuando el cliente elija proveedor (P-09).
 - `BACKUP_AGE_RECIPIENT`: llave pública de copias (sección 6).
 
+### Fuentes con licencia
+
+La tipografía de títulos (Ninna) no está en el repositorio por licencia (`docs/marca.md`). Antes de construir, copia los archivos **con licencia web** al VPS:
+
+```bash
+mkdir -p frontend/public/fonts
+# ninna-regular, ninna-italic y ninna-book-italic (.otf o .woff2; si son .woff2, ajusta las rutas @font-face de frontend/app/globals.css)
+```
+
+Sin ellos, los títulos se muestran con Cormorant Garamond, pero el sitio no queda con la identidad de la marca.
+
 ## 4. Primer despliegue
 
 ```bash
@@ -165,6 +176,7 @@ base queda como estaba.
 - [ ] DNS apunta al VPS y el certificado se emitió (`curl -I https://<dominio>`).
 - [ ] `check_production` sin ❌.
 - [ ] Propietario con 2FA; usuarios del equipo creados con el rol mínimo.
+- [ ] Licencia web de la tipografía Ninna comprada y archivos instalados en `frontend/public/fonts/`.
 - [ ] Páginas legales definitivas publicadas (sin "Texto provisional"), revisadas por el cliente (P-13).
 - [ ] Catálogo real con fotos; datos de demostración (`DEMO-`, `E2E-`) eliminados.
 - [ ] Wompi: compra de prueba completa en sandbox; URL de eventos registrada; cambio a llaves de
