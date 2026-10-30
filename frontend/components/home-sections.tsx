@@ -4,6 +4,7 @@ import type { Dictionary } from '@/app/[locale]/dictionaries';
 import type { Locale } from '@/lib/i18n';
 import type { Cta, Section } from '@/lib/api/types';
 import { Media, Ornament } from './media';
+import { HeroCarousel } from './hero-carousel';
 import { PieceCard } from './piece-card';
 import { StonePanels, Rail } from './editorial-interactions';
 
@@ -16,14 +17,16 @@ function Paragraphs({ body }: { body: string }) {
 type SectionOf<K extends Section['kind']> = Extract<Section, { kind: K }>;
 
 function HeroSection({ section, dict, first }: { section: SectionOf<'hero'>; dict: Dictionary; first: boolean }) {
-  return <section className="hero">
-    {section.image && <Media className="hero-image" image={section.image} priority={first} sizes="100vw" />}
+  const content = <>
     <div className="hero-copy">
       <p className="eyebrow">{dict.home.eyebrow}</p>
       {first ? <h1 className="title-reveal"><EditorialTitle text={section.title} /></h1> : <h2><EditorialTitle text={section.title} /></h2>}
       <p>{section.subtitle}</p><Action cta={section.cta} />
     </div>
     <div className="hero-caption"><span>{dict.home.status}</span><span>01 / SERTI</span></div>
+  </>;
+  return section.slides?.length ? <HeroCarousel slides={section.slides} labels={dict.home.carousel}>{content}</HeroCarousel> : <section className="hero">
+    {section.image && <Media className="hero-image" image={section.image} priority={first} sizes="100vw" />}{content}
   </section>;
 }
 function StatementSection({ section, dict }: { section: SectionOf<'statement'>; dict: Dictionary }) {

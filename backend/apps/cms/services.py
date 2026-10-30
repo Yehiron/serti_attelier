@@ -24,7 +24,14 @@ from apps.catalog.images import (
     validated_image,
 )
 
-from .models import HomePublication, HomeSection, Page, PageRevision, PersonalizationService
+from .models import (
+    HeroSlide,
+    HomePublication,
+    HomeSection,
+    Page,
+    PageRevision,
+    PersonalizationService,
+)
 
 TAGS = {
     "p",
@@ -131,6 +138,43 @@ def process_image(obj: HomeSection | PersonalizationService) -> None:
     obj.renditions = {"webp": paths}
 
 
+def process_slide_images(obj: HeroSlide) -> None:
+    # Validate both uploads before writing either image to storage.
+    decoded = {
+        field: cap_master(validated_image(upload))
+        for field in ("image", "image_mobile")
+        if (upload := getattr(obj, field)) and not getattr(upload, "_committed", True)
+    }
+    for field, prefix, widths in (
+        ("image", "", (960, 1600, 2400)),
+        ("image_mobile", "mobile_", (480, 960, 1600)),
+    ):
+        upload = getattr(obj, field)
+        if not upload:
+            setattr(obj, f"{prefix}renditions", {})
+            setattr(obj, f"{prefix}width", 0)
+            setattr(obj, f"{prefix}height", 0)
+        elif field in decoded:
+            image = decoded[field]
+            upload.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
+            paths = build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", widths)
+            setattr(obj, f"{prefix}renditions", {"webp": paths})
+            setattr(obj, f"{prefix}width", image.width)
+            setattr(obj, f"{prefix}height", image.height)
+
+
+@transaction.atomic
+def save_hero_slide(obj: HeroSlide) -> None:
+    obj.full_clean()
+    process_slide_images(obj)
+    obj.save()
+
+
+@transaction.atomic
+def delete_hero_slide(obj: HeroSlide) -> None:
+    obj.delete()
+
+
 @transaction.atomic
 def save_section(obj: HomeSection) -> None:
     validate_section(obj)
@@ -167,11 +211,24 @@ def save_personalization(obj: PersonalizationService) -> None:
 
 
 def section_source(section: HomeSection) -> dict[str, Any]:
-    return {
+    source = {
         field.attname: getattr(section, field.attname)
         for field in section._meta.concrete_fields
         if field.name not in {"created_at", "updated_at", "image"}
     } | {"image": section.image.name}
+    source["slides"] = [
+        {
+            field.attname: (
+                getattr(slide, field.attname).name
+                if field.name in {"image", "image_mobile"}
+                else getattr(slide, field.attname)
+            )
+            for field in slide._meta.concrete_fields
+            if field.name not in {"created_at", "updated_at", "section"}
+        }
+        for slide in section.slides.all()
+    ]
+    return source
 
 
 @transaction.atomic
@@ -185,6 +242,8 @@ def publish_home(
     for section in sections:
         if section.is_visible:
             validate_section(section)
+            for slide in section.slides.all():
+                slide.full_clean()
     publication = HomePublication.objects.create(
         snapshot={locale: render_sections(sections, locale) for locale in ("es", "en")},
         draft_snapshot=[section_source(section) for section in sections],
@@ -203,7 +262,12 @@ def restore_home(
     actor = require_publish(actor)
     HomeSection.objects.all().delete()
     for source in publication.draft_snapshot:
-        HomeSection.objects.create(**source)
+        fields = dict(source)
+        slides = fields.pop("slides", [])
+        # Restore the exact editable source, including incomplete hidden drafts.
+        section = HomeSection.objects.create(**fields)
+        for slide_source in slides:
+            HeroSlide.objects.create(section=section, **slide_source)
     record("cms.home_restored", actor=actor, obj=publication, request=request)
 
 

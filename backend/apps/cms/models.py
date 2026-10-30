@@ -191,6 +191,66 @@ class HomeSection(Illustrated):
         return self.title or self.kind
 
 
+class HeroSlide(Timestamped):
+    if TYPE_CHECKING:
+        alt_es: str
+        alt_en: str
+
+    objects: MultilingualManager[HeroSlide] = MultilingualManager()
+    section = models.ForeignKey(
+        HomeSection,
+        on_delete=models.CASCADE,
+        related_name="slides",
+        limit_choices_to={"kind": "hero"},
+        verbose_name=_("Portada"),
+    )
+    position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
+    image = models.ImageField(
+        verbose_name=_("Imagen para computador (horizontal)"),
+        upload_to="cms/slides/",
+        blank=True,
+        help_text=_("Opcional. Conserva su proporción; por ejemplo, 1921 x 900."),
+    )
+    renditions = models.JSONField(
+        verbose_name=_("Versiones de imagen"), default=dict, blank=True, editable=False
+    )
+    width = models.PositiveIntegerField(verbose_name=_("Ancho"), default=0, editable=False)
+    height = models.PositiveIntegerField(verbose_name=_("Alto"), default=0, editable=False)
+    image_mobile = models.ImageField(
+        verbose_name=_("Imagen para celular (vertical)"),
+        upload_to="cms/slides/",
+        blank=True,
+        help_text=_("Opcional. Conserva su proporción; por ejemplo, 750 x 1000."),
+    )
+    mobile_renditions = models.JSONField(
+        verbose_name=_("Versiones para celular"), default=dict, blank=True, editable=False
+    )
+    mobile_width = models.PositiveIntegerField(
+        verbose_name=_("Ancho para celular"), default=0, editable=False
+    )
+    mobile_height = models.PositiveIntegerField(
+        verbose_name=_("Alto para celular"), default=0, editable=False
+    )
+    alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300, blank=True)
+
+    class Meta:
+        verbose_name = _("diapositiva")
+        verbose_name_plural = _("Diapositivas")
+        ordering = ["position", "pk"]
+
+    def __str__(self) -> str:
+        return self.alt or str(self.position)
+
+    def clean(self) -> None:
+        super().clean()
+        if self.section_id and self.section.kind != "hero":
+            raise ValidationError(_("Las diapositivas solo pertenecen a una portada."))
+        if not self.image and not self.image_mobile:
+            raise ValidationError(_("Agrega una imagen para computador o celular."))
+        if any(not getattr(self, f"alt_{locale}", "") for locale in ("es", "en")):
+            raise ValidationError(_("Escribe el texto alternativo en español e inglés."))
+
+
 SnapshotT = TypeVar("SnapshotT", bound=models.Model)
 
 

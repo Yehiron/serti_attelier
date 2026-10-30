@@ -294,3 +294,22 @@ def test_backfill_repairs_incomplete_renditions() -> None:
     obj.refresh_from_db()
     assert all(default_storage.exists(path) for path in obj.cover_renditions["webp"].values())
     assert not rebuild_image(obj, dry_run=False)
+
+
+@pytest.mark.parametrize(
+    "width,expected",
+    [
+        (750, ["480", "750"]),  # between standard sizes: keep the source width
+        (1000, ["480", "960"]),  # within 10 % of 960: no near-duplicate
+        (1921, ["480", "960", "1600", "1921"]),
+        (300, ["300"]),  # smaller than every standard size
+        (2400, ["480", "960", "1600", "2400"]),
+    ],
+)
+def test_renditions_keep_the_source_width_between_standard_sizes(
+    width: int, expected: list[str]
+) -> None:
+    from apps.catalog.images import build_renditions
+
+    paths = build_renditions(Image.new("RGB", (width, 400)), "test/widths")
+    assert sorted(paths, key=int) == expected

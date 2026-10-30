@@ -39,3 +39,5 @@ frontend/public/fonts/
 
 # Instagram photos used only to preview the layout locally (not production assets).
 preview-instagram/
+# Client photos downloaded from the SERTI Drive folder (local only).
+preview-drive/

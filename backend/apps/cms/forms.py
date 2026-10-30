@@ -1,11 +1,14 @@
+from __future__ import annotations
+
 from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.images import crop_to_ratio, validated_image
 
-from .models import HomeSection, PersonalizationService
+from .models import HeroSlide, HomeSection, PersonalizationService
 from .services import display_ratio, validate_personalization, validate_section
 
 if TYPE_CHECKING:
@@ -35,3 +38,31 @@ class ContentForm(BaseContentForm):
                     crop_to_ratio(image, *ratio)
         except ValidationError as exc:
             self.add_error(None, ValidationError(exc.messages))
+
+
+class HeroSlideForm(BaseContentForm):
+    # FileField leaves format validation to the shared decoder, including HEIC/AVIF.
+    image = forms.FileField(
+        label=_("Imagen para computador (horizontal)"),
+        required=False,
+        help_text=_("Horizontal, por ejemplo 1921 x 900. Opcional."),
+        widget=forms.ClearableFileInput,
+    )
+    image_mobile = forms.FileField(
+        label=_("Imagen para celular (vertical)"),
+        required=False,
+        help_text=_("Vertical, por ejemplo 750 x 1000. Opcional."),
+        widget=forms.ClearableFileInput,
+    )
+
+    class Meta:
+        model = HeroSlide
+        fields = ("position", "image", "image_mobile", "alt")
+
+    def clean(self) -> dict[str, Any]:
+        data = super().clean() or {}
+        for field in ("image", "image_mobile"):
+            upload = data.get(field)
+            if upload and not getattr(upload, "_committed", False):
+                validated_image(upload)
+        return data

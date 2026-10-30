@@ -20,8 +20,9 @@ export type Alternates = { es: string; en: string };
 export type Catalog = { count: number; next: string | null; previous: string | null; results: PieceCard[]; facets: { stones: { slug: string; count: number }[]; price: { min_cents: number | null; max_cents: number | null } } };
 export type Cta = { label: string; href: string; external: boolean };
 export type StonePanel = Named & { description: string; image: Image | null; href: string };
+export type HeroSlide = { image: Image | null; mobile_image: Image | null };
 export type Section = { id: string | number } & (
-  { kind: 'hero'; title: string; subtitle: string; image: Image | null; cta: Cta | null } |
+  { kind: 'hero'; slides?: HeroSlide[]; title: string; subtitle: string; image: Image | null; cta: Cta | null } |
   { kind: 'statement'; title: string; body: string } |
   { kind: 'stone_panels'; title: string; subtitle: string; stones: StonePanel[] } |
   { kind: 'collection_rail'; title: string; subtitle: string; collection: Named & { href: string }; pieces: PieceCard[] } |

@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import HomeSection, Page, PersonalizationService
+from .models import HeroSlide, HomeSection, Page, PersonalizationService
 
 
 @register(HomeSection)
@@ -17,3 +19,8 @@ class PageTranslation(TranslationOptions):
 @register(PersonalizationService)
 class ServiceTranslation(TranslationOptions):
     fields = ("title", "description", "whatsapp_message", "image_alt")
+
+
+@register(HeroSlide)
+class HeroSlideTranslation(TranslationOptions):
+    fields = ("alt",)

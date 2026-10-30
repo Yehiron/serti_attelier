@@ -36,7 +36,14 @@
     "storyTitle": "From the earth, to the atelier. From the atelier, to you.",
     "storyBody": "Every jewel begins with a conversation between a stone and the hands that shape it. Discover the origins of SERTI.",
     "customTitle": "Your story deserves a piece of its own.",
-    "customBody": "An occasion, a memory, an idea. Let’s design a jewel that could only be yours."
+    "customBody": "An occasion, a memory, an idea. Let’s design a jewel that could only be yours.",
+    "carousel": {
+      "role": "carousel",
+      "label": "Featured images",
+      "goTo": "Go to image {n}",
+      "pause": "Pause carousel",
+      "play": "Resume carousel"
+    }
   },
   "ui": {
     "explore": "Explore the pieces",

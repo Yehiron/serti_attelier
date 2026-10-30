@@ -584,3 +584,26 @@ button:disabled { cursor: wait; }
 .order-payment .payment-secondary { background: transparent; color: var(--ink, #330414); border: 1px solid currentColor; }
 .payment-notice { font-size: .875rem; opacity: .8; }
 #order-heading:focus-visible { outline: 2px solid currentColor; outline-offset: 8px; }
+
+
+/* Hero images share a fixed frame; controls sit above the editorial gradient. */
+.hero-sequence { position: absolute; inset: 0; }
+.hero-slide { opacity: 0; transform: scale(1.05); transition: opacity 1.4s var(--ease-editorial), transform 1.4s var(--ease-editorial); }
+.hero-slide.is-current { opacity: 1; transform: scale(1); transition: opacity 1.4s var(--ease-editorial), transform 7.4s var(--ease-editorial); }
+.hero-carousel::after { pointer-events: none; }
+.hero-slide--mobile { display: none; }
+.hero-indicators { position: absolute; bottom: 64px; left: var(--spacing-gutter); display: flex; flex-wrap: wrap; z-index: 2; }
+.hero-indicators button { width: 44px; height: 44px; padding: 18px 5px; border: 0; background: transparent; color: inherit; cursor: pointer; }
+.hero-indicators span { display: block; height: 2px; background: var(--color-cream); opacity: .4; transition: opacity 1.4s var(--ease-editorial); }
+.hero-indicators [aria-current] span { opacity: 1; }
+.hero-play { position: absolute; bottom: 72px; right: var(--spacing-gutter); min-height: 44px; z-index: 2; background: transparent; border: 0; color: var(--color-cream); font: inherit; font-size: 11px; cursor: pointer; }
+.hero-indicators button:focus-visible, .hero-play:focus-visible { outline: 1px solid var(--color-cream); outline-offset: 2px; }
+@media(max-width:760px) {
+  .hero-slide--desktop { display: none; }
+  .hero-slide--mobile { display: block; }
+  .hero-indicators { right: 160px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .hero-slide, .hero-slide.is-current { transform: none; transition: none; }
+  .hero-indicators span { transition: none; }
+}

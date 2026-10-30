@@ -8,7 +8,7 @@ from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models.signals import post_delete, pre_save
 
-from apps.cms.models import HomePublication, HomeSection, PersonalizationService
+from apps.cms.models import HeroSlide, HomePublication, HomeSection, PersonalizationService
 
 from .models import Category, Collection, PieceImage, PieceVideo, Stone
 
@@ -19,6 +19,7 @@ IMAGE_MODELS = (
     Collection,
     Stone,
     HomeSection,
+    HeroSlide,
     PersonalizationService,
 )
 
@@ -37,6 +38,13 @@ def file_paths(obj: models.Model) -> set[str]:
     if isinstance(obj, PieceVideo):
         return {str(f.name) for f in (obj.mp4, obj.poster) if f} | set(
             obj.poster_renditions.get("webp", {}).values()
+        )
+    if isinstance(obj, HeroSlide):
+        return (
+            ({str(obj.image.name)} if obj.image else set())
+            | ({str(obj.image_mobile.name)} if obj.image_mobile else set())
+            | set(obj.renditions.get("webp", {}).values())
+            | set(obj.mobile_renditions.get("webp", {}).values())
         )
     field = (
         "original"

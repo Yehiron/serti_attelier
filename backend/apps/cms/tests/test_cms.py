@@ -469,7 +469,7 @@ def test_image_pipeline(actor: User, tmp_path: Path) -> None:
     )
     services.save_section(obj)
     assert (obj.width, obj.height) == (1920, 1080)
-    assert set(obj.renditions["webp"]) == {"960", "1600"}
+    assert set(obj.renditions["webp"]) == {"960", "1600", "1920"}  # source width kept
     assert obj.image.name and obj.image.name.endswith(".webp")
     for width, name in obj.renditions["webp"].items():
         with Image.open(tmp_path / name) as image:
@@ -532,7 +532,7 @@ def test_draft_query_count(actor: User, client: Client) -> None:
         section(position=i + 1)
     with CaptureQueriesContext(connection) as many:
         assert get(client, "cms/home", preview=token).status_code == 200
-    assert len(many) == len(one) == 3
+    assert len(many) == len(one) == 4
 
 
 def test_empty_markdown_and_raw_source_restore(actor: User, client: Client) -> None:

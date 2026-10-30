@@ -61,7 +61,7 @@ def test_exif_orientation(
         save_piece_image(photo)
     photo.refresh_from_db()
     assert (photo.width, photo.height) == (600, 1000)
-    assert set(photo.renditions["webp"]) == {"480"}
+    assert set(photo.renditions["webp"]) == {"480", "600"}  # source width kept
 
 
 def test_tiny_image_and_failed_task(

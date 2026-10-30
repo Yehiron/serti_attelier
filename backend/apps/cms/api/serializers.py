@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 from drf_spectacular.utils import PolymorphicProxySerializer
@@ -26,7 +28,13 @@ class SectionSerializer(serializers.Serializer[Any]):
     title = serializers.CharField()
 
 
+class HeroSlideSerializer(serializers.Serializer[Any]):
+    image = CmsImageSerializer(allow_null=True)
+    mobile_image = CmsImageSerializer(allow_null=True)
+
+
 class HeroSerializer(SectionSerializer):
+    slides = HeroSlideSerializer(many=True, required=False)
     subtitle = serializers.CharField()
     image = CmsImageSerializer(allow_null=True)
     cta = CtaSerializer(allow_null=True)

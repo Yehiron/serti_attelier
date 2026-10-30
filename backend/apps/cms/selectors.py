@@ -17,7 +17,14 @@ from apps.catalog.selectors import cover_data, published_pieces
 from apps.core.routes import href
 from apps.core.selectors import get_solo
 
-from .models import HomePublication, HomeSection, Page, PageRevision, PersonalizationService
+from .models import (
+    HeroSlide,
+    HomePublication,
+    HomeSection,
+    Page,
+    PageRevision,
+    PersonalizationService,
+)
 from .services import render_markdown
 
 LEGAL_KINDS = ("terms", "privacy", "returns", "shipping", "cookies")
@@ -30,17 +37,19 @@ def localized(obj: Any, field: str, locale: str) -> str:
 def draft_sections() -> QuerySet[HomeSection]:
     return HomeSection.objects.select_related(
         "collection", "cta_category", "cta_stone", "cta_collection", "cta_piece", "cta_page"
-    )
+    ).prefetch_related("slides")
 
 
-def image_data(obj: HomeSection | PersonalizationService, locale: str) -> dict[str, Any] | None:
-    if not obj.image:
+def image_data(
+    obj: HomeSection | PersonalizationService | HeroSlide, locale: str, mobile: bool = False
+) -> dict[str, Any] | None:
+    image = getattr(obj, "image_mobile" if mobile else "image")
+    prefix = "mobile_" if mobile else ""
+    if not image:
         return None
-    paths = obj.renditions.get("webp", {})
+    paths = getattr(obj, f"{prefix}renditions").get("webp", {})
     src = (
-        default_storage.url(paths.get("960") or paths[max(paths, key=int)])
-        if paths
-        else obj.image.url
+        default_storage.url(paths.get("960") or paths[max(paths, key=int)]) if paths else image.url
     )
     return {
         "src": src,
@@ -48,9 +57,9 @@ def image_data(obj: HomeSection | PersonalizationService, locale: str) -> dict[s
             f"{default_storage.url(path)} {width}w"
             for width, path in sorted(paths.items(), key=lambda item: int(item[0]))
         ),
-        "width": obj.width,
-        "height": obj.height,
-        "alt": localized(obj, "image_alt", locale),
+        "width": getattr(obj, f"{prefix}width"),
+        "height": getattr(obj, f"{prefix}height"),
+        "alt": localized(obj, "alt" if isinstance(obj, HeroSlide) else "image_alt", locale),
     }
 
 
@@ -80,6 +89,19 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
                     else href(obj.cta_kind, locale, target),
                     "external": obj.cta_kind == "external",
                 }
+        if obj.kind == "hero":
+            slides = [
+                {
+                    "image": image_data(slide, locale) if slide.width and slide.height else None,
+                    "mobile_image": image_data(slide, locale, mobile=True)
+                    if slide.mobile_width and slide.mobile_height
+                    else None,
+                }
+                for slide in obj.slides.all()
+            ]
+            data["slides"] = [slide for slide in slides if any(slide.values())]
+            if data["slides"]:
+                data["image"] = data["slides"][0]["image"]
         if obj.kind == "collection_rail":
             data["collection_id"] = obj.collection_id
             data["collection"] = {

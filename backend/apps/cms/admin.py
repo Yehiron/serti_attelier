@@ -11,15 +11,22 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from modeltranslation.admin import TabbedTranslationAdmin
-from unfold.admin import ModelAdmin
+from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
+from unfold.admin import ModelAdmin, StackedInline
 
 from apps.core.admin import ReadOnlyAdmin
 from apps.core.exceptions import DomainError
 
 from . import services
-from .forms import ContentForm
-from .models import HomePublication, HomeSection, Page, PageRevision, PersonalizationService
+from .forms import ContentForm, HeroSlideForm
+from .models import (
+    HeroSlide,
+    HomePublication,
+    HomeSection,
+    Page,
+    PageRevision,
+    PersonalizationService,
+)
 from .preview import make_token
 from .selectors import page_path
 
@@ -40,12 +47,67 @@ class ContentAdmin(TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[mis
         return False
 
 
+class HeroSlideInline(TranslationStackedInline[HeroSlide, HomeSection], StackedInline):  # type: ignore[misc]
+    model = HeroSlide
+    form = HeroSlideForm
+    extra = 0
+    ordering = ("position", "pk")
+    fields = ("position", "image", "image_mobile", "alt", "previews")
+    readonly_fields = ("previews",)
+    verbose_name_plural = _("Diapositivas")
+
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("cms.view_homesection")
+
+    def has_add_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("cms.change_homesection")
+
+    def has_change_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("cms.change_homesection")
+
+    def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("cms.change_homesection")
+
+    @admin.display(description=_("Vista previa"))
+    def previews(self, obj: HeroSlide) -> str:
+        return format_html(
+            "<span>{} {}</span>",
+            format_html(
+                '<img src="{}" style="max-width:220px;max-height:120px" alt="{}">',
+                obj.image.url,
+                _("Computador"),
+            )
+            if obj.image
+            else "",
+            format_html(
+                '<img src="{}" style="max-width:100px;max-height:120px" alt="{}">',
+                obj.image_mobile.url,
+                _("Celular"),
+            )
+            if obj.image_mobile
+            else "",
+        )
+
+
 @admin.register(HomeSection)
 class HomeSectionAdmin(ContentAdmin):
     list_display = ("kind", "title", "position", "is_visible")
     ordering = ("position", "pk")
     readonly_fields = (*ContentAdmin.readonly_fields, "renditions", "width", "height")
     change_list_template = "admin/cms/home_changelist.html"
+
+    def get_inlines(
+        self, request: HttpRequest, obj: HomeSection | None = None
+    ) -> tuple[type[HeroSlideInline], ...]:
+        return (HeroSlideInline,) if obj and obj.kind == "hero" else ()
+
+    def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
+        instances = formset.save(commit=False)
+        for deleted in formset.deleted_objects:
+            services.delete_hero_slide(deleted)
+        for instance in instances:
+            services.save_hero_slide(instance)
+        formset.save_m2m()
 
     def get_urls(self) -> list[Any]:
         return [

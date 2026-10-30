@@ -100,6 +100,17 @@ def cap_master(image: Image.Image) -> Image.Image:
     return result
 
 
+def rendition_widths(
+    source_width: int, widths: tuple[int, ...] = (480, 960, 1600, 2400)
+) -> list[int]:
+    """Standard widths up to the source, plus the source width itself when it is clearly
+    larger than the biggest one (e.g. 750 px: 480 alone would look soft on a 3x phone)."""
+    candidates = [value for value in widths if value <= source_width]
+    if not candidates or source_width > candidates[-1] * 1.1:
+        candidates.append(source_width)
+    return candidates
+
+
 def build_renditions(
     image: Image.Image,
     prefix: str,
@@ -107,7 +118,7 @@ def build_renditions(
 ) -> dict[str, str]:
     paths: dict[str, str] = {}
     try:
-        for width in [value for value in widths if value <= image.width] or [image.width]:
+        for width in rendition_widths(image.width, widths):
             resized = image.resize(
                 (width, max(1, round(image.height * width / image.width))),
                 Image.Resampling.LANCZOS,

@@ -17,7 +17,14 @@ from apps.audit.diff import compute_diff
 from apps.audit.services import record
 from apps.core.exceptions import PublicationError
 
-from .images import build_renditions, cap_master, crop_to_ratio, encode_webp, validated_image
+from .images import (
+    build_renditions,
+    cap_master,
+    crop_to_ratio,
+    encode_webp,
+    rendition_widths,
+    validated_image,
+)
 from .models import (
     Category,
     Collection,
@@ -291,7 +298,7 @@ def rebuild_image(
         if isinstance(obj, (HomeSection, PersonalizationService))
         else (480, 960, 1600, 2400)
     )
-    expected = {str(width) for width in widths if width <= image.width} or {str(image.width)}
+    expected = {str(width) for width in rendition_widths(image.width, widths)}
     existing = paths.get("webp", {})
     if (
         not oversized

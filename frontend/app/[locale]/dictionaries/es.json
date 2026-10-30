@@ -36,7 +36,14 @@
     "storyTitle": "De la tierra, al taller. Del taller, a ti.",
     "storyBody": "Cada joya nace de la conversación entre una piedra y las manos que le dan forma. Descubre el origen de SERTI.",
     "customTitle": "Tu historia merece una pieza propia.",
-    "customBody": "Una ocasión, un recuerdo, una idea. Diseñemos una joya que solo pueda ser tuya."
+    "customBody": "Una ocasión, un recuerdo, una idea. Diseñemos una joya que solo pueda ser tuya.",
+    "carousel": {
+      "role": "carrusel",
+      "label": "Imágenes de portada",
+      "goTo": "Ir a la imagen {n}",
+      "pause": "Pausar carrusel",
+      "play": "Reanudar carrusel"
+    }
   },
   "ui": {
     "explore": "Explorar las piezas",
