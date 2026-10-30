@@ -13,7 +13,7 @@ from django.utils.translation import override
 
 from apps.catalog.api.serializers import PieceListSerializer
 from apps.catalog.models import CollectionPiece, Piece, Stone
-from apps.catalog.selectors import published_pieces
+from apps.catalog.selectors import cover_data, published_pieces
 from apps.core.routes import href
 from apps.core.selectors import get_solo
 
@@ -128,15 +128,7 @@ def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, 
     stones = []
     if any(section["kind"] == "stone_panels" for section in sections):
         for stone in Stone.objects.all():
-            image = None
-            if stone.cover_image:
-                image = {
-                    "src": stone.cover_image.url,
-                    "srcset": "",
-                    "width": stone.cover_image.width,
-                    "height": stone.cover_image.height,
-                    "alt": localized(stone, "name", locale),
-                }
+            image = cover_data(stone, locale)
             stones.append(
                 {
                     "slug": localized(stone, "slug", locale),

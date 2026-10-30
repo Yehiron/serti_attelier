@@ -10,7 +10,7 @@ from apps.core.money import Money
 from apps.core.selectors import piece_url
 
 from ..models import Category, Collection, Material, Piece, PieceImage, Stone
-from ..selectors import piece_cta, related_pieces
+from ..selectors import cover_data, piece_cta, related_pieces
 
 
 class MoneySerializer(serializers.Serializer[Any]):
@@ -23,13 +23,27 @@ class NamedSerializer(serializers.Serializer[Any]):
     name = serializers.CharField()
 
 
+class CoverSerializer(serializers.Serializer[Any]):
+    src = serializers.CharField()
+    srcset = serializers.CharField()
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    alt = serializers.CharField()
+
+
 class TaxonSerializer(NamedSerializer):
+    cover = serializers.SerializerMethodField()
+
+    @extend_schema_field(CoverSerializer(allow_null=True))
+    def get_cover(self, obj: Category | Collection | Stone | Material) -> dict[str, Any] | None:
+        return cover_data(obj)
+
     cover_image = serializers.SerializerMethodField()
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_cover_image(self, obj: Category | Collection | Stone | Material) -> str | None:
-        cover = getattr(obj, "cover_image", None)
-        return cover.url if cover else None
+        cover = cover_data(obj)
+        return str(cover["src"]) if cover else None
 
 
 class CategorySerializer(TaxonSerializer):
@@ -158,7 +172,18 @@ class SEOSerializer(serializers.Serializer[Any]):
     alternates = AlternatesSerializer()
 
 
+class VideoSerializer(serializers.Serializer[Any]):
+    src = serializers.CharField()
+    type = serializers.ChoiceField(choices=["video/mp4"])
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+    duration_seconds = serializers.FloatField()
+    alt = serializers.CharField()
+    poster = CoverSerializer()
+
+
 class PieceDetailSerializer(PieceListSerializer):
+    video = serializers.SerializerMethodField()
     materials = NamedSerializer(many=True)
     collections = serializers.SerializerMethodField()
     gallery = serializers.SerializerMethodField()
@@ -169,6 +194,7 @@ class PieceDetailSerializer(PieceListSerializer):
     class Meta(PieceListSerializer.Meta):
         fields = (
             *PieceListSerializer.Meta.fields,
+            "video",
             "piece_number",
             "short_description",
             "long_description",
@@ -182,6 +208,31 @@ class PieceDetailSerializer(PieceListSerializer):
             "seo",
             "cta",
         )
+
+    @extend_schema_field(VideoSerializer(allow_null=True))
+    def get_video(self, obj: Piece) -> dict[str, Any] | None:
+        video = getattr(obj, "video", None)
+        if video is None or video.processing_status != "ready":
+            return None
+        paths = video.poster_renditions.get("webp", {})
+        return {
+            "src": video.mp4.url,
+            "type": "video/mp4",
+            "width": video.width,
+            "height": video.height,
+            "duration_seconds": video.duration_seconds,
+            "alt": video.alt,
+            "poster": {
+                "src": video.poster.url,
+                "srcset": ", ".join(
+                    f"{default_storage.url(path)} {width}w"
+                    for width, path in sorted(paths.items(), key=lambda item: int(item[0]))
+                ),
+                "width": video.width,
+                "height": video.height,
+                "alt": video.alt,
+            },
+        }
 
     @extend_schema_field(NamedSerializer(many=True))
     def get_collections(self, obj: Piece) -> list[dict[str, Any]]:

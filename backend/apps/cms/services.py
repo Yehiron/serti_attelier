@@ -9,16 +9,20 @@ import markdown  # type: ignore[import-untyped]
 import nh3
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.core.files.storage import default_storage
 from django.db import transaction
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
-from PIL import Image
 
 from apps.accounts.models import User
 from apps.audit.services import record
-from apps.catalog.images import crop_to_ratio, encode_webp, validated_image
+from apps.catalog.images import (
+    build_renditions,
+    cap_master,
+    crop_to_ratio,
+    encode_webp,
+    validated_image,
+)
 
 from .models import HomePublication, HomeSection, Page, PageRevision, PersonalizationService
 
@@ -120,16 +124,10 @@ def process_image(obj: HomeSection | PersonalizationService) -> None:
     image = validated_image(obj.image)
     if ratio := display_ratio(obj):
         image = crop_to_ratio(image, *ratio)
+    image = cap_master(image)
     obj.width, obj.height = image.size
     obj.image.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
-    paths = {}
-    for width in [width for width in (960, 1600, 2400) if width <= image.width] or [image.width]:
-        resized = image.resize(
-            (width, max(1, round(image.height * width / image.width))), Image.Resampling.LANCZOS
-        )
-        paths[str(width)] = default_storage.save(
-            f"cms/renditions/{uuid.uuid4().hex}.webp", encode_webp(resized)
-        )
+    paths = build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", (960, 1600, 2400))
     obj.renditions = {"webp": paths}
 
 

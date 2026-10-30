@@ -9,6 +9,7 @@ from django.utils.translation import gettext_lazy as _
 from modeltranslation.manager import MultilingualManager
 
 from apps.core.money import Money
+from apps.payments.storage import private_storage
 
 from .validators import validate_attributes
 
@@ -47,6 +48,15 @@ class NamedModel(models.Model):
 
 
 class CoveredModel(NamedModel):
+    cover_renditions = models.JSONField(
+        verbose_name=_("Versiones de portada"), default=dict, blank=True, editable=False
+    )
+    cover_width = models.PositiveIntegerField(
+        verbose_name=_("Ancho de portada"), default=0, editable=False
+    )
+    cover_height = models.PositiveIntegerField(
+        verbose_name=_("Alto de portada"), default=0, editable=False
+    )
     description = models.TextField(verbose_name=_("Descripción"), blank=True)
     cover_image = models.ImageField(
         verbose_name=_("Imagen de portada"), upload_to="catalog/covers/", blank=True
@@ -336,3 +346,51 @@ class PieceRelation(models.Model):
 
     def __str__(self) -> str:
         return f"{self.source_id} → {self.target_id}"
+
+
+def video_original_path(instance: PieceVideo, filename: str) -> str:
+    return f"pieces/videos/originals/{uuid.uuid4().hex}"
+
+
+class PieceVideo(models.Model):
+    objects: MultilingualManager[PieceVideo] = MultilingualManager()
+    piece = models.OneToOneField(
+        Piece, verbose_name=_("Pieza"), on_delete=models.CASCADE, related_name="video"
+    )
+    original = models.FileField(
+        verbose_name=_("Video original"),
+        storage=private_storage,
+        upload_to=video_original_path,
+        blank=True,
+        help_text=_(
+            "Video corto (máx. 60 s, 150 MB). "
+            "Se convierte automáticamente a MP4 liviano sin sonido."
+        ),
+    )
+    mp4 = models.FileField(verbose_name=_("Video MP4"), upload_to="pieces/videos/", blank=True)
+    poster = models.ImageField(
+        verbose_name=_("Póster"), upload_to="pieces/videos/posters/", blank=True
+    )
+    poster_renditions = models.JSONField(
+        verbose_name=_("Versiones del póster"), default=dict, blank=True
+    )
+    width = models.PositiveIntegerField(verbose_name=_("Ancho"), default=0)
+    height = models.PositiveIntegerField(verbose_name=_("Alto"), default=0)
+    duration_seconds = models.FloatField(verbose_name=_("Duración en segundos"), default=0)
+    alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300)
+    processing_status = models.CharField(
+        verbose_name=_("Estado de procesamiento"),
+        max_length=8,
+        choices=PieceImage.ProcessingStatus,
+        default=PieceImage.ProcessingStatus.PENDING,
+    )
+    error = models.CharField(verbose_name=_("Error"), max_length=200, blank=True)
+    created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("video de pieza")
+        verbose_name_plural = _("videos de piezas")
+
+    def __str__(self) -> str:
+        return self.alt

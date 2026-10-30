@@ -16,6 +16,7 @@ qrcode==8.2
 
 django-modeltranslation==0.20.6
 Pillow==13.0.0
+pillow-heif==1.1.1
 
 Markdown==3.11.2
 nh3==0.3.7

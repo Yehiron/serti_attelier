@@ -15,11 +15,13 @@ import "../globals.css";
 // time), so navigations into this segment are allowed to wait for it.
 export const instant = false;
 
+// Fallback for Ninna only (docs/marca.md): not preloaded, so it is fetched only if used.
 const serif = Cormorant_Garamond({
   variable: "--font-cormorant",
   subsets: ["latin"],
-  weight: ["300", "400", "500"],
+  weight: ["400"],
   style: ["normal", "italic"],
+  preload: false,
 });
 
 const sans = Inter({

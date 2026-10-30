@@ -20,9 +20,6 @@
 {$SITE_DOMAIN} {
 	import security_headers
 	encode zstd gzip
-	request_body {
-		max_size 20MB
-	}
 
 	# Django static files (admin) and public uploads, straight from the volumes.
 	handle /static/* {
@@ -38,20 +35,35 @@
 		file_server
 	}
 
-	# API: JSON only.
+	# API: JSON only (the Wompi webhook enforces its own 64 KB limit).
 	handle /api/* {
+		request_body {
+			max_size 1MB
+		}
 		header Content-Security-Policy "default-src 'none'; frame-ancestors 'none'"
 		reverse_proxy backend:8000
 	}
 
 	# Dashboard (Unfold uses inline scripts and Alpine.js expressions).
 	handle /{$DJANGO_ADMIN_URL}* {
+		# Dashboard uploads: photos up to 25 MB, one piece video up to 150 MB (+ form overhead).
+		request_body {
+			max_size 200MB
+		}
 		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'self'; object-src 'none'"
 		reverse_proxy backend:8000
 	}
 
+	# Brand files and fonts rarely change: let browsers keep them (a new logo gets a new name).
+	@brand path /brand/* /fonts/*
+	# ">" applies it after the proxy, otherwise Next.js' own Cache-Control would win.
+	header @brand >Cache-Control "public, max-age=2592000"
+
 	# Public site (Next.js). Nonces are incompatible with prerendered shells (ADR-017).
 	handle {
+		request_body {
+			max_size 1MB
+		}
 		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
 		reverse_proxy frontend:3000
 	}

@@ -1,6 +1,6 @@
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import Category, Collection, Material, Piece, PieceImage, Stone
+from .models import Category, Collection, Material, Piece, PieceImage, PieceVideo, Stone
 
 
 @register([Category, Collection])
@@ -32,7 +32,7 @@ class PieceTranslation(TranslationOptions):
     )
 
 
-@register(PieceImage)
+@register([PieceImage, PieceVideo])
 class ImageTranslation(TranslationOptions):
     fields = ("alt",)
     required_languages = ("es",)

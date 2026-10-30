@@ -121,7 +121,7 @@ def piece_facets(params: dict[str, Any], locale: str) -> dict[str, Any]:
 
 
 def piece_detail(slug: str, locale: str) -> Piece:
-    piece = published_pieces().filter(localized_slug(locale, slug)).first()
+    piece = published_pieces().select_related("video").filter(localized_slug(locale, slug)).first()
     if piece is None:
         raise PieceNotFound()
     return piece
@@ -182,3 +182,27 @@ def missing_english_translation() -> Q:
         else:
             missing |= empty_en & ~Q(**{f"{field}_es": ""}) & Q(**{f"{field}_es__isnull": False})
     return Q(status="published") & missing
+
+
+def cover_data(obj: Any, locale: str | None = None) -> dict[str, Any] | None:
+    """Shared taxonomy image contract, including legacy covers pending backfill."""
+    from django.core.files.storage import default_storage
+
+    cover = getattr(obj, "cover_image", None)
+    if not cover:
+        return None
+    paths = obj.cover_renditions.get("webp", {})
+    src = (
+        default_storage.url(paths.get("1600") or paths[max(paths, key=int)]) if paths else cover.url
+    )
+    alt = getattr(obj, f"name_{locale}", "") or obj.name_es if locale else obj.name
+    return {
+        "src": src,
+        "srcset": ", ".join(
+            f"{default_storage.url(path)} {width}w"
+            for width, path in sorted(paths.items(), key=lambda item: int(item[0]))
+        ),
+        "width": obj.cover_width or cover.width,
+        "height": obj.cover_height or cover.height,
+        "alt": alt,
+    }

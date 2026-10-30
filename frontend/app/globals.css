@@ -208,7 +208,7 @@ del { color: var(--color-olive-deep); margin-right: 6px; font-size: .85em; }
 .page-heading h1 { margin: 25px 0 28px; }
 .page-heading > p:last-child { font-size: 13px; }
 .listing-page,.utility-page { padding: 0 var(--spacing-gutter) 100px; min-height: 65vh; }
-.taxon-cover { width: 100%; aspect-ratio: 16/9; max-height: 340px; background-position: center; background-size: cover; margin-bottom: 24px; }
+.taxon-cover { width: 100%; aspect-ratio: 16/9; max-height: 340px; object-fit: cover; margin-bottom: 24px; }
 .listing-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 45px; }
 .filter-form { display: flex; flex-direction: column; gap: 22px; font-size: 12px; }
 .filter-form h2 { font-size: 28px; }
@@ -242,7 +242,10 @@ legend { padding: 0 0 14px; }
 .gallery { min-width: 0; align-self: start; }
 .gallery-track { display: flex; overflow-x: auto; scroll-snap-type: x mandatory; scrollbar-width: none; }
 .gallery-frame { flex: 0 0 100%; aspect-ratio: 4/5; scroll-snap-align: start; }
-.gallery-frame img { width: 100%; height: 100%; object-fit: cover; }
+.gallery-frame img, .gallery-frame video { width: 100%; height: 100%; object-fit: cover; }
+.gallery-frame video { display: block; background: var(--color-paper); }
+.gallery-thumbs .video-thumb { position: relative; }
+.gallery-thumbs .video-thumb span { display: flex; position: absolute; inset: 3px; align-items: center; justify-content: center; color: var(--color-cream); background: #33041455; font-size: 13px; }
 .gallery-thumbs { display: flex; gap: 12px; padding: 14px 5px; overflow-x: auto; }
 .gallery-thumbs button { flex: 0 0 64px; padding: 3px; border: 1px solid transparent; }
 .gallery-thumbs button[aria-pressed=true] { border-color: var(--color-wine); }
@@ -371,6 +374,7 @@ legend { padding: 0 0 14px; }
  .gallery-thumbs button { flex: 0 0 28px; min-height: 28px; padding: 3px; border: 0 !important; }
  .gallery-thumbs img { display: none; }
  .gallery-thumbs span { display: block; color: var(--color-wine); font-size: 13px; }
+ .gallery-thumbs .video-thumb span { position: static; background: none; color: var(--color-wine); }
  .piece-title h1 { font-size: 3.5rem; }
  .sticky-piece-cta { display: flex; justify-content: space-between; align-items: center; gap: 14px; position: fixed; bottom: 0; inset-inline: 0; z-index: 36; background: var(--color-cream); border-top: 1px solid #7a725660; padding: 12px var(--spacing-gutter) calc(12px + env(safe-area-inset-bottom)); }
  .sticky-piece-cta > span { font: 18px/1.2 var(--font-serif); max-width: 38%; }

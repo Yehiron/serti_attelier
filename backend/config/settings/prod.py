@@ -57,8 +57,8 @@ _public_url = urlsplit(PUBLIC_SITE_URL)
 CSRF_TRUSTED_ORIGINS = env.list(
     "DJANGO_CSRF_TRUSTED_ORIGINS", default=[f"{_public_url.scheme}://{_public_url.netloc}"]
 )
-DATA_UPLOAD_MAX_MEMORY_SIZE = 16 * 1024 * 1024
-FILE_UPLOAD_MAX_MEMORY_SIZE = 15 * 1024 * 1024
+DATA_UPLOAD_MAX_MEMORY_SIZE = 26 * 1024 * 1024
+FILE_UPLOAD_MAX_MEMORY_SIZE = 25 * 1024 * 1024
 LOGGING = deepcopy(BASE_LOGGING)
 LOGGING["formatters"]["json"] = {"()": "apps.core.observability.JSONFormatter"}
 LOGGING["handlers"]["console"]["formatter"] = "json"

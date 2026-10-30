@@ -18,8 +18,17 @@ from apps.core.exceptions import DomainError
 from apps.inventory.services import set_preorder
 
 from . import services
-from .forms import PieceForm, PieceImageForm, PieceImageFormSet, ValidatedImageForm
-from .models import Category, Collection, CollectionPiece, Material, Piece, PieceImage, Stone
+from .forms import PieceForm, PieceImageForm, PieceImageFormSet, PieceVideoForm, ValidatedImageForm
+from .models import (
+    Category,
+    Collection,
+    CollectionPiece,
+    Material,
+    Piece,
+    PieceImage,
+    PieceVideo,
+    Stone,
+)
 from .selectors import missing_english_translation
 
 
@@ -83,6 +92,23 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
         )
 
 
+class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
+    model = PieceVideo
+    form: Any = PieceVideoForm
+    max_num = 1
+    extra = 0
+    fields = ("original", "alt", "preview", "processing_status", "duration_seconds", "error")
+    readonly_fields = ("preview", "processing_status", "duration_seconds", "error")
+
+    @admin.display(description=_("Póster"))
+    def preview(self, obj: PieceVideo) -> str:
+        return (
+            format_html('<img src="{}" width="128" alt="{}">', obj.poster.url, obj.alt)
+            if obj.poster
+            else "—"
+        )
+
+
 class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     model = CollectionPiece
     extra = 0
@@ -129,7 +155,7 @@ class PieceAdmin(TranslatedAdmin):
     )
     search_fields = ("sku", "name_es", "name_en")
     readonly_fields = ("status", "sale_state", "published_at", "sold_at")
-    inlines = (PieceImageInline, CollectionPieceInline)
+    inlines = (PieceImageInline, PieceVideoInline, CollectionPieceInline)
     actions = ("publish", "hide", "unhide", "archive", "preorder_on", "preorder_off", "duplicate")
 
     def has_duplicate_permission(self, request: HttpRequest) -> bool:
@@ -176,12 +202,16 @@ class PieceAdmin(TranslatedAdmin):
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
         instances = formset.save(commit=False)
         for obj in formset.deleted_objects:
-            if isinstance(obj, PieceImage):
+            if isinstance(obj, PieceVideo):
+                obj.delete()
+            elif isinstance(obj, PieceImage):
                 services.delete_piece_image(obj)
             else:
                 services.delete_catalog_object(obj)
         for obj in instances:
-            if isinstance(obj, PieceImage):
+            if isinstance(obj, PieceVideo):
+                services.save_piece_video(obj)
+            elif isinstance(obj, PieceImage):
                 services.save_piece_image(obj)
             else:
                 services.save_collection_piece(obj)

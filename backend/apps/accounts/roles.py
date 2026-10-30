@@ -25,6 +25,7 @@ def has_role(user: User | AnonymousUser, role: str) -> bool:
 CATALOG_MODELS = (
     "piece",
     "pieceimage",
+    "piecevideo",
     "category",
     "collection",
     "stone",

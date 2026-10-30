@@ -1,13 +1,16 @@
 export type Image = { src: string; srcset: string; width: number; height: number; alt: string };
 export type Money = { amount_cents: number; currency: 'COP' };
 export type Named = { slug: string; name: string };
-export type Taxon = Named & { cover_image: string | null };
+export type Taxon = Named & { cover_image: string | null; cover?: Image | null };
 export type Category = Taxon & { children: Taxon[] };
 export type Taxonomy = { categories: Category[]; collections: Taxon[]; stones: Taxon[]; materials: Taxon[] };
 export type SaleState = 'available' | 'reserved' | 'sold' | 'preorder';
 export type LiveState = SaleState | 'unavailable';
 export type PieceCard = Named & { sku: string; category: Named | null; stones: Named[]; price: Money; sale_price: Money | null; sale_state: SaleState; is_new: boolean; image: Image | null; hover_image?: Image | null };
+/** Short silent clip shown in the piece gallery; only `ready` videos reach the API. */
+export type PieceVideo = { src: string; type: string; width: number; height: number; duration_seconds: number; alt: string; poster: Image };
 export type PieceDetail = PieceCard & {
+  video?: PieceVideo | null;
   piece_number: string; short_description: string; long_description: string; story: string; care: string;
   attributes: { ring_size?: string | number; length_mm?: number; metal?: string; metal_purity?: string; carats?: number; weight_g?: number; dimensions_mm?: string }; materials: Named[]; collections: Named[];
   gallery: Image[]; related: PieceCard[]; seo: { title: string; description: string; alternates: Alternates };

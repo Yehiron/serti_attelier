@@ -8,12 +8,14 @@ export function Media({ image, className = '', priority = false, sizes = '(max-w
 type Tone = 'wine' | 'gold';
 const tones: Tone[] = ['wine', 'gold'];
 export function Ornament() {
-  return <span className="ornament">{tones.map(tone => <img key={tone} className={`tone-${tone}`} src={`/brand/logo/ornament-${tone}.webp`} width="684" height="255" alt="" loading="lazy" />)}</span>;
+  return <span className="ornament">{tones.map(tone => <img key={tone} className={`tone-${tone}`} src={`/brand/logo/ornament-${tone}.webp`} width="560" height="209" alt="" loading="lazy" />)}</span>;
 }
-/** Header brand: the wordmark, or only the monogram on narrow screens (one file is downloaded). */
+/** Header brand: the wordmark, or only the monogram on narrow screens. Lazy loading means the
+    tone hidden by CSS (and the other breakpoint's file) is never downloaded. */
 export function BrandLogo() {
-  return <span className="brand-logo">{tones.map(tone => <picture key={tone} className={`tone-${tone}`}><source media="(max-width: 760px)" srcSet={`/brand/logo/monogram-${tone}.webp`} width={542} height={468} /><img src={`/brand/logo/wordmark-${tone}.webp`} width="716" height="230" alt="SERTI Jewelry Atelier" /></picture>)}</span>;
+  return <span className="brand-logo">{tones.map(tone => <picture key={tone} className={`tone-${tone}`}><source media="(max-width: 760px)" srcSet={`/brand/logo/monogram-${tone}.webp`} width={140} height={121} /><img src={`/brand/logo/wordmark-${tone}.webp`} width="320" height="103" alt="SERTI Jewelry Atelier" loading="lazy" /></picture>)}</span>;
 }
-export function Wordmark() { return <img className="wordmark" src="/brand/logo/wordmark-gold.webp" width="720" height="232" alt="SERTI Jewelry Atelier" />; }
-export function Signature() { return <img className="signature" src="/brand/logo/monogram-tagline-gold.webp" width="602" height="530" alt="SERTI · Timeless and Sophisticated" loading="lazy" />; }
+/** Menu dialog logo: lazy, so it is fetched only when the menu opens. */
+export function Wordmark() { return <img className="wordmark" src="/brand/logo/wordmark-gold.webp" width="320" height="103" alt="SERTI Jewelry Atelier" loading="lazy" />; }
+export function Signature() { return <img className="signature" src="/brand/logo/monogram-tagline-gold.webp" width="300" height="264" alt="SERTI · Timeless and Sophisticated" loading="lazy" />; }
 export function Leather() { return <div className="leather"><img src="/brand/brand-leather.webp" width="1284" height="2778" alt="" loading="lazy" /></div>; }

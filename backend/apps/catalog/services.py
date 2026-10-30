@@ -6,6 +6,7 @@ from uuid import uuid4
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.http import HttpRequest
 from django.utils import timezone
@@ -16,8 +17,17 @@ from apps.audit.diff import compute_diff
 from apps.audit.services import record
 from apps.core.exceptions import PublicationError
 
-from .images import crop_to_ratio, encode_webp, validated_image
-from .models import Category, Collection, CollectionPiece, Material, Piece, PieceImage, Stone
+from .images import build_renditions, cap_master, crop_to_ratio, encode_webp, validated_image
+from .models import (
+    Category,
+    Collection,
+    CollectionPiece,
+    Material,
+    Piece,
+    PieceImage,
+    PieceVideo,
+    Stone,
+)
 
 Actor = User | AnonymousUser | None
 Taxonomy = Category | Collection | Stone | Material
@@ -133,12 +143,18 @@ def delete_piece(piece: Piece) -> None:
 @transaction.atomic
 def save_taxonomy(obj: Taxonomy) -> None:
     if (
-        hasattr(obj, "cover_image")
+        isinstance(obj, (Category, Collection, Stone))
         and obj.cover_image
         and not getattr(obj.cover_image, "_committed", True)
     ):
-        clean = crop_to_ratio(validated_image(obj.cover_image))
+        clean = cap_master(crop_to_ratio(validated_image(obj.cover_image)))
+        obj.cover_width, obj.cover_height = clean.size
+        obj.cover_renditions = {
+            "webp": build_renditions(clean, f"catalog/renditions/{uuid4().hex}")
+        }
         obj.cover_image.save(f"{uuid4().hex}.webp", encode_webp(clean), save=False)
+    if isinstance(obj, (Category, Collection, Stone)) and not obj.cover_image:
+        obj.cover_renditions, obj.cover_width, obj.cover_height = {}, 0, 0
     obj.full_clean()
     obj.save()
 
@@ -149,8 +165,9 @@ def save_piece_image(obj: PieceImage) -> None:
 
     changed = not getattr(obj.original, "_committed", True)
     if changed:
-        clean = validated_image(obj.original)
+        clean = cap_master(validated_image(obj.original))
         obj.original.save(f"{uuid4().hex}.webp", encode_webp(clean), save=False)
+        obj.renditions = {}
         obj.processing_status = PieceImage.ProcessingStatus.PENDING
         obj.error = ""
     obj.full_clean()
@@ -240,3 +257,88 @@ def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
         )
     record("catalog.piece_duplicated", actor=actor, obj=copy, diff={"source": [None, source.pk]})
     return copy
+
+
+@transaction.atomic
+def rebuild_image(
+    obj: Category | Collection | Stone | PieceImage | models.Model, *, dry_run: bool
+) -> bool:
+    """Repair legacy images through the service layer; return whether work was needed."""
+    from apps.cms.models import HomeSection, PersonalizationService
+    from apps.cms.services import process_image
+
+    from .tasks import process_piece_image
+
+    obj = type(obj)._default_manager.select_for_update().get(pk=obj.pk)
+    if isinstance(obj, PieceImage):
+        field = obj.original
+        paths = obj.renditions
+    elif isinstance(obj, (Category, Collection, Stone)):
+        field = obj.cover_image
+        paths = obj.cover_renditions
+    elif isinstance(obj, (HomeSection, PersonalizationService)):
+        field = obj.image
+        paths = obj.renditions
+    else:
+        return False
+    if not field:
+        return False
+    with field.open("rb") as source:
+        image = validated_image(source)
+    oversized = max(image.size) > 2400
+    widths = (
+        (960, 1600, 2400)
+        if isinstance(obj, (HomeSection, PersonalizationService))
+        else (480, 960, 1600, 2400)
+    )
+    expected = {str(width) for width in widths if width <= image.width} or {str(image.width)}
+    existing = paths.get("webp", {})
+    if (
+        not oversized
+        and expected == set(existing)
+        and all(default_storage.exists(path) for path in existing.values())
+    ):
+        return False
+    if dry_run:
+        return True
+    if isinstance(obj, PieceImage):
+        if oversized:
+            image = cap_master(image)
+            obj.original.save(f"{uuid4().hex}.webp", encode_webp(image), save=False)
+            obj.save(update_fields=["original"])
+        process_piece_image(obj.pk)
+        obj.refresh_from_db()
+        if obj.processing_status != PieceImage.ProcessingStatus.READY:
+            raise ValidationError(_("No se pudo procesar la imagen."))
+    elif isinstance(obj, (Category, Collection, Stone)):
+        obj.cover_image = encode_webp(image)
+        obj.cover_image.name = "rebuild.webp"
+        save_taxonomy(obj)
+    elif isinstance(obj, (HomeSection, PersonalizationService)):
+        obj.image = encode_webp(image)
+        obj.image.name = "rebuild.webp"
+        process_image(obj)
+        obj.save(update_fields=["image", "renditions", "width", "height"])
+    return True
+
+
+@transaction.atomic
+def save_piece_video(obj: PieceVideo) -> None:
+    from .tasks import process_piece_video
+    from .videos import validate_video
+
+    # Serialize upload replacements with in-flight processing.
+    if obj.pk:
+        type(obj).objects.select_for_update().get(pk=obj.pk)
+    changed = bool(obj.original) and not getattr(obj.original, "_committed", True)
+    if changed:
+        validate_video(obj.original)
+        obj.mp4, obj.poster, obj.poster_renditions = "", "", {}
+        obj.width, obj.height, obj.duration_seconds = 0, 0, 0
+        obj.processing_status, obj.error = "pending", ""
+    if not obj.original and obj.processing_status != "ready":
+        raise ValidationError(_("Selecciona un video."))
+    obj.full_clean()
+    obj.save()
+    if changed or obj.processing_status == "pending":
+        transaction.on_commit(lambda: process_piece_video.delay(obj.pk))

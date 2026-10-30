@@ -176,4 +176,9 @@ Tipografía: Cormorant Garamond (titulares) + Inter (texto e interfaz), como en 
 - Secciones editoriales del inicio (historia, personalización) y servicios de personalización: 4:5 vertical, mínimo 1600 px de alto. El sistema recorta al centro a la proporción en que se muestran.
 - Las publicaciones de Instagram sirven de referencia de estilo, pero no como fuente: vienen a 640 px y muchas tienen texto encima. Se necesitan los originales del fotógrafo.
 - Producto: 4:5, mínimo 2000 px de alto; fondo y luz consistentes; 3–6 fotos por pieza (frente, perfil, detalle de la piedra, en uso).
-- Formato de entrega: JPG o PNG de alta calidad; el sistema genera WebP.
+- **Formatos que acepta el dashboard:** JPG, PNG, WebP, AVIF y HEIC (fotos de iPhone), hasta 25 MB. No hay que convertir nada antes de subir.
+- **Conversión automática:** cada foto se gira según la cámara, se le quitan los metadatos (ubicación GPS, modelo del teléfono) y se convierte a WebP. El original se reduce a un máximo de 2400 px y se generan 4 tamaños (480, 960, 1600 y 2400 px). Cada dispositivo descarga solo el tamaño que necesita: un celular nunca descarga la versión de 2400 px.
+- **Video de la pieza:** uno por pieza, de máximo 60 s y 150 MB, en MP4, MOV (iPhone) o WebM. Se convierte a MP4 H.264 liviano (máx. 1280 px, 30 fps, sin sonido) y se genera una portada en WebP. El original se borra al terminar. En la galería aparece después de la foto principal y **solo se descarga cuando el cliente llega a él**. No se reproduce solo si el cliente tiene activado «reducir movimiento» o el ahorro de datos.
+- **Qué carga cada página:** solo las imágenes visibles. Las demás (más abajo en la página, otras fotos de la galería, versiones de logo que no se muestran) se piden cuando el cliente se acerca a ellas. El JavaScript del sitio suma unos 200 KB comprimidos.
+- Al borrar o reemplazar una foto o un video, los archivos viejos se eliminan del servidor.
+- Para imágenes que ya existían: `python manage.py rebuild_images` las procesa con estas reglas.

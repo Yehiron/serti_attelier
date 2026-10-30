@@ -40,7 +40,8 @@ def test_pipeline_formats_and_no_metadata(
             assert not result.getexif()
             assert "exif" not in result.info
     previous = list(photo.renditions["webp"].values())
-    process_piece_image(photo.pk)
+    with django_capture_on_commit_callbacks(execute=True):
+        process_piece_image(photo.pk)
     photo.refresh_from_db()
     assert photo.processing_status == "ready"
     assert set(photo.renditions["webp"]) == {"480", "960"}

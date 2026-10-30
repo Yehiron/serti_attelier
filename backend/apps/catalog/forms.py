@@ -7,7 +7,7 @@ from django.utils.translation import gettext_lazy as _
 from unfold.widgets import UnfoldAdminIntegerFieldWidget
 
 from .images import validated_image
-from .models import Piece, PieceImage
+from .models import Piece, PieceImage, PieceVideo
 
 
 class PesosField(forms.IntegerField):
@@ -85,3 +85,19 @@ class PieceImageFormSet(BaseImageFormSet):
         if sum(bool(row.get("is_primary")) for row in active) > 1:
             raise forms.ValidationError(_("Selecciona solo una imagen principal por pieza."))
         super().clean()
+
+
+class PieceVideoForm(BaseImageForm):
+    class Meta:
+        model = PieceVideo
+        fields = ("original", "alt")
+
+    def clean_original(self) -> Any:
+        from .videos import validate_video
+
+        upload = self.cleaned_data.get("original")
+        if not upload and self.instance.processing_status != "ready":
+            raise forms.ValidationError(_("Selecciona un video."))
+        if upload and not getattr(upload, "_committed", False):
+            validate_video(upload)
+        return upload
