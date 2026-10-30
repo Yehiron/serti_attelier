@@ -12,7 +12,7 @@ Son 5 piezas, cada una en 2 o 3 colores. En el sitio están en `frontend/public/
 | **Monograma con lema** «Timeless and Sophisticated» | 3 vino · 4 dorado | `monogram-tagline-*.webp` | Cierre de marca: pie de página, empaques, certificados |
 | **Monograma** | 5 dorado · 6 vino | `monogram-*.webp` | Espacios pequeños: cabecera en móvil, favicon, ícono de iOS, avatar de redes y WhatsApp |
 | **Ornamento** (arco con hojas) | 7 vino · 8 dorado | `ornament-*.webp` | Separador editorial bajo títulos y en secciones de historia |
-| **Monograma floral** | 10 vino · 11 dorado · 12 oliva | `floral-*.webp` | Pieza especial (no usada todavía): certificado de autenticidad, empaque, tarjeta de agradecimiento, portada de colección |
+| **Monograma floral** | 10 vino · 11 dorado · 12 oliva | `floral-*.webp` | Pieza especial: **certificado de autenticidad** (en uso); a futuro, empaque, tarjeta de agradecimiento y portada de colección |
 
 **Dónde está aplicado:**
 - **Cabecera:**
@@ -23,6 +23,7 @@ Son 5 piezas, cada una en 2 o 3 colores. En el sitio están en `frontend/public/
 - **Separadores:** ornamento vino en fondos claros y dorado en fondos vino.
 - **Favicon e ícono de iOS:** monograma vino sobre crema.
 - **Correos:** monograma vino.
+- **Certificado de autenticidad:** monograma floral vino como encabezado (ver abajo).
 
 ### Reglas
 
@@ -86,3 +87,18 @@ Los archivos entregados son **«Ninna Trial»**. Las versiones de prueba de esta
 - **Antes de salir en vivo**, el cliente debe comprar la **licencia web** en https://margotleveque.com/pages/licenses, idealmente con los archivos WOFF2, que pesan menos.
 - Los archivos con licencia se copian en el servidor como se indica en `docs/deployment.md` («Fuentes con licencia»).
 - Si la licencia también cubrirá impresión o redes sociales, conviene confirmar los usos con la fundidora.
+
+## Certificado de autenticidad
+
+Se genera desde el dashboard: *Pedidos › (pedido) › Certificado de autenticidad › Abrir certificado para imprimir* (o con la acción «Imprimir certificado de autenticidad» de la lista).
+
+- Solo se emite si el cliente lo pidió en el checkout y el pago está aprobado.
+- Es una hoja A4 horizontal por pieza, en el idioma del pedido.
+- Lleva el monograma floral vino, el título en Ninna, el texto de autenticidad y los datos de la pieza: nombre, número de pieza, SKU, piedras y materiales.
+- También incluye el nombre del titular, la fecha de pago, el número de pedido, un código único (`pedido-SKU`) y una línea para la firma y el sello.
+- Para entregarlo impreso, se usa papel de buen gramaje. Para el formato digital se elige «Guardar como PDF» en la ventana de impresión.
+
+Pendiente con el cliente (P-21):
+- Aprobar el texto: «diseñada y hecha a mano en Colombia».
+- Definir si el certificado va firmado a mano o con firma digital.
+- Decidir si se quiere una página pública de verificación por código.

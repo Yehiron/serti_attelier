@@ -14,12 +14,66 @@ from unfold.admin import ModelAdmin, TabularInline
 
 from apps.accounts.models import User
 from apps.core.exceptions import DomainError
-from apps.core.formatting import format_cop
+from apps.core.formatting import format_bogota_date, format_cop
 
 from .exports import export_orders
 from .forms import FulfillmentForm
 from .models import Order, OrderItem, OrderNote, OrderStatusChange
 from .services import add_order_note, transition_status
+
+# Printed for the customer, in the language of their order.
+CERTIFICATE_TEXT = {
+    "es": {
+        "title": "Certificado",
+        "title_em": "de autenticidad",
+        "unique": "Pieza única · 1 de 1",
+        "statement": (
+            "SERTI certifica que la joya descrita en este documento es una pieza única, "
+            "diseñada y hecha a mano en Colombia. No existe otra igual."
+        ),
+        "piece": "Pieza",
+        "number": "Número de pieza",
+        "stones": "Piedras",
+        "materials": "Materiales",
+        "owner": "Titular",
+        "order": "Pedido",
+        "issued": "Fecha de emisión",
+        "code": "Código del certificado",
+        "signature": "Firma y sello SERTI",
+        "print": "Imprimir o guardar como PDF",
+        "hint": "En la ventana de impresión elige «Guardar como PDF» para enviarlo por correo.",
+        "back": "Volver al pedido",
+    },
+    "en": {
+        "title": "Certificate",
+        "title_em": "of authenticity",
+        "unique": "One of a kind · 1 of 1",
+        "statement": (
+            "SERTI certifies that the jewel described in this document is a one-of-a-kind "
+            "piece, designed and handmade in Colombia. There is no other like it."
+        ),
+        "piece": "Piece",
+        "number": "Piece number",
+        "stones": "Stones",
+        "materials": "Materials",
+        "owner": "Owner",
+        "order": "Order",
+        "issued": "Date of issue",
+        "code": "Certificate code",
+        "signature": "SERTI signature and seal",
+        "print": "Print or save as PDF",
+        "hint": "In the print dialog choose “Save as PDF” to send it by email.",
+        "back": "Back to the order",
+    },
+}
+
+
+def names(items: Any, locale: str) -> str:
+    return ", ".join(getattr(item, f"name_{locale}") or item.name_es for item in items)
+
+
+def certificate_available(order: Order) -> bool:
+    return order.wants_certificate and order.payment_status == "approved"
 
 
 class ReadOnlyInline(TabularInline):  # type: ignore[misc]
@@ -102,8 +156,8 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     search_fields = ("number", "customer_name", "customer_email", "customer_phone", "items__sku")
     date_hierarchy = "created_at"
     inlines = (ItemInline, HistoryInline, NoteInline)
-    actions = ("fulfillment", "export_csv", "confirm_manual")
-    readonly_fields = tuple(f.name for f in Order._meta.fields)
+    actions = ("fulfillment", "export_csv", "confirm_manual", "print_certificate")
+    readonly_fields = (*(f.name for f in Order._meta.fields), "certificate_link")
 
     def get_inlines(self, request: HttpRequest, obj: Any = None) -> tuple[Any, ...]:
         from apps.notifications.admin import DeliveryInline
@@ -129,6 +183,11 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
 
     def get_urls(self) -> list[Any]:
         return [
+            path(
+                "<int:pk>/certificate/",
+                self.admin_site.admin_view(self.certificate_page),
+                name="orders-certificate",
+            ),
             path(
                 "<int:pk>/confirm-manual/",
                 self.admin_site.admin_view(self.confirm_page),
@@ -184,6 +243,68 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
             request,
             "admin/payments/confirm.html",
             {**self.admin_site.each_context(request), "form": form, "order": order},
+        )
+
+    @admin.display(description=_("Certificado de autenticidad"))
+    def certificate_link(self, obj: Order) -> str:
+        if not certificate_available(obj):
+            return "—"
+        return format_html(
+            '<a href="{}" target="_blank" rel="noopener">{}</a>',
+            reverse("admin:orders-certificate", args=[obj.pk]),
+            _("Abrir certificado para imprimir"),
+        )
+
+    @admin.action(description=_("Imprimir certificado de autenticidad"))
+    def print_certificate(
+        self, request: HttpRequest, queryset: QuerySet[Order]
+    ) -> HttpResponse | None:
+        if queryset.count() != 1:
+            self.message_user(request, "Selecciona un solo pedido.", messages.ERROR)
+            return None
+        return HttpResponseRedirect(reverse("admin:orders-certificate", args=[queryset.get().pk]))
+
+    def certificate_page(self, request: HttpRequest, pk: int) -> HttpResponse:
+        order = (
+            Order.objects.filter(pk=pk)
+            .prefetch_related("items__piece__stones", "items__piece__materials")
+            .first()
+        )
+        if order is None:
+            raise Http404
+        if not self.has_view_permission(request, order):
+            raise PermissionDenied
+        if not certificate_available(order):
+            self.message_user(
+                request,
+                "El certificado solo se emite para pedidos que lo solicitaron y tienen el pago "
+                "aprobado.",
+                messages.ERROR,
+            )
+            return HttpResponseRedirect(reverse("admin:orders_order_change", args=[pk]))
+        locale = "en" if order.locale == "en" else "es"
+        issued = order.paid_at or order.created_at
+        pieces = [
+            {
+                "name": item.name_en if locale == "en" else item.name_es,
+                "number": item.piece_number or "",
+                "sku": item.sku,
+                "stones": names(item.piece.stones.all(), locale),
+                "materials": names(item.piece.materials.all(), locale),
+                "code": f"{order.number}-{item.sku}",
+            }
+            for item in order.items.all()
+        ]
+        return TemplateResponse(
+            request,
+            "admin/orders/certificate.html",
+            {
+                "order": order,
+                "pieces": pieces,
+                "locale": locale,
+                "issued": format_bogota_date(issued, locale),
+                "t": CERTIFICATE_TEXT[locale],
+            },
         )
 
     def has_add_permission(self, request: HttpRequest) -> bool:

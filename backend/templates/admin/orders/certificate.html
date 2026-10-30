@@ -1,0 +1,73 @@
+{% load static %}<!doctype html>
+<html lang="{{ locale }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ t.title }} {{ t.title_em }} · {{ order.number }}</title>
+<style>
+  /* Official palette and typography (docs/marca.md). Ninna is served by the site; without it, Georgia. */
+  @font-face { font-family: "Ninna"; src: url("/fonts/ninna-regular.otf") format("opentype"); font-weight: 400; font-style: normal; }
+  @font-face { font-family: "Ninna"; src: url("/fonts/ninna-italic.otf") format("opentype"); font-weight: 400; font-style: italic; }
+  :root { --wine: #651c32; --cream: #ead9cb; --plum: #330414; --olive: #7a7256; --olive-deep: #58513d; }
+  @page { size: A4 landscape; margin: 0; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: #d9c6b6; color: var(--plum); font-family: Inter, "Helvetica Neue", Arial, sans-serif; font-weight: 300; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  .toolbar { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; justify-content: center; padding: 18px; font-size: 13px; }
+  .toolbar button, .toolbar a { font: inherit; padding: 10px 18px; border: 1px solid var(--wine); background: var(--wine); color: var(--cream); cursor: pointer; text-decoration: none; }
+  .toolbar a { background: transparent; color: var(--wine); }
+  .toolbar p { margin: 0; color: var(--olive-deep); }
+  .sheet { width: 297mm; height: 210mm; margin: 0 auto 24px; background: var(--cream); position: relative; padding: 13mm; break-after: page; overflow: hidden; box-shadow: 0 8px 30px #33041420; }
+  .sheet:last-of-type { break-after: auto; }
+  .frame { height: 100%; border: 0.6mm solid var(--wine); outline: 0.25mm solid var(--wine); outline-offset: -2.4mm; padding: 9mm 22mm 8mm; display: flex; flex-direction: column; align-items: center; text-align: center; }
+  .floral { height: 40mm; width: auto; }
+  .eyebrow { margin: 5mm 0 0; font-size: 8.5pt; letter-spacing: .28em; text-transform: uppercase; color: var(--wine); }
+  h1 { margin: 3mm 0 0; font-family: Ninna, Georgia, serif; font-weight: 400; font-size: 34pt; line-height: 1; color: var(--wine); letter-spacing: -.01em; }
+  h1 em { font-style: italic; }
+  .statement { max-width: 165mm; margin: 5mm auto 0; font-size: 10.5pt; line-height: 1.7; }
+  .details { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4mm 8mm; width: 100%; margin: 7mm 0 0; padding: 5mm 0 0; border-top: 0.25mm solid var(--olive); text-align: left; }
+  .details div { min-width: 0; }
+  .details dt { font-size: 7pt; letter-spacing: .18em; text-transform: uppercase; color: var(--olive-deep); }
+  .details dd { margin: 1.5mm 0 0; font-size: 10.5pt; overflow-wrap: anywhere; }
+  .details .wide { grid-column: span 2; }
+  .details .wide dd { font-family: Ninna, Georgia, serif; font-size: 15pt; color: var(--wine); }
+  .footer { margin-top: auto; width: 100%; display: flex; justify-content: space-between; align-items: flex-end; gap: 10mm; font-size: 8pt; color: var(--olive-deep); text-align: left; }
+  .signature { width: 70mm; border-top: 0.25mm solid var(--plum); padding-top: 2mm; text-align: center; }
+  .code { letter-spacing: .08em; }
+  @media print {
+    html, body { background: var(--cream); }
+    .toolbar { display: none; }
+    .sheet { margin: 0; box-shadow: none; }
+  }
+</style>
+</head>
+<body>
+<div class="toolbar">
+  <button type="button" onclick="window.print()">{{ t.print }}</button>
+  <a href="{% url 'admin:orders_order_change' order.pk %}">{{ t.back }}</a>
+  <p>{{ t.hint }}</p>
+</div>
+{% for piece in pieces %}
+<section class="sheet" aria-label="{{ t.title }} {{ t.title_em }} · {{ piece.name }}">
+  <div class="frame">
+    <img class="floral" src="{% static 'orders/floral-wine.webp' %}" width="660" height="448" alt="SERTI">
+    <p class="eyebrow">SERTI · {{ t.unique }}</p>
+    <h1>{{ t.title }} <em>{{ t.title_em }}</em></h1>
+    <p class="statement">{{ t.statement }}</p>
+    <dl class="details">
+      <div class="wide"><dt>{{ t.piece }}</dt><dd>{{ piece.name }}</dd></div>
+      <div><dt>{{ t.number }}</dt><dd>{{ piece.number|default:"—" }}</dd></div>
+      <div><dt>SKU</dt><dd>{{ piece.sku }}</dd></div>
+      <div><dt>{{ t.stones }}</dt><dd>{{ piece.stones|default:"—" }}</dd></div>
+      <div><dt>{{ t.materials }}</dt><dd>{{ piece.materials|default:"—" }}</dd></div>
+      <div><dt>{{ t.owner }}</dt><dd>{{ order.customer_name }}</dd></div>
+      <div><dt>{{ t.issued }}</dt><dd>{{ issued }}</dd></div>
+    </dl>
+    <div class="footer">
+      <span>{{ t.order }} {{ order.number }}<br><span class="code">{{ t.code }}: {{ piece.code }}</span></span>
+      <span class="signature">{{ t.signature }}</span>
+    </div>
+  </div>
+</section>
+{% endfor %}
+</body>
+</html>

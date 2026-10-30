@@ -70,3 +70,12 @@ def place_name(raw: str) -> str:
         else:
             result.append("-".join(part.capitalize() for part in lower.split("-")))
     return " ".join(result)
+
+
+def format_bogota_date(value: datetime, locale: str) -> str:
+    """'25 de octubre de 2026' or 'October 25, 2026' (Colombia calendar day)."""
+    local = value.astimezone(BOGOTA)
+    month = _MONTHS["en" if locale == "en" else "es"][local.month - 1]
+    if locale == "en":
+        return f"{month} {local.day}, {local.year}"
+    return f"{local.day} de {month} de {local.year}"

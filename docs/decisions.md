@@ -119,7 +119,7 @@ Registro vivo. Cada decisión tiene un ID estable que el resto de documentos cit
 | P-16 | Pago manual: **qué entidades** (Efecty, transferencia Bancolombia…), datos de pago que se muestran y **quién confirma** | Cliente | Fase 6 |
 | P-17 | Ajuste de talla de anillos: ¿se ofrece? ¿costo? | Cliente | Contenido |
 | P-18 | Plazo que da Wompi para pagar en efectivo en corresponsal Bancolombia | Equipo (soporte Wompi) | Fase 6 |
-| P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); el formato sigue pendiente | Cliente | Confirmar |
+| P-21 | Certificado de autenticidad: ¿costo? ¿físico, digital o ambos? **Aplicado por defecto: $0** (editable en Configuración del sitio); desde 2026-10-30 hay un certificado imprimible o en PDF con el monograma floral, emitido desde el pedido (`docs/marca.md`); falta aprobar el texto, la firma y si habrá verificación pública | Cliente | Confirmar |
 | P-22 | Interpretación de dos notas manuscritas: "ipso facto al pasar por las categorías" y "(parallax)" | Cliente | Diseño del home |
 | P-23 | **Llaves sandbox de Wompi** (pública, privada, integridad, eventos). Al recibirlas: verificar con un evento real que la firma de los webhooks coincide (el ejemplo de la documentación de Wompi no es consistente con su propio algoritmo) | Cliente → equipo | Validación final de la Fase 6 |
 | P-25 | Marca: archivos vectoriales de los logos, ortografía «Attelier» vs «Atelier», y **compra de la licencia web de Ninna** (los archivos entregados son de prueba) | Cliente | Lanzamiento |
