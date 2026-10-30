@@ -84,6 +84,8 @@
     "stone": "Piedra",
     "min": "Precio mínimo (COP)",
     "max": "Precio máximo (COP)",
+    "priceFrom": "Desde $",
+    "priceTo": "Hasta $",
     "availability": "Disponibilidad",
     "now": "Disponibles ahora",
     "alsoSold": "Ver también vendidas",

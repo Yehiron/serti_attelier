@@ -84,6 +84,8 @@
     "stone": "Stone",
     "min": "Minimum price (COP)",
     "max": "Maximum price (COP)",
+    "priceFrom": "From $",
+    "priceTo": "Up to $",
     "availability": "Availability",
     "now": "Available now",
     "alsoSold": "Include sold pieces",

@@ -238,21 +238,43 @@ del { color: var(--color-olive-deep); margin-right: 6px; font-size: .85em; }
 .page-heading > p:last-child { font-size: 13px; }
 .listing-page,.utility-page { padding: 0 var(--spacing-gutter) 100px; min-height: 65vh; }
 .taxon-cover { width: 100%; aspect-ratio: 16/9; max-height: 340px; object-fit: cover; margin-bottom: 24px; }
-.listing-layout { display: grid; grid-template-columns: 210px minmax(0,1fr); gap: 45px; }
-.filter-form { display: flex; flex-direction: column; gap: 22px; font-size: 12px; }
-.filter-form h2 { font-size: 28px; }
-.filter-form label { display: flex; flex-direction: column; gap: 9px; }
+.listing-layout { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 45px; }
 input,select { border: 1px solid #7a725680; background: transparent; color: var(--color-ink); border-radius: 0; padding: 10px; width: 100%; min-height: 42px; }
 input::placeholder { color: #58513d; opacity: 1; }
 fieldset { border: 0; padding: 0; margin: 0; }
 legend { padding: 0 0 14px; }
-.filter-form label.checkbox-label { flex-direction: row; align-items: center; margin-bottom: 8px; min-height: 28px; }
 .checkbox-label input { width: 18px; height: 18px; min-height: 18px; accent-color: var(--color-wine); }
-.checkbox-label small { margin-left: auto; }
-.filter-form .text-link { margin: 0; align-self: flex-start; }
+/* Catalogue filters: refined rows (name left, value right) with the stones as chips. */
+.filter-form { display: flex; flex-direction: column; font-size: 13px; }
+.filter-form h2 { font-size: 30px; margin-bottom: 18px; }
+.filter-form > fieldset, .filter-form > label { padding: 16px 0; border-top: 1px solid #7a725640; }
+.filter-form > label:last-of-type { border-bottom: 1px solid #7a725640; }
+.filter-form legend { float: left; width: 100%; padding: 0; margin-bottom: 12px; font-family: var(--font-serif); font-size: 19px; color: var(--color-wine); }
+.filter-form fieldset { display: flex; flex-wrap: wrap; gap: 8px; }
+.filter-form label.checkbox-label { position: relative; display: inline-flex; align-items: baseline; gap: 6px; padding: 8px 14px; border: 1px solid #651c3240; border-radius: 999px; font-size: 12px; letter-spacing: .04em; color: var(--color-wine); cursor: pointer; transition: background .2s, color .2s, border-color .2s; }
+.filter-form label.checkbox-label:hover { border-color: var(--color-wine); }
+/* The real checkbox stays in the form and keyboard order; the chip shows its state. */
+.filter-form label.checkbox-label input { position: absolute; inset: 0; width: 100%; height: 100%; min-height: 0; margin: 0; opacity: 0; cursor: pointer; }
+.filter-form label.checkbox-label small { font-size: 9px; color: var(--color-olive-deep); }
+.filter-form label.checkbox-label:has(input:checked) small { color: inherit; }
+.filter-form label.checkbox-label:has(input:checked) { background: var(--color-wine); border-color: var(--color-wine); color: var(--color-cream); }
+.filter-form label.checkbox-label:has(input:focus-visible) { outline: 2px solid var(--color-wine); outline-offset: 2px; }
+.filter-form label:not(.checkbox-label) { display: grid; grid-template-columns: auto 1fr; align-items: center; gap: 10px; font-family: var(--font-serif); font-size: 19px; color: var(--color-wine); }
+.filter-form select, .filter-form input:not([type=checkbox]) { border: 0; min-height: 30px; padding: 4px 0; text-align: right; text-align-last: right; font-family: var(--font-sans); font-size: 12px; color: var(--color-olive-deep); background-color: transparent; }
+.filter-form select { appearance: none; -webkit-appearance: none; padding-right: 20px; cursor: pointer; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23651c32' stroke-width='1.2'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 2px center; }
+.filter-form input:not([type=checkbox]) { border-bottom: 1px dotted #7a725699; -moz-appearance: textfield; }
+.filter-form input::-webkit-inner-spin-button, .filter-form input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.filter-form input::placeholder { color: #58513db3; }
+.filter-form select:focus-visible, .filter-form input:focus-visible { outline: 2px solid var(--color-wine); outline-offset: 2px; }
+/* Long labels: name above, value below, so nothing is cut in the narrow column. */
+.filter-form label:has(input[type=number]), .filter-form label:has([name=availability]) { grid-template-columns: 1fr; gap: 6px; }
+.filter-form label:has(input[type=number]) input, .filter-form label:has([name=availability]) select { text-align: left; text-align-last: left; }
+.filter-form .button { margin-top: 26px; min-height: 46px; letter-spacing: .16em; text-transform: uppercase; font-size: 11px; }
+.filter-form .text-link { margin-top: 14px; align-self: center; font-size: 11px; letter-spacing: .1em; border: 0; color: var(--color-olive-deep); }
 .piece-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 45px 24px; }
 .active-filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 0 30px; }
-.active-filters a { padding: 8px 12px; border: 1px solid #7a725670; font-size: 11px; overflow-wrap: anywhere; }
+.active-filters a { padding: 7px 14px; border: 1px solid #651c3240; border-radius: 999px; font-size: 11px; color: var(--color-wine); overflow-wrap: anywhere; }
+.active-filters a:hover { border-color: var(--color-wine); }
 .mobile-filter-trigger { display: none; }
 .filter-dialog { width: min(550px,100%); max-height: 92dvh; margin: auto auto 0; border: 0; background: var(--color-cream); color: var(--color-ink); padding: 24px; }
 .filter-dialog::backdrop { background: #33041470; }
@@ -346,7 +368,7 @@ legend { padding: 0 0 14px; }
 .loading-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 25px; margin-top: 40px; }
 .loading-grid > div { aspect-ratio: 4/5; background: var(--color-paper); }
 @media(min-width:1500px) { .piece-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
-@media(max-width:1150px) { .desktop-nav { display: none; } .utilities > .menu-trigger { display: inline-flex; } .listing-layout { gap: 28px; grid-template-columns: 180px minmax(0,1fr); } .piece-grid { gap: 35px 18px; } .card-caption { display: block; } .card-caption p { margin-top: 8px; } }
+@media(max-width:1150px) { .desktop-nav { display: none; } .utilities > .menu-trigger { display: inline-flex; } .listing-layout { gap: 28px; grid-template-columns: 220px minmax(0,1fr); } .piece-grid { gap: 35px 18px; } .card-caption { display: block; } .card-caption p { margin-top: 8px; } }
 @media(max-width:760px) {
  :root { --spacing-gutter: 20px; }
  h1 { font-size: clamp(3.2rem,12vw,5.6rem); }
