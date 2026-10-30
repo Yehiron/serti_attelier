@@ -111,21 +111,31 @@ body:has(.home-page) .site-header.over-hero { margin-bottom: -90px; background: 
 .desktop-nav { display: flex; gap: clamp(12px,1.6vw,28px); align-items: center; margin-left: auto; font-size: 12px; font-weight: 400; }
 .desktop-nav > a, .desktop-nav > details > summary { padding: 12px 0; }
 .desktop-nav details { position: relative; }
-.desktop-nav details > div { position: absolute; isolation: isolate; overflow: hidden; background: color-mix(in srgb, var(--color-cream) 80%, transparent); -webkit-backdrop-filter: blur(18px) saturate(1.15); backdrop-filter: blur(18px) saturate(1.15); color: var(--color-wine); padding: 22px 30px 28px 26px; min-width: 250px; left: -26px; top: 44px; border: 1px solid #ffffff50; box-shadow: 0 18px 40px #33041422; }
+/* Dropdown: small airy card with a notch pointing at its trigger (prototype B). */
+.desktop-nav details > div { position: absolute; isolation: isolate; left: 50%; top: 50px; transform: translateX(-50%); min-width: 220px; padding: 20px 30px 54px; text-align: center; color: var(--color-wine); background: color-mix(in srgb, var(--color-cream) 74%, transparent); -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px); border: 1px solid #651c3224; border-radius: 3px; box-shadow: 0 16px 34px -18px #33041455; }
+.desktop-nav details > div::before { content: ''; position: absolute; top: -6px; left: calc(50% - 5px); width: 10px; height: 10px; transform: rotate(45deg); background: inherit; -webkit-backdrop-filter: inherit; backdrop-filter: inherit; border-top: 1px solid #651c3224; border-left: 1px solid #651c3224; }
 /* Brand watermark: the text-free monogram, tinted through a mask so its colour follows the theme. */
 .desktop-nav details > div::after, .menu-dialog::after { content: ''; position: absolute; z-index: -1; pointer-events: none; aspect-ratio: 240 / 206; background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; }
-.desktop-nav details > div::after { right: -26px; bottom: -22px; width: 150px; opacity: .08; }
+/* The monogram signs the card at the bottom. */
+.desktop-nav details > div::after { left: 50%; bottom: 14px; width: 30px; transform: translateX(-50%); opacity: .45; }
 .menu-dialog { isolation: isolate; }
 .menu-dialog::after { position: fixed; right: -12vw; bottom: -6vh; width: min(78vw, 420px); color: var(--color-cream); opacity: .06; }
-.desktop-nav details[open] > div, .menu-dialog details[open] > div { animation: menu-in .22s var(--ease-editorial) both; }
+.menu-dialog details[open] > div { animation: menu-in .22s var(--ease-editorial) both; }
+.desktop-nav details[open] > div { animation: card-in .28s var(--ease-editorial) both; }
+@keyframes card-in { from { opacity: 0; transform: translate(-50%, -6px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @keyframes menu-in { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
 .desktop-nav summary, .menu-dialog summary { list-style: none; display: inline-flex; align-items: center; gap: 8px; }
 .desktop-nav summary::-webkit-details-marker, .menu-dialog summary::-webkit-details-marker { display: none; }
 .desktop-nav summary::after, .menu-dialog summary::after { content: ''; width: 5px; height: 5px; border: solid currentColor; border-width: 0 1px 1px 0; transform: translateY(-2px) rotate(45deg); transition: transform .2s; }
 .desktop-nav details[open] > summary::after, .menu-dialog details[open] > summary::after { transform: translateY(1px) rotate(-135deg); }
 .menu-dialog summary::after { width: 9px; height: 9px; }
-.desktop-nav details a { display: block; padding: 8px 0; }
-.subcategory { padding-left: 15px !important; font-size: 11px; }
+.desktop-nav details a { position: relative; display: block; width: fit-content; margin: 0 auto; padding: 9px 0; font-size: 10.5px; letter-spacing: .2em; text-transform: uppercase; }
+.desktop-nav details a.subcategory { font-size: 9.5px; color: var(--color-olive-deep); }
+/* Underline grows from the centre on hover and keyboard focus. */
+.desktop-nav details a::after { content: ''; position: absolute; left: 0; right: 0; bottom: 5px; height: 1px; background: currentColor; transform: scaleX(0); transition: transform .3s var(--ease-editorial); }
+.desktop-nav details a:hover::after, .desktop-nav details a:focus-visible::after, .desktop-nav details a[aria-current=page]::after { transform: scaleX(1); }
+.desktop-nav details a[aria-current=page] { text-decoration: none; }
+.menu-dialog .subcategory { padding-left: 14px !important; }
 [aria-current=page] { text-decoration: underline; text-underline-offset: 6px; }
 .utilities { display: flex; align-items: center; gap: 16px; margin-left: auto; white-space: nowrap; }
 .utilities > a { display: inline-flex; align-items: center; min-width: 24px; justify-content: center; font-size: 13px; }
@@ -139,7 +149,8 @@ body:has(.home-page) .site-header.over-hero { margin-bottom: -90px; background: 
 .menu-top button { padding: 12px; }
 .menu-dialog nav { display: flex; flex-direction: column; gap: 22px; margin: 50px 0; }
 .menu-dialog nav > a, .menu-dialog nav summary { font: 2rem/1.2 var(--font-serif); }
-.menu-dialog nav details a { display: block; padding: 12px; }
+.menu-dialog nav details > div { margin: 12px 0 4px 4px; padding-left: 20px; border-left: 1px solid #ead9cb40; }
+.menu-dialog nav details a { display: block; padding: 10px 0; font-size: 11px; letter-spacing: .2em; text-transform: uppercase; }
 body:has(dialog[open]) { overflow: hidden; }
 .preview-bar { position: relative; z-index: 41; padding: 12px var(--spacing-gutter); background: var(--color-ink); color: var(--color-cream); font-size: 13px; display: flex; flex-wrap: wrap; gap: 20px; }
 .preview-bar a { text-decoration: underline; }
@@ -162,7 +173,7 @@ body:has(dialog[open]) { overflow: hidden; }
 .section-heading h2 { margin-top: 25px; }
 .stone-section { background: var(--color-paper); color: var(--color-wine); padding-top: 100px; }
 .stone-section .section-heading { padding-inline: var(--spacing-gutter); }
-.stone-stage { position: relative; background: var(--color-ink); color: var(--color-cream); min-height: 590px; overflow: hidden; }
+.stone-stage { position: relative; background: var(--color-ink); color: var(--color-cream); min-height: max(590px, calc(100svh - 90px)); overflow: hidden; }
 .stone-backdrops { position: absolute; inset: 0; }
 .stone-backdrops img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
 .stone-backdrops img.active { opacity: 1; }
@@ -357,7 +368,8 @@ legend { padding: 0 0 14px; }
  .stone-backdrops { display: none; }
  .stone-stage::after { display: none; }
  .stone-panels { display: block; padding: 0; }
- .stone-panel { border: 0 !important; min-height: 300px; padding: 48px var(--spacing-gutter); overflow: hidden; }
+ /* Each stone nearly fills the screen; the next one peeks in so it is clear there is more. */
+ .stone-panel { border: 0 !important; min-height: max(420px, 85svh); padding: 48px var(--spacing-gutter); overflow: hidden; }
  .stone-panel::before { clip-path: none; background: #1f020bb0; z-index: 1; }
  .stone-panel > img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
  .stone-panel > div { z-index: 2; }
