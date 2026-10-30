@@ -1,6 +1,6 @@
 import type { Locale } from '@/lib/i18n';
 
-/** Minimal decorative flag for the language switch: Colombia for Spanish, a simplified US flag (no stars) for English. */
+/** Minimal decorative flag of the page's current language: Colombia for Spanish, a simplified US flag (no stars) for English. */
 export function Flag({ locale }: { locale: Locale }) {
   return locale === 'es'
     ? <svg className="flag" viewBox="0 0 3 2" aria-hidden="true"><rect width="3" height="1" fill="#fcd116" /><rect y="1" width="3" height=".5" fill="#003893" /><rect y="1.5" width="3" height=".5" fill="#ce1126" /></svg>
