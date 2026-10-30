@@ -6,7 +6,7 @@ from django.core.exceptions import ValidationError
 from apps.catalog.images import crop_to_ratio, validated_image
 
 from .models import HomeSection, PersonalizationService
-from .services import validate_personalization, validate_section
+from .services import display_ratio, validate_personalization, validate_section
 
 if TYPE_CHECKING:
     BaseContentForm = forms.ModelForm[Any]
@@ -31,12 +31,7 @@ class ContentForm(BaseContentForm):
                 and not getattr(obj.image, "_committed", True)
             ):
                 image = validated_image(obj.image)
-                if isinstance(obj, PersonalizationService) or obj.kind in {
-                    "hero",
-                    "story",
-                    "banner",
-                    "personalize",
-                }:
-                    crop_to_ratio(image)
+                if ratio := display_ratio(obj):
+                    crop_to_ratio(image, *ratio)
         except ValidationError as exc:
             self.add_error(None, ValidationError(exc.messages))

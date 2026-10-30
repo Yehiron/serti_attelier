@@ -172,5 +172,8 @@ Tipografía: Cormorant Garamond (titulares) + Inter (texto e interfaz), como en 
 
 ## Guía de fotografía para el cliente (DC-07)
 - Portadas (hero, piedras, categorías): 16:9, mínimo 2400 px de ancho.
+  Para el hero: foto **horizontal y sin texto encima**, con espacio libre a la izquierda para el titular (el sistema le pone un velo vino).
+- Secciones editoriales del inicio (historia, personalización) y servicios de personalización: 4:5 vertical, mínimo 1600 px de alto. El sistema recorta al centro a la proporción en que se muestran.
+- Las publicaciones de Instagram sirven de referencia de estilo, pero no como fuente: vienen a 640 px y muchas tienen texto encima. Se necesitan los originales del fotógrafo.
 - Producto: 4:5, mínimo 2000 px de alto; fondo y luz consistentes; 3–6 fotos por pieza (frente, perfil, detalle de la piedra, en uso).
 - Formato de entrega: JPG o PNG de alta calidad; el sistema genera WebP.

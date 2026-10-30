@@ -493,6 +493,26 @@ def test_image_pipeline(actor: User, tmp_path: Path) -> None:
         services.save_section(bad)
 
 
+@pytest.mark.parametrize(
+    "kind,size", [("hero", (1200, 675)), ("story", (960, 1200)), ("personalize", (960, 1200))]
+)
+def test_section_images_match_the_frame_they_are_shown_in(
+    actor: User, tmp_path: Path, kind: str, size: tuple[int, int]
+) -> None:
+    # The same square photo becomes landscape for the hero and portrait for editorial frames.
+    output = BytesIO()
+    Image.new("RGB", (1200, 1200), "red").save(output, "PNG")
+    obj = HomeSection(
+        kind=kind,
+        title_es="T",
+        image=ContentFile(output.getvalue(), name="upload.png"),
+        image_alt_es="Rojo",
+        image_alt_en="Red",
+    )
+    services.save_section(obj)
+    assert (obj.width, obj.height) == size
+
+
 def test_seed_content() -> None:
     assert Page.objects.count() == 8
     assert not Page.objects.exclude(status="draft").exists()

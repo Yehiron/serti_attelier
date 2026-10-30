@@ -36,3 +36,6 @@ frontend/playwright-report/
 # Ninna (Margot Lévêque): trial files for local preview only. Licensed webfonts
 # are installed on the server; never commit font files (docs/marca.md).
 frontend/public/fonts/
+
+# Instagram photos used only to preview the layout locally (not production assets).
+preview-instagram/

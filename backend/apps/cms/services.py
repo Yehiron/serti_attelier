@@ -101,6 +101,16 @@ def validate_section(obj: HomeSection) -> None:
                 raise ValidationError(_("Escribe el texto alternativo en español e inglés."))
 
 
+def display_ratio(obj: HomeSection | PersonalizationService) -> tuple[int, int] | None:
+    """Crop ratio matching how the site shows the image: full-bleed hero 16:9, editorial
+    photos and personalization services in a 4:5 portrait frame."""
+    if isinstance(obj, PersonalizationService) or obj.kind in {"story", "personalize", "banner"}:
+        return (4, 5)
+    if obj.kind == "hero":
+        return (16, 9)
+    return None
+
+
 def process_image(obj: HomeSection | PersonalizationService) -> None:
     if not obj.image:
         obj.renditions, obj.width, obj.height = {}, 0, 0
@@ -108,13 +118,8 @@ def process_image(obj: HomeSection | PersonalizationService) -> None:
     if getattr(obj.image, "_committed", True):
         return
     image = validated_image(obj.image)
-    if isinstance(obj, PersonalizationService) or obj.kind in {
-        "hero",
-        "banner",
-        "story",
-        "personalize",
-    }:
-        image = crop_to_ratio(image)
+    if ratio := display_ratio(obj):
+        image = crop_to_ratio(image, *ratio)
     obj.width, obj.height = image.size
     obj.image.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
     paths = {}
