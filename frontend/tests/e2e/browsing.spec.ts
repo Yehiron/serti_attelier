@@ -20,15 +20,9 @@ test('catalog filters by stone and keeps them in the URL', async ({ page }) => {
   await page.goto('/es/joyeria');
   // The listing streams in after the shell; decide desktop/mobile only once it is there.
   await expect(page.locator('main.listing-page')).toBeVisible();
-  // Filters live in a sidebar on desktop and in a bottom sheet on mobile.
-  const trigger = page.locator('.mobile-filter-trigger');
-  if (await trigger.isVisible()) {
-    // A tap before hydration is lost; retry until the sheet is open.
-    await expect(async () => {
-      await trigger.click();
-      await expect(page.locator('dialog.filter-dialog[open]')).toBeVisible({ timeout: 1000 });
-    }).toPass({ timeout: 15_000 });
-  }
+  // Filters unfold from the capsule (native details: works before hydration too).
+  await page.locator('summary.filter-pill').click();
+  await expect(page.locator('details.filter-panel[open]')).toBeVisible();
   await page.locator('input[name="stone"][value="esmeralda"]:visible').first().check();
   await page.locator('button[type="submit"]:visible', { hasText: /Aplicar/ }).first().click();
   await expect(page).toHaveURL(/stone=esmeralda/);

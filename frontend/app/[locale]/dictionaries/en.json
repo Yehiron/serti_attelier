@@ -89,6 +89,7 @@
     "price": "Price",
     "priceAbove": "From",
     "priceBelow": "Up to",
+    "activeFilters": "active filters",
     "availability": "Availability",
     "now": "Available now",
     "alsoSold": "Include sold pieces",

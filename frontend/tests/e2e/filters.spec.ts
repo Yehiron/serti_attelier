@@ -1,18 +1,23 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-/** The visible filter form: sidebar on desktop, bottom sheet on mobile (a tap before hydration is lost). */
+/** The filter panel, unfolded from its capsule. */
 async function filters(page: Page): Promise<Locator> {
   await page.goto('/es/joyeria');
   await expect(page.locator('main.listing-page')).toBeVisible();
-  const trigger = page.locator('.mobile-filter-trigger');
-  if (!(await trigger.isVisible())) return page.locator('aside.desktop-filters');
-  const sheet = page.locator('dialog.filter-dialog');
-  await expect(async () => {
-    await trigger.click();
-    await expect(sheet).toBeVisible({ timeout: 1000 });
-  }).toPass({ timeout: 15_000 });
-  return sheet;
+  const panel = page.locator('details.filter-panel');
+  await panel.locator('summary.filter-pill').click();
+  await expect(panel).toHaveAttribute('open', '');
+  return panel;
 }
+
+test('the filter capsule opens the panel and closes it on a second tap', async ({ page }) => {
+  const panel = await filters(page);
+  const pill = panel.locator('summary.filter-pill');
+  await expect(panel.locator('.filter-form')).toBeVisible();
+  await pill.click();
+  await expect(panel).not.toHaveAttribute('open', '');
+  await expect(panel.locator('.filter-form')).toBeHidden();
+});
 
 const row = (form: Locator, name: string) => form.locator('.filter-select', { hasText: name });
 

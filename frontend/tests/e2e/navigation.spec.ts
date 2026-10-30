@@ -94,7 +94,8 @@ test('product card shows the alternate photo on hover only on desktop', async ({
   await expect(alternate).toHaveCSS('opacity', '1');
   await page.mouse.move(0, 0);
   await expect(alternate).toHaveCSS('opacity', '0');
-  // Same box for both photos: no layout shift when swapping.
-  const [primary, secondary] = await Promise.all([card.locator('.piece-photo img').first().boundingBox(), alternate.boundingBox()]);
+  // Same layout box for both photos (the zoom is a transform): no layout shift when swapping.
+  const layout = (el: HTMLElement) => [el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight];
+  const [primary, secondary] = await Promise.all([card.locator('.piece-photo img').first().evaluate(layout), alternate.evaluate(layout)]);
   expect(secondary).toEqual(primary);
 });

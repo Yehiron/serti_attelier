@@ -175,8 +175,9 @@ body:has(dialog[open]) { overflow: hidden; }
 .stone-section .section-heading { padding-inline: var(--spacing-gutter); }
 .stone-stage { position: relative; background: var(--color-ink); color: var(--color-cream); min-height: max(590px, calc(100svh - 90px)); overflow: hidden; }
 .stone-backdrops { position: absolute; inset: 0; }
-.stone-backdrops img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; }
-.stone-backdrops img.active { opacity: 1; }
+/* Stone backdrops crossfade and settle from a slight zoom, like a lens focusing. */
+.stone-backdrops img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: opacity 1.2s var(--ease-editorial), transform 2.4s var(--ease-editorial); }
+.stone-backdrops img.active { opacity: 1; transform: none; }
 .stone-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #1f020bc0; }
 .stone-panels { display: flex; min-height: inherit; padding-inline: var(--spacing-gutter); position: relative; z-index: 1; }
 .stone-panel { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 64px clamp(20px,2.4vw,40px); border-left: 1px solid #ead9cb60; }
@@ -195,11 +196,15 @@ body:has(dialog[open]) { overflow: hidden; }
 .rail-controls button { font-size: 28px; width: 46px; height: 46px; border: 1px solid #651c3240; border-radius: 50%; }
 .piece-rail { display: flex; gap: 28px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px 0 28px; scrollbar-width: thin; }
 .piece-rail > article { width: min(330px,75vw); flex: 0 0 min(330px,75vw); scroll-snap-align: start; }
-.piece-photo { position: relative; display: block; aspect-ratio: 4/5; background: var(--color-paper); }
+.piece-photo { position: relative; display: block; aspect-ratio: 4/5; overflow: hidden; background: var(--color-paper); }
 .piece-photo > a { display: block; width: 100%; height: 100%; }
-.piece-photo img { width: 100%; height: 100%; object-fit: cover; }
-.piece-photo .hover-image { position: absolute; inset: 0; opacity: 0; transition: opacity .5s var(--ease-editorial); pointer-events: none; }
-@media (hover: hover) and (pointer: fine) { .piece-card:hover .hover-image, .piece-photo > a:focus-visible .hover-image { opacity: 1; } }
+.piece-photo img { width: 100%; height: 100%; object-fit: cover; transition: opacity .9s var(--ease-editorial), transform 1.4s var(--ease-editorial); }
+/* Hover: the alternate photo crossfades in while settling from a slight zoom; the main one recedes gently. */
+.piece-photo .hover-image { position: absolute; inset: 0; opacity: 0; transform: scale(1.04); pointer-events: none; }
+@media (hover: hover) and (pointer: fine) {
+  .piece-card:hover .piece-photo img:not(.hover-image), .piece-photo > a:focus-visible img:not(.hover-image) { transform: scale(1.03); }
+  .piece-card:hover .hover-image, .piece-photo > a:focus-visible .hover-image { opacity: 1; transform: none; }
+}
 /* Touch screens never show it, and a hidden lazy image is never downloaded. */
 @media not ((hover: hover) and (pointer: fine)) { .piece-photo .hover-image { display: none; } }
 .image-placeholder { display: flex; align-items: center; justify-content: center; height: 100%; min-height: 150px; font-size: 11px; color: var(--color-ink); }
@@ -207,10 +212,7 @@ body:has(dialog[open]) { overflow: hidden; }
 .wish-button:hover .heart:not(.is-filled) svg { fill: #651c3214; }
 .heart { position: relative; display: inline-block; width: 1em; height: .906em; line-height: 0; }
 .heart svg { width: 100%; height: 100%; overflow: visible; fill: transparent; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; transition: fill .25s ease, stroke .25s ease; }
-/* Monogram below the notch between the lobes, with even margins to the sides and the tip. */
-.heart-mark { position: absolute; left: 50%; top: 52%; width: 50%; aspect-ratio: 240 / 206; transform: translate(-50%, -50%); background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; transition: background-color .25s ease; }
 .heart.is-filled svg { fill: var(--color-emerald); stroke: var(--color-emerald); }
-.heart.is-filled .heart-mark { background: var(--color-cream); }
 /* In the header the outline keeps the header colour so it stays visible over the wine hero. */
 .wishlist-utility .heart.is-filled svg { stroke: currentColor; }
 .heart.is-pop { animation: heart-pop .45s var(--ease-editorial); }
@@ -238,7 +240,33 @@ del { color: var(--color-olive-deep); margin-right: 6px; font-size: .85em; }
 .page-heading > p:last-child { font-size: 13px; }
 .listing-page,.utility-page { padding: 0 var(--spacing-gutter) 100px; min-height: 65vh; }
 .taxon-cover { width: 100%; aspect-ratio: 16/9; max-height: 340px; object-fit: cover; margin-bottom: 24px; }
-.listing-layout { display: grid; grid-template-columns: 250px minmax(0,1fr); gap: 45px; }
+:root { interpolate-size: allow-keywords; }
+/* Filters: a capsule that unfolds the panel above the products; tap again to fold it. */
+.filter-panel { margin-bottom: 18px; }
+.filter-pill { list-style: none; display: inline-flex; align-items: center; gap: 10px; min-height: 44px; padding: 0 22px 0 18px; border: 1px solid #651c3255; border-radius: 999px; font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--color-wine); cursor: pointer; user-select: none; transition: background .35s var(--ease-editorial), color .35s var(--ease-editorial), border-color .35s; }
+.filter-pill::-webkit-details-marker { display: none; }
+.filter-pill:hover { border-color: var(--color-wine); }
+.filter-pill:focus-visible { outline: 2px solid var(--color-wine); outline-offset: 3px; }
+.filter-pill svg { width: 17px; height: 17px; fill: none; stroke: currentColor; stroke-width: 1.3; stroke-linecap: round; }
+.filter-pill::after { content: ''; width: 6px; height: 6px; margin-left: 2px; border: solid currentColor; border-width: 0 1.2px 1.2px 0; transform: translateY(-2px) rotate(45deg); transition: transform .35s var(--ease-editorial); }
+.filter-panel[open] > .filter-pill { background: var(--color-wine); border-color: var(--color-wine); color: var(--color-cream); }
+.filter-panel[open] > .filter-pill::after { transform: translateY(1px) rotate(-135deg); }
+.filter-count { display: inline-grid; place-items: center; min-width: 20px; height: 20px; padding: 0 6px; border-radius: 999px; background: var(--color-wine); color: var(--color-cream); font-size: 10px; letter-spacing: 0; }
+.filter-panel[open] .filter-count { background: var(--color-cream); color: var(--color-wine); }
+/* Height animates where supported (::details-content); elsewhere the panel simply appears with a fade. */
+.filter-panel::details-content { block-size: 0; overflow: clip; transition: block-size .55s var(--ease-editorial), content-visibility .55s allow-discrete; }
+.filter-panel[open]::details-content { block-size: auto; }
+.filter-panel-body { padding: 26px 0 10px; }
+.filter-panel[open] .filter-panel-body { animation: panel-in .55s var(--ease-editorial) both; }
+@keyframes panel-in { from { opacity: 0; transform: translateY(-8px); } to { opacity: 1; transform: none; } }
+/* The capsule already says "Filtros": keep the heading for screen readers only. */
+.filter-panel .filter-form h2 { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+.filter-col { display: flex; flex-direction: column; }
+.filter-col > :is(fieldset, .filter-select, .filter-range) { padding: 16px 0; border-bottom: 1px solid #7a725640; }
+.filter-col > .button { margin-top: 22px; }
+@media (min-width: 761px) {
+  .filter-panel .filter-form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); column-gap: 48px; align-items: start; }
+}
 input,select { border: 1px solid #7a725680; background: transparent; color: var(--color-ink); border-radius: 0; padding: 10px; width: 100%; min-height: 42px; }
 input::placeholder { color: #58513d; opacity: 1; }
 fieldset { border: 0; padding: 0; margin: 0; }
@@ -308,11 +336,7 @@ legend { padding: 0 0 14px; }
 .active-filters { display: flex; flex-wrap: wrap; gap: 10px; padding: 0 0 30px; }
 .active-filters a { padding: 7px 14px; border: 1px solid #651c3240; border-radius: 999px; font-size: 11px; color: var(--color-wine); overflow-wrap: anywhere; }
 .active-filters a:hover { border-color: var(--color-wine); }
-.mobile-filter-trigger { display: none; }
-.filter-dialog { width: min(550px,100%); max-height: 92dvh; margin: auto auto 0; border: 0; background: var(--color-cream); color: var(--color-ink); padding: 24px; }
-.filter-dialog::backdrop { background: #33041470; }
-.sheet-close { display: block; margin-left: auto; padding: 10px 0 24px; }
-.noscript-filters { display: none; }
+.noscript-filters { margin-bottom: 35px; }
 .pagination { display: flex; justify-content: center; gap: 30px; align-items: center; padding-top: 60px; font-size: 13px; }
 .pagination a { padding: 12px; border-bottom: 1px solid var(--color-wine); }
 .empty-state { min-height: 35vh; padding: 65px 0; max-width: 650px; }
@@ -401,7 +425,7 @@ legend { padding: 0 0 14px; }
 .loading-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 25px; margin-top: 40px; }
 .loading-grid > div { aspect-ratio: 4/5; background: var(--color-paper); }
 @media(min-width:1500px) { .piece-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
-@media(max-width:1150px) { .desktop-nav { display: none; } .utilities > .menu-trigger { display: inline-flex; } .listing-layout { gap: 28px; grid-template-columns: 220px minmax(0,1fr); } .piece-grid { gap: 35px 18px; } .card-caption { display: block; } .card-caption p { margin-top: 8px; } }
+@media(max-width:1150px) { .desktop-nav { display: none; } .utilities > .menu-trigger { display: inline-flex; } .piece-grid { gap: 35px 18px; } .card-caption { display: block; } .card-caption p { margin-top: 8px; } }
 @media(max-width:760px) {
  :root { --spacing-gutter: 20px; }
  h1 { font-size: clamp(3.2rem,12vw,5.6rem); }
@@ -442,10 +466,6 @@ legend { padding: 0 0 14px; }
  .footer-bottom { font-size: 10px; }
  .page-heading { padding: 55px 0 35px; }
  .listing-page,.utility-page { padding-bottom: 70px; }
- .listing-layout { display: block; }
- .desktop-filters { display: none; }
- .mobile-filter-trigger { display: inline-flex; width: 100%; margin-bottom: 30px; }
- .noscript-filters { display: block; margin-bottom: 35px; }
  .piece-grid { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 35px 16px; }
  .card-caption h3,.card-caption h2 { font-size: 23px; }
  .card-caption p { font-size: 11px; }
