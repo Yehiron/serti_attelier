@@ -196,8 +196,8 @@ body:has(dialog[open]) { overflow: hidden; }
 .wish-button:hover .heart:not(.is-filled) svg { fill: #651c3214; }
 .heart { position: relative; display: inline-block; width: 1em; height: .906em; line-height: 0; }
 .heart svg { width: 100%; height: 100%; overflow: visible; fill: transparent; stroke: currentColor; stroke-width: 1.5; stroke-linejoin: round; transition: fill .25s ease, stroke .25s ease; }
-/* Monogram centred on the optical centre of the heart (its widest part, not the box centre). */
-.heart-mark { position: absolute; left: 50%; top: 42%; width: 58%; aspect-ratio: 240 / 206; transform: translate(-50%, -50%); background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; transition: background-color .25s ease; }
+/* Monogram below the notch between the lobes, with even margins to the sides and the tip. */
+.heart-mark { position: absolute; left: 50%; top: 52%; width: 50%; aspect-ratio: 240 / 206; transform: translate(-50%, -50%); background: currentColor; -webkit-mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; mask: url("/brand/logo/monogram-mark.webp") center / contain no-repeat; transition: background-color .25s ease; }
 .heart.is-filled svg { fill: var(--color-emerald); stroke: var(--color-emerald); }
 .heart.is-filled .heart-mark { background: var(--color-cream); }
 /* In the header the outline keeps the header colour so it stays visible over the wine hero. */
