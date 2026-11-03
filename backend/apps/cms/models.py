@@ -182,8 +182,8 @@ class HomeSection(Illustrated):
     )
 
     class Meta:
-        verbose_name = _("sección del inicio")
-        verbose_name_plural = _("secciones del inicio")
+        verbose_name = _("sección de la página de inicio")
+        verbose_name_plural = _("Página de inicio")
         ordering = ["position", "pk"]
         permissions = [("publish_content", "Puede publicar y restaurar contenido")]
 
@@ -204,33 +204,26 @@ class HeroSlide(Timestamped):
         limit_choices_to={"kind": "hero"},
         verbose_name=_("Portada"),
     )
+
+    class Device(models.TextChoices):
+        DESKTOP = "desktop", _("Computador")
+        MOBILE = "mobile", _("Celular")
+
+    device = models.CharField(
+        verbose_name=_("Dispositivo"), max_length=7, choices=Device, default=Device.DESKTOP
+    )
     position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
     image = models.ImageField(
-        verbose_name=_("Imagen para computador (horizontal)"),
+        verbose_name=_("Foto"),
         upload_to="cms/slides/",
         blank=True,
-        help_text=_("Opcional. Conserva su proporción; por ejemplo, 1921 x 900."),
+        help_text=_("Conserva la proporción de la foto original."),
     )
     renditions = models.JSONField(
         verbose_name=_("Versiones de imagen"), default=dict, blank=True, editable=False
     )
     width = models.PositiveIntegerField(verbose_name=_("Ancho"), default=0, editable=False)
     height = models.PositiveIntegerField(verbose_name=_("Alto"), default=0, editable=False)
-    image_mobile = models.ImageField(
-        verbose_name=_("Imagen para celular (vertical)"),
-        upload_to="cms/slides/",
-        blank=True,
-        help_text=_("Opcional. Conserva su proporción; por ejemplo, 750 x 1000."),
-    )
-    mobile_renditions = models.JSONField(
-        verbose_name=_("Versiones para celular"), default=dict, blank=True, editable=False
-    )
-    mobile_width = models.PositiveIntegerField(
-        verbose_name=_("Ancho para celular"), default=0, editable=False
-    )
-    mobile_height = models.PositiveIntegerField(
-        verbose_name=_("Alto para celular"), default=0, editable=False
-    )
     alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300, blank=True)
 
     class Meta:
@@ -245,8 +238,8 @@ class HeroSlide(Timestamped):
         super().clean()
         if self.section_id and self.section.kind != "hero":
             raise ValidationError(_("Las diapositivas solo pertenecen a una portada."))
-        if not self.image and not self.image_mobile:
-            raise ValidationError(_("Agrega una imagen para computador o celular."))
+        if not self.image:
+            raise ValidationError(_("Agrega una imagen."))
         if any(not getattr(self, f"alt_{locale}", "") for locale in ("es", "en")):
             raise ValidationError(_("Escribe el texto alternativo en español e inglés."))
 

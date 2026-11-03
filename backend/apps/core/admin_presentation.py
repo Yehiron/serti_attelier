@@ -135,7 +135,7 @@ class ClientPresentationMixin:
             else "—"
         )
 
-    @display(description=_("Imagen"), label=True)  # type: ignore[untyped-decorator]
+    @display(description=_("Estado"), label=True)  # type: ignore[untyped-decorator]
     def image_status(self, obj: Any) -> str:
         status = getattr(obj, "processing_status", "ready")
         if status == "failed":

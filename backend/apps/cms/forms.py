@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 from django import forms
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
+from unfold.widgets import UnfoldAdminImageSmallFieldWidget
 
 from apps.catalog.images import crop_to_ratio, validated_image
 from apps.core.admin_presentation import HELP
@@ -41,6 +42,19 @@ class ContentForm(BaseContentForm):
             self.add_error(None, ValidationError(exc.messages))
 
 
+class PhotoInput(UnfoldAdminImageSmallFieldWidget):  # type: ignore[misc]
+    template_name = "admin/cms/photo_input.html"
+
+
+class SlidePhotoInput(PhotoInput):
+    """A slide is its photo: replace it or delete the row, never "clear" it."""
+
+    def get_context(self, name: str, value: Any, attrs: Any) -> dict[str, Any]:
+        context: dict[str, Any] = super().get_context(name, value, attrs)
+        context["widget"]["required"] = True  # Templates hide the clear checkbox when required.
+        return context
+
+
 class HeroSlideForm(BaseContentForm):
     def __init__(self, *args: Any, **kwargs: Any) -> None:
         super().__init__(*args, **kwargs)
@@ -49,28 +63,28 @@ class HeroSlideForm(BaseContentForm):
             if base in HELP and not field.help_text:
                 field.help_text = HELP[base]
 
-    # FileField leaves format validation to the shared decoder, including HEIC/AVIF.
-    image = forms.FileField(
-        label=_("Imagen para computador (horizontal)"),
-        required=False,
-        help_text=_("Horizontal, por ejemplo 1921 x 900. Opcional."),
-        widget=forms.ClearableFileInput,
-    )
-    image_mobile = forms.FileField(
-        label=_("Imagen para celular (vertical)"),
-        required=False,
-        help_text=_("Vertical, por ejemplo 750 x 1000. Opcional."),
-        widget=forms.ClearableFileInput,
-    )
+    image = forms.FileField(label=_("Foto"), required=False, widget=SlidePhotoInput)
 
     class Meta:
         model = HeroSlide
-        fields = ("position", "image", "image_mobile", "alt")
+        fields = ("position", "image", "alt")
 
     def clean(self) -> dict[str, Any]:
         data = super().clean() or {}
-        for field in ("image", "image_mobile"):
+        for field in ("image",):
             upload = data.get(field)
             if upload and not getattr(upload, "_committed", False):
                 validated_image(upload)
         return data
+
+
+class DesktopSlideForm(HeroSlideForm):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.instance.device = HeroSlide.Device.DESKTOP
+
+
+class MobileSlideForm(HeroSlideForm):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self.instance.device = HeroSlide.Device.MOBILE

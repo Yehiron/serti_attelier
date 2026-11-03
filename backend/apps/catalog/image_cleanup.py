@@ -40,11 +40,8 @@ def file_paths(obj: models.Model) -> set[str]:
             obj.poster_renditions.get("webp", {}).values()
         )
     if isinstance(obj, HeroSlide):
-        return (
-            ({str(obj.image.name)} if obj.image else set())
-            | ({str(obj.image_mobile.name)} if obj.image_mobile else set())
-            | set(obj.renditions.get("webp", {}).values())
-            | set(obj.mobile_renditions.get("webp", {}).values())
+        return ({str(obj.image.name)} if obj.image else set()) | set(
+            obj.renditions.get("webp", {}).values()
         )
     field = (
         "original"

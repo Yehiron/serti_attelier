@@ -11,15 +11,15 @@ from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
-from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInline
-from unfold.admin import ModelAdmin, StackedInline
+from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
+from unfold.admin import ModelAdmin, TabularInline
 
 from apps.core.admin import ReadOnlyAdmin
 from apps.core.admin_presentation import ClientPresentationMixin
 from apps.core.exceptions import DomainError
 
 from . import services
-from .forms import ContentForm, HeroSlideForm
+from .forms import ContentForm, DesktopSlideForm, MobileSlideForm, PhotoInput
 from .models import (
     HeroSlide,
     HomePublication,
@@ -29,7 +29,7 @@ from .models import (
     PersonalizationService,
 )
 from .preview import make_token
-from .selectors import page_path
+from .selectors import draft_sections, page_path, render_sections
 
 
 def preview_redirect(request: HttpRequest, target: str) -> HttpResponseRedirect:
@@ -48,17 +48,24 @@ class ContentAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAd
         return False
 
 
-class HeroSlideInline(TranslationStackedInline[HeroSlide, HomeSection], StackedInline):  # type: ignore[misc]
+class HeroSlideInline(TranslationTabularInline[HeroSlide, HomeSection], TabularInline):  # type: ignore[misc]
     ordering_field = "position"
     hide_ordering_field = True
     model = HeroSlide
-    form = HeroSlideForm
+    form: Any = DesktopSlideForm
+    device = HeroSlide.Device.DESKTOP
     extra = 0
     ordering = ("position", "pk")
-    fields = ("position", "image", "image_mobile", "alt", "previews", "image_status")
+    fields = ("position", "image", "previews", "alt", "image_status")
     readonly_fields = ("previews", "image_status")
     image_status = ClientPresentationMixin.image_status
-    verbose_name_plural = _("Diapositivas")
+    verbose_name = _("foto para computador")
+    verbose_name_plural = _("Fotos para computador (horizontales)")
+    template_before = "admin/cms/slide_description.html"
+    description = _("Se muestran en computadores y tabletas. Medida recomendada: 1920 × 900 px.")  # noqa: RUF001
+
+    def get_queryset(self, request: HttpRequest) -> QuerySet[HeroSlide]:
+        return super().get_queryset(request).filter(device=self.device)
 
     def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return request.user.has_perm("cms.view_homesection")
@@ -74,23 +81,23 @@ class HeroSlideInline(TranslationStackedInline[HeroSlide, HomeSection], StackedI
 
     @admin.display(description=_("Vista previa"))
     def previews(self, obj: HeroSlide) -> str:
+        if not obj.image:
+            return "—"
+        width, height = (80, 107) if self.device == HeroSlide.Device.MOBILE else (200, 94)
         return format_html(
-            "<span>{} {}</span>",
-            format_html(
-                '<img src="{}" style="max-width:220px;max-height:120px" alt="{}">',
-                obj.image.url,
-                _("Computador"),
-            )
-            if obj.image
-            else "",
-            format_html(
-                '<img src="{}" style="max-width:100px;max-height:120px" alt="{}">',
-                obj.image_mobile.url,
-                _("Celular"),
-            )
-            if obj.image_mobile
-            else "",
+            '<img src="{}" style="width:{}px;height:{}px;object-fit:contain" alt="">',
+            obj.image.url,
+            width,
+            height,
         )
+
+
+class MobileHeroSlideInline(HeroSlideInline):
+    form = MobileSlideForm
+    device = HeroSlide.Device.MOBILE
+    verbose_name = _("foto para celular")
+    verbose_name_plural = _("Fotos para celular (verticales)")
+    description = _("Se muestran en celulares. Medida recomendada: 1080 × 1350 px (vertical).")  # noqa: RUF001
 
 
 @admin.register(HomeSection)
@@ -102,10 +109,109 @@ class HomeSectionAdmin(ContentAdmin):
     readonly_fields = (*ContentAdmin.readonly_fields, "image_preview", "image_status")
     change_list_template = "admin/cms/home_changelist.html"
 
+    change_form_template = "admin/cms/home_changeform.html"
+    change_form_before_template = "admin/cms/home_save_publish.html"
+    conditional_fields = {
+        f"cta_{target}": f"cta_kind == '{target}'"
+        for target in ("category", "stone", "collection", "piece", "page")
+    } | {"cta_external_url": "cta_kind == 'external'"}
+
+    def has_add_permission(self, request: HttpRequest) -> bool:
+        return bool(request.user.is_superuser and super().has_add_permission(request))
+
+    def get_readonly_fields(
+        self, request: HttpRequest, obj: HomeSection | None = None
+    ) -> tuple[str, ...]:
+        return (*self.readonly_fields, "kind") if obj else self.readonly_fields
+
+    def get_fieldsets(self, request: HttpRequest, obj: HomeSection | None = None) -> Any:
+        kind = obj.kind if obj else "hero"
+        fields = ["kind", "is_visible", "title"]
+        if kind in {"hero", "stone_panels", "collection_rail"}:
+            fields.append("subtitle")
+        if kind in {"statement", "story", "personalize", "banner"}:
+            fields.append("body")
+        if kind in {"story", "personalize", "banner"}:
+            fields.extend(["image", "image_preview", "image_alt", "image_status"])
+        if kind == "collection_rail":
+            fields.append("collection")
+        if kind in {"hero", "story", "personalize", "banner"}:
+            fields.extend(
+                [
+                    "cta_label",
+                    "cta_kind",
+                    "cta_category",
+                    "cta_stone",
+                    "cta_collection",
+                    "cta_piece",
+                    "cta_page",
+                    "cta_external_url",
+                ]
+            )
+        return [
+            (None, {"fields": self.replace_orig_field(fields)}),
+            (_("Orden"), {"fields": ["position"], "classes": ["collapse"]}),
+        ]
+
+    def get_form(
+        self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)
+        if "image" in form.base_fields:
+            form.base_fields["image"].widget = PhotoInput()
+        for field in form.base_fields.values():
+            if hasattr(field, "empty_label"):
+                field.empty_label = _("Selecciona una opción")
+            field.widget.attrs["data-placeholder"] = _("Selecciona una opción")
+        return form
+
+    def publication_context(self, request: HttpRequest) -> dict[str, Any]:
+        latest = HomePublication.objects.first()
+        sections = list(draft_sections())
+        snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
+        return {
+            "pending_home_changes": latest is None
+            or latest.snapshot != snapshot
+            or latest.draft_snapshot != [services.section_source(section) for section in sections],
+            "last_home_publication": latest,
+            "can_preview": self.has_change_permission(request),
+            "can_publish": self.has_publish_permission(request),
+        }
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> Any:
+        return super().change_view(
+            request,
+            object_id,
+            form_url,
+            {
+                **(extra_context or {}),
+                **self.publication_context(request),
+                "home_return_to": reverse("admin:cms_homesection_change", args=[object_id]),
+            },
+        )
+
+    def response_change(self, request: HttpRequest, obj: HomeSection) -> HttpResponse:
+        if "_savepublish" in request.POST:
+            if not self.has_publish_permission(request):
+                raise PermissionDenied
+            try:
+                services.publish_home(request.user, request)
+                self.message_user(request, _("Inicio publicado."), messages.SUCCESS)
+            except (ValidationError, DomainError) as exc:
+                self.message_user(request, str(exc), messages.ERROR)
+            return HttpResponseRedirect(reverse("admin:cms_homesection_change", args=[obj.pk]))
+        return super().response_change(request, obj)
+
     def get_inlines(
         self, request: HttpRequest, obj: HomeSection | None = None
     ) -> tuple[type[HeroSlideInline], ...]:
-        return (HeroSlideInline,) if obj and obj.kind == "hero" else ()
+        return (HeroSlideInline, MobileHeroSlideInline) if obj and obj.kind == "hero" else ()
 
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
         instances = formset.save(commit=False)
@@ -135,6 +241,9 @@ class HomeSectionAdmin(ContentAdmin):
             self.message_user(request, _("Inicio publicado."), messages.SUCCESS)
         except (ValidationError, DomainError) as exc:
             self.message_user(request, str(exc), messages.ERROR)
+        section_id = request.POST.get("section_id", "")
+        if section_id.isdecimal() and HomeSection.objects.filter(pk=section_id).exists():
+            return HttpResponseRedirect(reverse("admin:cms_homesection_change", args=[section_id]))
         return HttpResponseRedirect(reverse("admin:cms_homesection_changelist"))
 
     def changelist_view(
@@ -144,8 +253,7 @@ class HomeSectionAdmin(ContentAdmin):
             request,
             {
                 **(extra_context or {}),
-                "can_preview": self.has_change_permission(request),
-                "can_publish": self.has_publish_permission(request),
+                **self.publication_context(request),
             },
         )
 

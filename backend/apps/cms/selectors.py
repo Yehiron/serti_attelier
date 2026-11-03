@@ -43,8 +43,8 @@ def draft_sections() -> QuerySet[HomeSection]:
 def image_data(
     obj: HomeSection | PersonalizationService | HeroSlide, locale: str, mobile: bool = False
 ) -> dict[str, Any] | None:
-    image = getattr(obj, "image_mobile" if mobile else "image")
-    prefix = "mobile_" if mobile else ""
+    image = obj.image
+    prefix = ""
     if not image:
         return None
     paths = getattr(obj, f"{prefix}renditions").get("webp", {})
@@ -90,18 +90,22 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
                     "external": obj.cta_kind == "external",
                 }
         if obj.kind == "hero":
-            slides = [
-                {
-                    "image": image_data(slide, locale) if slide.width and slide.height else None,
-                    "mobile_image": image_data(slide, locale, mobile=True)
-                    if slide.mobile_width and slide.mobile_height
-                    else None,
-                }
-                for slide in obj.slides.all()
-            ]
-            data["slides"] = [slide for slide in slides if any(slide.values())]
-            if data["slides"]:
-                data["image"] = data["slides"][0]["image"]
+            slides = []
+            for slide in sorted(
+                obj.slides.all(), key=lambda row: (row.device != "desktop", row.position, row.pk)
+            ):
+                if slide.width and slide.height and slide.image:
+                    image = image_data(slide, locale)
+                    slides.append(
+                        {
+                            "image": image if slide.device == "desktop" else None,
+                            "mobile_image": image if slide.device == "mobile" else None,
+                        }
+                    )
+            data["slides"] = slides
+            data["image"] = next(
+                (slide["image"] for slide in slides if slide["image"]), data["image"]
+            )
         if obj.kind == "collection_rail":
             data["collection_id"] = obj.collection_id
             data["collection"] = {

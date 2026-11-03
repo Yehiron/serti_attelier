@@ -82,7 +82,7 @@ NAVIGATION: list[dict[str, Any]] = [
     {
         "title": _("Página web"),
         "items": [
-            item("Portada", "web", "cms.homesection"),
+            item("Página de inicio", "web", "cms.homesection"),
             item("Páginas", "article", "cms.page"),
             item("Servicios de personalización", "design_services", "cms.personalizationservice"),
         ],

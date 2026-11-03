@@ -139,28 +139,13 @@ def process_image(obj: HomeSection | PersonalizationService) -> None:
 
 
 def process_slide_images(obj: HeroSlide) -> None:
-    # Validate both uploads before writing either image to storage.
-    decoded = {
-        field: cap_master(validated_image(upload))
-        for field in ("image", "image_mobile")
-        if (upload := getattr(obj, field)) and not getattr(upload, "_committed", True)
-    }
-    for field, prefix, widths in (
-        ("image", "", (960, 1600, 2400)),
-        ("image_mobile", "mobile_", (480, 960, 1600)),
-    ):
-        upload = getattr(obj, field)
-        if not upload:
-            setattr(obj, f"{prefix}renditions", {})
-            setattr(obj, f"{prefix}width", 0)
-            setattr(obj, f"{prefix}height", 0)
-        elif field in decoded:
-            image = decoded[field]
-            upload.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
-            paths = build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", widths)
-            setattr(obj, f"{prefix}renditions", {"webp": paths})
-            setattr(obj, f"{prefix}width", image.width)
-            setattr(obj, f"{prefix}height", image.height)
+    if not obj.image or getattr(obj.image, "_committed", True):
+        return
+    image = cap_master(validated_image(obj.image))
+    widths = (480, 960, 1600) if obj.device == HeroSlide.Device.MOBILE else (960, 1600, 2400)
+    obj.width, obj.height = image.size
+    obj.image.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
+    obj.renditions = {"webp": build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", widths)}
 
 
 @transaction.atomic
@@ -220,7 +205,7 @@ def section_source(section: HomeSection) -> dict[str, Any]:
         {
             field.attname: (
                 getattr(slide, field.attname).name
-                if field.name in {"image", "image_mobile"}
+                if field.name == "image"
                 else getattr(slide, field.attname)
             )
             for field in slide._meta.concrete_fields
@@ -267,7 +252,21 @@ def restore_home(
         # Restore the exact editable source, including incomplete hidden drafts.
         section = HomeSection.objects.create(**fields)
         for slide_source in slides:
-            HeroSlide.objects.create(section=section, **slide_source)
+            # Old immutable publications retain paired slide sources.
+            fields = dict(slide_source)
+            mobile = fields.pop("image_mobile", "")
+            mobile_data = {
+                name: fields.pop(f"mobile_{name}", default)
+                for name, default in (("renditions", {}), ("width", 0), ("height", 0))
+            }
+            if fields.get("image") or not mobile:
+                HeroSlide.objects.create(section=section, **fields)
+            if mobile:
+                fields.pop("id", None)
+                HeroSlide.objects.create(
+                    section=section,
+                    **(fields | mobile_data | {"image": mobile, "device": "mobile"}),
+                )
     record("cms.home_restored", actor=actor, obj=publication, request=request)
 
 
