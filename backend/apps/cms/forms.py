@@ -7,6 +7,7 @@ from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.images import crop_to_ratio, validated_image
+from apps.core.admin_presentation import HELP
 
 from .models import HeroSlide, HomeSection, PersonalizationService
 from .services import display_ratio, validate_personalization, validate_section
@@ -41,6 +42,13 @@ class ContentForm(BaseContentForm):
 
 
 class HeroSlideForm(BaseContentForm):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            base = name.removesuffix("_es").removesuffix("_en")
+            if base in HELP and not field.help_text:
+                field.help_text = HELP[base]
+
     # FileField leaves format validation to the shared decoder, including HEIC/AVIF.
     image = forms.FileField(
         label=_("Imagen para computador (horizontal)"),

@@ -1,10 +1,17 @@
-from typing import Any
+from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any
+
+from django import forms
 from django.contrib import admin
 from django.http import HttpRequest
+from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin
 from unfold.admin import ModelAdmin
 
+from apps.catalog.forms import PesosField
+
+from .admin_presentation import ClientPresentationMixin
 from .models import Department, Municipality, SiteSettings
 from .selectors import get_solo
 from .services import save_site_settings
@@ -30,8 +37,24 @@ class LocationAdmin(ReadOnlyAdmin):
         return request.user.is_active and request.user.is_staff
 
 
+if TYPE_CHECKING:
+    BaseSettingsForm = forms.ModelForm[SiteSettings]
+else:
+    BaseSettingsForm = forms.ModelForm
+
+
+class SiteSettingsForm(BaseSettingsForm):
+    certificate_price_cents = PesosField(label=_("Precio del certificado (COP)"), min_value=0)
+
+    class Meta:
+        model = SiteSettings
+        exclude = ("id",)
+
+
 @admin.register(SiteSettings)
-class SiteSettingsAdmin(TabbedTranslationAdmin[SiteSettings], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSettings], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+    form = SiteSettingsForm
+
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
 

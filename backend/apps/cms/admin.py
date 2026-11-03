@@ -15,6 +15,7 @@ from modeltranslation.admin import TabbedTranslationAdmin, TranslationStackedInl
 from unfold.admin import ModelAdmin, StackedInline
 
 from apps.core.admin import ReadOnlyAdmin
+from apps.core.admin_presentation import ClientPresentationMixin
 from apps.core.exceptions import DomainError
 
 from . import services
@@ -36,7 +37,7 @@ def preview_redirect(request: HttpRequest, target: str) -> HttpResponseRedirect:
     return HttpResponseRedirect(f"{settings.PUBLIC_SITE_URL}/preview?{query}")
 
 
-class ContentAdmin(TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]
+class ContentAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]
     form: Any = ContentForm
     readonly_fields: ClassVar[tuple[str, ...]] = ("created_at", "updated_at")
 
@@ -48,12 +49,15 @@ class ContentAdmin(TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[mis
 
 
 class HeroSlideInline(TranslationStackedInline[HeroSlide, HomeSection], StackedInline):  # type: ignore[misc]
+    ordering_field = "position"
+    hide_ordering_field = True
     model = HeroSlide
     form = HeroSlideForm
     extra = 0
     ordering = ("position", "pk")
-    fields = ("position", "image", "image_mobile", "alt", "previews")
-    readonly_fields = ("previews",)
+    fields = ("position", "image", "image_mobile", "alt", "previews", "image_status")
+    readonly_fields = ("previews", "image_status")
+    image_status = ClientPresentationMixin.image_status
     verbose_name_plural = _("Diapositivas")
 
     def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
@@ -91,9 +95,11 @@ class HeroSlideInline(TranslationStackedInline[HeroSlide, HomeSection], StackedI
 
 @admin.register(HomeSection)
 class HomeSectionAdmin(ContentAdmin):
+    ordering_field = "position"
+    hide_ordering_field = True
     list_display = ("kind", "title", "position", "is_visible")
     ordering = ("position", "pk")
-    readonly_fields = (*ContentAdmin.readonly_fields, "renditions", "width", "height")
+    readonly_fields = (*ContentAdmin.readonly_fields, "image_preview", "image_status")
     change_list_template = "admin/cms/home_changelist.html"
 
     def get_inlines(
@@ -203,8 +209,10 @@ class PageAdmin(ContentAdmin):
 
 @admin.register(PersonalizationService)
 class PersonalizationAdmin(ContentAdmin):
+    ordering_field = "position"
+    hide_ordering_field = True
     list_display = ("title", "position", "is_active")
-    readonly_fields = (*ContentAdmin.readonly_fields, "renditions", "width", "height")
+    readonly_fields = (*ContentAdmin.readonly_fields, "image_preview", "image_status")
 
     def save_model(
         self, request: HttpRequest, obj: PersonalizationService, form: Any, change: bool

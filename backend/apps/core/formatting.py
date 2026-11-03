@@ -35,6 +35,11 @@ def format_cop(cents: int, locale: str) -> str:
     return f"{sign}$ {grouped}{decimals}"
 
 
+def format_admin_cop(cents: int) -> str:
+    """Compact Spanish COP notation for the client dashboard."""
+    return format_cop(cents, "es").replace("$ ", "$")
+
+
 def format_bogota_datetime(value: datetime, locale: str) -> str:
     """'25 de octubre de 2026, 2:23 p. m. (hora de Colombia)' or the English equivalent."""
     local = value.astimezone(BOGOTA)

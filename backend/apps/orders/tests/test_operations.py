@@ -261,7 +261,7 @@ def test_approved_metrics_and_query_budget(order: Order, django_assert_num_queri
     cards = {row["key"]: row for row in metrics["sales"]}
     assert cards["today"]["count"] == 1 and cards["month"]["count"] == 1
     assert cards["seven_days"]["count"] == 2 and cards["thirty_days"]["count"] == 2
-    assert cards["today"]["total"] == format_cop(100000, "es")
+    assert cards["today"]["total"] == format_cop(100000, "es").replace("$ ", "$")
     assert metrics["monthly"][-1]["count"] == 1
     assert metrics["monthly"][-2]["count"] == 1
     assert metrics["monthly"][-1]["width"] == 100
@@ -576,7 +576,7 @@ def test_spanish_admin_labels_and_login() -> None:
             ("axes.AccessAttempt", "intentos de acceso"),
             ("axes.AccessFailureLog", "fallos de acceso"),
             ("axes.AccessLog", "registros de acceso"),
-            ("otp_totp.TOTPDevice", "TOTP devices"),
+            ("otp_totp.TOTPDevice", "dispositivos de verificación"),
         ):
             assert str(apps.get_model(model_name)._meta.verbose_name_plural) == plural
         for label in ("axes", "otp_totp"):

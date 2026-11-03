@@ -10,6 +10,10 @@ from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin
 
+from apps.catalog.forms import PesosField
+from apps.core.admin_presentation import ClientPresentationMixin
+from apps.core.formatting import format_admin_cop
+
 from .models import Coupon
 from .services import delete_coupon, save_coupon
 
@@ -20,6 +24,7 @@ else:
 
 
 class CouponForm(BaseCouponForm):
+    min_subtotal_cents = PesosField(label=_("Compra mínima (COP)"), min_value=0)
     amount = forms.DecimalField(
         label=_("Valor (% o pesos)"), min_value=Decimal("0.01"), decimal_places=2
     )
@@ -66,12 +71,16 @@ class CouponForm(BaseCouponForm):
 
 
 @admin.register(Coupon)
-class CouponAdmin(ModelAdmin):  # type: ignore[misc]
+class CouponAdmin(ClientPresentationMixin, ModelAdmin):  # type: ignore[misc]
     form = CouponForm
-    list_display = ("code", "kind", "value", "is_active", "starts_at", "ends_at")
+    list_display = ("code", "kind", "formatted_value", "is_active", "starts_at", "ends_at")
     list_filter = ("kind", "is_active")
     search_fields = ("code",)
     filter_horizontal = ("categories", "collections")
+
+    @admin.display(description=_("Valor"))
+    def formatted_value(self, obj: Coupon) -> str:
+        return f"{obj.value}%" if obj.kind == "percent" else format_admin_cop(obj.value)
 
     def save_model(self, request: HttpRequest, obj: Coupon, form: Any, change: bool) -> None:
         save_coupon(

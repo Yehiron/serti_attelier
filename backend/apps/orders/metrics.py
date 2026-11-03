@@ -16,7 +16,7 @@ from django.utils.translation import gettext_lazy as _
 
 from apps.catalog.models import Piece
 from apps.catalog.selectors import missing_english_translation
-from apps.core.formatting import BOGOTA, format_cop
+from apps.core.formatting import BOGOTA, format_admin_cop
 from apps.promotions.models import CouponRedemption
 
 from .models import Order, OrderItem
@@ -59,7 +59,7 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
             "label": label,
             "count": values[f"{key}_count"],
             "total_cents": values[f"{key}_total"],
-            "total": format_cop(values[f"{key}_total"], "es"),
+            "total": format_admin_cop(values[f"{key}_total"]),
         }
         for key, label, _start in windows
     ]
@@ -93,7 +93,7 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
             {
                 "label": f"{MONTHS_ES[start.month - 1]} {start.year}",
                 "count": row["count"],
-                "total": format_cop(row["total"], "es"),
+                "total": format_admin_cop(row["total"]),
                 "width": row["total"] * 100 // maximum,
             }
         )
@@ -120,7 +120,7 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
     discounts = redemptions.aggregate(
         count=Count("pk"), total=Sum("order__discount_cents", default=0)
     )
-    discounts["formatted_total"] = format_cop(discounts["total"], "es")
+    discounts["formatted_total"] = format_admin_cop(discounts["total"])
     coupons = cast(
         list[dict[str, Any]],
         list(
@@ -131,7 +131,7 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
     )
     for coupon in coupons:
         coupon["label"] = coupon["coupon__code"]
-        coupon["formatted_total"] = format_cop(coupon["total"], "es")
+        coupon["formatted_total"] = format_admin_cop(coupon["total"])
     health_specs: list[tuple[str, Any, dict[str, Any]]] = [
         (
             str(_("Publicadas disponibles")),
@@ -184,6 +184,26 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
 
 
 def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[str, Any]:
+    links = []
+    for label, permission, url, post in (
+        (_("Agregar pieza"), "catalog.add_piece", reverse("admin:catalog_piece_add"), False),
+        (
+            _("Editar portada"),
+            "cms.change_homesection",
+            reverse("admin:cms_homesection_changelist"),
+            False,
+        ),
+        (_("Publicar inicio"), "cms.publish_content", reverse("admin:cms-home-publish"), True),
+        (
+            _("Pedidos pendientes de pago"),
+            "orders.view_order",
+            admin_link("orders_order", {"payment_status__in": "pending,awaiting_manual_payment"}),
+            False,
+        ),
+    ):
+        if request.user.has_perm(permission):
+            links.append({"label": label, "url": url, "post": post})
+    context = {**context, "quick_links": links}
     if not request.user.has_perm("orders.view_order"):
         return context
     key = f"orders:dashboard:v2:{timezone.now().astimezone(BOGOTA).date().isoformat()}"

@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from typing import Any
 
 import pytest
@@ -74,7 +76,7 @@ def test_roles_and_read_only_locations() -> None:
         request.user = user
         for model in (Department, Municipality):
             model_admin: Any = admin.site._registry[model]
-            assert model_admin.has_view_permission(request)
+            assert not model_admin.has_view_permission(request)
             assert not model_admin.has_change_permission(request)
             assert not model_admin.has_delete_permission(request)
             assert not model_admin.has_add_permission(request)

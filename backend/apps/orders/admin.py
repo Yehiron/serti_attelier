@@ -11,10 +11,13 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import display
+from unfold.utils import display_for_label
 
 from apps.accounts.models import User
+from apps.core.admin_presentation import thumbnail_url
 from apps.core.exceptions import DomainError
-from apps.core.formatting import format_bogota_date, format_cop
+from apps.core.formatting import format_admin_cop, format_bogota_date
 
 from .exports import export_orders
 from .forms import FulfillmentForm
@@ -89,14 +92,66 @@ class ReadOnlyInline(TabularInline):  # type: ignore[misc]
 
 class ItemInline(ReadOnlyInline):
     model = OrderItem
-    fields = ("sku", "name_es", "name_en", "piece_number", "unit_price_cents", "discount_cents")
+    fields = ("photo", "piece_link", "sku", "price", "discount")
     readonly_fields = fields
+
+    verbose_name_plural = _("Lo que pidió")
+
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("orders.view_order")
+
+    @admin.display(description=_("Foto"))
+    def photo(self, obj: OrderItem) -> str:
+        image = obj.piece.images.filter(is_primary=True).first()
+        return (
+            format_html('<img src="{}" width="64" alt="">', thumbnail_url(image))
+            if image and image.original
+            else "—"
+        )
+
+    @admin.display(description=_("Pieza"))
+    def piece_link(self, obj: OrderItem) -> str:
+        return format_html(
+            '<a href="{}">{}</a>',
+            reverse("admin:catalog_piece_change", args=[obj.piece_id]),
+            obj.name_es,
+        )
+
+    @admin.display(description=_("Precio"))
+    def price(self, obj: OrderItem) -> str:
+        return format_admin_cop(obj.unit_price_cents)
+
+    @admin.display(description=_("Descuento"))
+    def discount(self, obj: OrderItem) -> str:
+        return format_admin_cop(obj.discount_cents)
 
 
 class HistoryInline(ReadOnlyInline):
+    verbose_name_plural = _("Historial")
+    tab = True
+
+    def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
+        return request.user.has_perm("orders.view_order")
+
     model = OrderStatusChange
-    fields = ("field", "from_state", "to_state", "actor", "note", "at")
+    fields = ("field_label", "previous_state", "next_state", "actor", "note", "at")
     readonly_fields = fields
+
+    @admin.display(description=_("Cambio"))
+    def field_label(self, obj: OrderStatusChange) -> str:
+        return str(_("Pago") if obj.field == "payment_status" else _("Entrega"))
+
+    def state_label(self, obj: OrderStatusChange, value: str) -> str:
+        field = cast(Any, Order._meta.get_field(obj.field))
+        return str(dict(field.flatchoices).get(value, value))
+
+    @admin.display(description=_("Estado anterior"))
+    def previous_state(self, obj: OrderStatusChange) -> str:
+        return self.state_label(obj, obj.from_state)
+
+    @admin.display(description=_("Estado nuevo"))
+    def next_state(self, obj: OrderStatusChange) -> str:
+        return self.state_label(obj, obj.to_state)
 
 
 class HasCouponFilter(admin.SimpleListFilter):
@@ -113,6 +168,8 @@ class HasCouponFilter(admin.SimpleListFilter):
 
 
 class NoteInline(TabularInline):  # type: ignore[misc]
+    verbose_name_plural = _("Notas")
+    tab = True
     model = OrderNote
     extra = 0
     fields = ("text", "author", "created_at")
@@ -135,35 +192,198 @@ class NoteInline(TabularInline):  # type: ignore[misc]
 class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     list_display = (
         "number",
-        "created_at",
-        "customer_name",
+        "order_date",
+        "client_name",
+        "client_phone",
         "total_cop",
-        "payment_status",
-        "fulfillment_status",
-        "payment_channel",
-        "wants_certificate",
+        "payment_badge",
+        "fulfillment_badge",
+        "certificate_requested",
         "attention_badge",
     )
-    list_filter = (
-        "payment_status",
-        "fulfillment_status",
-        "payment_channel",
-        "created_at",
-        "needs_attention",
-        "wants_certificate",
-        HasCouponFilter,
-    )
+    list_filter = ("payment_status", "fulfillment_status", "created_at", "needs_attention")
     search_fields = ("number", "customer_name", "customer_email", "customer_phone", "items__sku")
     date_hierarchy = "created_at"
-    inlines = (ItemInline, HistoryInline, NoteInline)
+    inlines = (ItemInline, NoteInline, HistoryInline)
     actions = ("fulfillment", "export_csv", "confirm_manual", "print_certificate")
-    readonly_fields = (*(f.name for f in Order._meta.fields), "certificate_link")
+    readonly_fields = (
+        "number",
+        "created_at",
+        "customer_name",
+        "email_link",
+        "phone_link",
+        "language",
+        "shipping_address_line",
+        "shipping_address_extra",
+        "destination",
+        "shipping_notes",
+        "payment_channel",
+        "payment_summary",
+        "fulfillment_summary",
+        "subtotal_cop",
+        "discount_cop",
+        "shipping_cop",
+        "certificate_cop",
+        "total_cop",
+        "coupon",
+        "certificate_link",
+        "attention_badge",
+    )
+    fieldsets = (
+        (
+            _("Cliente"),
+            {
+                "fields": (
+                    "number",
+                    "created_at",
+                    "customer_name",
+                    "email_link",
+                    "phone_link",
+                    "language",
+                    "attention_badge",
+                ),
+            },
+        ),
+        (
+            _("Entrega"),
+            {
+                "fields": (
+                    "shipping_address_line",
+                    "shipping_address_extra",
+                    "destination",
+                    "shipping_notes",
+                    "fulfillment_summary",
+                ),
+            },
+        ),
+        (
+            _("Pago"),
+            {
+                "fields": (
+                    "payment_channel",
+                    "payment_summary",
+                    "subtotal_cop",
+                    "discount_cop",
+                    "shipping_cop",
+                    "certificate_cop",
+                    "total_cop",
+                    "coupon",
+                    "certificate_link",
+                ),
+            },
+        ),
+    )
+
+    @admin.display(description=_("Fecha"), ordering="created_at")
+    def order_date(self, obj: Order) -> Any:
+        return obj.created_at
+
+    @admin.display(description=_("Cliente"), ordering="customer_name")
+    def client_name(self, obj: Order) -> str:
+        return obj.customer_name
+
+    @admin.display(description=_("Teléfono"))
+    def client_phone(self, obj: Order) -> str:
+        return obj.customer_phone
+
+    @admin.display(description=_("Certificado"), boolean=True)
+    def certificate_requested(self, obj: Order) -> bool:
+        return obj.wants_certificate
+
+    @admin.display(description=_("Pago"))
+    def payment_summary(self, obj: Order) -> str:
+        return cast(str, display_for_label(self.payment_badge(obj), "—", self.payment_badge.label))
+
+    @admin.display(description=_("Estado"))
+    def fulfillment_summary(self, obj: Order) -> str:
+        return cast(
+            str, display_for_label(self.fulfillment_badge(obj), "—", self.fulfillment_badge.label)
+        )
+
+    @admin.display(description=_("Correo"))
+    def email_link(self, obj: Order) -> str:
+        return format_html(
+            '<a class="text-primary-600 underline" href="mailto:{}">{}</a>',
+            obj.customer_email,
+            obj.customer_email,
+        )
+
+    @admin.display(description=_("Teléfono / WhatsApp"))
+    def phone_link(self, obj: Order) -> str:
+        digits = "".join(c for c in obj.customer_phone if c.isdigit())
+        if len(digits) == 10:
+            digits = "57" + digits
+        return format_html(
+            '<a class="text-primary-600 underline" href="https://wa.me/{}" '
+            'target="_blank" rel="noopener">{}</a>',
+            digits,
+            obj.customer_phone,
+        )
+
+    @admin.display(description=_("Idioma"))
+    def language(self, obj: Order) -> str:
+        return str(_("Inglés") if obj.locale == "en" else _("Español"))
+
+    @admin.display(description=_("Municipio y departamento"))
+    def destination(self, obj: Order) -> str:
+        return f"{obj.shipping_municipality.name}, {obj.shipping_municipality.department.name}"
+
+    @display(  # type: ignore[untyped-decorator]
+        description=_("Pago"),
+        ordering="payment_status",
+        label={
+            "approved": "success",
+            "pending": "warning",
+            "awaiting_manual_payment": "warning",
+            "declined": "danger",
+            "error": "danger",
+            "expired": "danger",
+            "voided": "info",
+        },
+    )
+    def payment_badge(self, obj: Order) -> tuple[str, str]:
+        return obj.payment_status, obj.get_payment_status_display()
+
+    @display(  # type: ignore[untyped-decorator]
+        description=_("Estado"),
+        ordering="fulfillment_status",
+        label={
+            "unfulfilled": "info",
+            "preparing": "warning",
+            "shipped": "info",
+            "delivered": "success",
+            "cancelled": "danger",
+            "returned": "danger",
+        },
+    )
+    def fulfillment_badge(self, obj: Order) -> tuple[str, str]:
+        return obj.fulfillment_status, obj.get_fulfillment_status_display()
+
+    @admin.display(description=_("Subtotal"))
+    def subtotal_cop(self, obj: Order) -> str:
+        return format_admin_cop(obj.subtotal_cents)
+
+    @admin.display(description=_("Descuento"))
+    def discount_cop(self, obj: Order) -> str:
+        return format_admin_cop(obj.discount_cents)
+
+    @admin.display(description=_("Envío"))
+    def shipping_cop(self, obj: Order) -> str:
+        return format_admin_cop(obj.shipping_cents)
+
+    @admin.display(description=_("Certificado"))
+    def certificate_cop(self, obj: Order) -> str:
+        return format_admin_cop(obj.certificate_cents)
 
     def get_inlines(self, request: HttpRequest, obj: Any = None) -> tuple[Any, ...]:
         from apps.notifications.admin import DeliveryInline
         from apps.payments.admin import AttemptInline, OrderEventInline
 
-        return (*self.inlines, AttemptInline, OrderEventInline, DeliveryInline)
+        return (
+            (*self.inlines, AttemptInline, OrderEventInline, DeliveryInline)
+            if request.user.is_superuser
+            else self.inlines
+        )
 
     def change_view(
         self,
@@ -176,7 +396,7 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
         if order and order.needs_attention:
             self.message_user(
                 request,
-                "Este pedido requiere atención: revisa el pago y la disponibilidad.",
+                _("Este pedido requiere atención: revisa el pago y la disponibilidad."),
                 messages.WARNING,
             )
         return cast(HttpResponse, super().change_view(request, object_id, form_url, extra_context))
@@ -316,9 +536,9 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     def has_fulfillment_permission(self, request: HttpRequest) -> bool:
         return request.user.has_perm("orders.change_fulfillment")
 
-    @admin.display(description=_("Total COP"))
+    @admin.display(description=_("Total"), ordering="total_cents")
     def total_cop(self, obj: Order) -> str:
-        return format_cop(obj.total_cents, "es")
+        return format_admin_cop(obj.total_cents)
 
     @admin.display(description=_("Requiere atención"), ordering="needs_attention")
     def attention_badge(self, obj: Order) -> str:

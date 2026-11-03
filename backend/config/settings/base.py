@@ -5,6 +5,8 @@ All secrets and host-specific values come from environment variables
 real secret.
 """
 
+from __future__ import annotations
+
 from pathlib import Path
 from typing import Any
 
@@ -27,7 +29,7 @@ API_SCHEMA_PUBLIC = env.bool("API_SCHEMA_PUBLIC", default=False)
 INSTALLED_APPS = [
     "modeltranslation",
     "unfold",
-    "django.contrib.admin",
+    "config.admin_apps.ClientAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
@@ -176,7 +178,13 @@ SESSION_COOKIE_AGE = 1800
 SESSION_SAVE_EVERY_REQUEST = True
 SESSION_COOKIE_HTTPONLY = True
 DEFAULT_FROM_EMAIL = env("DEFAULT_FROM_EMAIL", default="SERTI <no-reply@serti.localhost>")
+from apps.core import dashboard  # noqa: E402
+
 UNFOLD = {
+    "SIDEBAR": {"show_all_applications": False, "navigation": dashboard.navigation},
+    "SITE_LOGO": {"light": dashboard.logo_light, "dark": dashboard.logo_dark},
+    "SITE_ICON": dashboard.icon,
+    "SITE_FAVICONS": [{"rel": "icon", "type": "image/svg+xml", "href": dashboard.favicon}],
     "DASHBOARD_CALLBACK": "apps.orders.metrics.dashboard_callback",
     "SITE_TITLE": "SERTI",
     "SITE_HEADER": "SERTI",

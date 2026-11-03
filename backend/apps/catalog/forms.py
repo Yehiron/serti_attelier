@@ -1,24 +1,32 @@
 from __future__ import annotations
 
+from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.utils.translation import gettext_lazy as _
 from unfold.widgets import UnfoldAdminIntegerFieldWidget
 
+from apps.core.admin_presentation import HELP
+
 from .images import validated_image
 from .models import Piece, PieceImage, PieceVideo
 
 
 class PesosField(forms.IntegerField):
-    widget = UnfoldAdminIntegerFieldWidget
+    widget = UnfoldAdminIntegerFieldWidget(attrs={"step": "0.01"})
 
     def prepare_value(self, value: Any) -> Any:
-        return value // 100 if isinstance(value, int) else value
+        return Decimal(value) / 100 if isinstance(value, (int, Decimal)) else value
 
     def clean(self, value: Any) -> int | None:
-        pesos = super().clean(value)
-        return pesos * 100 if pesos is not None else None
+        pesos = forms.DecimalField(
+            required=self.required,
+            min_value=self.min_value() if callable(self.min_value) else self.min_value,
+            max_value=self.max_value() if callable(self.max_value) else self.max_value,
+            decimal_places=2,
+        ).clean(value)
+        return int(pesos * 100) if pesos is not None else None
 
 
 if TYPE_CHECKING:
@@ -35,10 +43,8 @@ class PieceForm(BasePieceForm):
     related = forms.ModelMultipleChoiceField(
         queryset=Piece.objects.all(), required=False, label=_("Piezas relacionadas")
     )
-    price_cents = PesosField(label=_("Precio (pesos COP)"), min_value=1)
-    sale_price_cents = PesosField(
-        label=_("Precio rebajado (pesos COP)"), min_value=1, required=False
-    )
+    price_cents = PesosField(label=_("Precio (COP)"), min_value=1)
+    sale_price_cents = PesosField(label=_("Precio rebajado (COP)"), min_value=1, required=False)
 
     class Meta:
         model = Piece
@@ -46,6 +52,13 @@ class PieceForm(BasePieceForm):
 
 
 class ValidatedImageForm(BaseImageForm):
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for name, field in self.fields.items():
+            base = name.removesuffix("_es").removesuffix("_en")
+            if base in HELP and not field.help_text:
+                field.help_text = HELP[base]
+
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean() or {}
         for name in ("original", "cover_image"):

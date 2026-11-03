@@ -14,7 +14,9 @@ from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
 from unfold.admin import ModelAdmin, TabularInline
 
+from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.exceptions import DomainError
+from apps.core.formatting import format_admin_cop
 from apps.inventory.services import set_preorder
 
 from . import services
@@ -32,11 +34,14 @@ from .models import (
 from .selectors import missing_english_translation
 
 
-class TranslatedAdmin(TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+class TranslatedAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
     prepopulated_fields = {"slug": ("name",)}
     search_fields: ClassVar[tuple[str, ...]] = ("name_es", "name_en")
     list_display: tuple[str, ...] = ("name", "position")
     form: Any = ValidatedImageForm
+    ordering_field: str | None = "position"
+    hide_ordering_field = True
+    readonly_fields: ClassVar[tuple[str, ...]] = ("image_preview", "image_status")
 
     def save_model(self, request: HttpRequest, obj: Any, form: Any, change: bool) -> None:
         services.save_taxonomy(obj)
@@ -56,6 +61,8 @@ admin.site.register(Material, TranslatedAdmin)
 
 
 class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
+    ordering_field = "position"
+    hide_ordering_field = True
     model = PieceImage
     form: Any = PieceImageForm
     formset = PieceImageFormSet
@@ -67,10 +74,10 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
         "position",
         "is_primary",
         "is_hover",
-        "processing_status",
-        "error",
+        "image_status",
     )
-    readonly_fields = ("preview", "processing_status", "error")
+    readonly_fields = ("preview", "image_status")
+    image_status = ClientPresentationMixin.image_status
     ordering = ("position",)
 
     @admin.display(description=_("Vista previa"))
@@ -97,8 +104,9 @@ class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInlin
     form: Any = PieceVideoForm
     max_num = 1
     extra = 0
-    fields = ("original", "alt", "preview", "processing_status", "duration_seconds", "error")
-    readonly_fields = ("preview", "processing_status", "duration_seconds", "error")
+    fields = ("original", "alt", "preview", "image_status")
+    readonly_fields = ("preview", "image_status")
+    image_status = ClientPresentationMixin.image_status
 
     @admin.display(description=_("Póster"))
     def preview(self, obj: PieceVideo) -> str:
@@ -110,6 +118,8 @@ class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInlin
 
 
 class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is untyped.
+    ordering_field = "position"
+    hide_ordering_field = True
     model = CollectionPiece
     extra = 0
 
@@ -134,6 +144,8 @@ class CatalogHealthFilter(admin.SimpleListFilter):
 
 @admin.register(Piece)
 class PieceAdmin(TranslatedAdmin):
+    ordering_field = None
+    hide_ordering_field = False
     form = PieceForm
     list_display = (
         "thumbnail",
@@ -181,8 +193,34 @@ class PieceAdmin(TranslatedAdmin):
     ) -> tuple[str, ...]:
         fields: tuple[str, ...] = self.readonly_fields
         if not request.user.has_perm("catalog.change_piece_price"):
-            fields += ("price_cents", "sale_price_cents")
+            fields += ("price_cents", "sale_price_cents", "regular_price_cop", "sale_price_cop")
         return fields
+
+    def get_fieldsets(self, request: HttpRequest, obj: Piece | None = None) -> Any:
+        fieldsets = super().get_fieldsets(request, obj)
+        if request.user.has_perm("catalog.change_piece_price"):
+            return fieldsets
+        replacements = {"price_cents": "regular_price_cop", "sale_price_cents": "sale_price_cop"}
+        return [
+            (
+                title,
+                {
+                    **options,
+                    "fields": list(
+                        dict.fromkeys(replacements.get(f, f) for f in options["fields"])
+                    ),
+                },
+            )
+            for title, options in fieldsets
+        ]
+
+    @admin.display(description=_("Precio (COP)"))
+    def regular_price_cop(self, obj: Piece) -> str:
+        return format_admin_cop(obj.price_cents) if obj.price_cents is not None else "—"
+
+    @admin.display(description=_("Precio rebajado (COP)"))
+    def sale_price_cop(self, obj: Piece) -> str:
+        return format_admin_cop(obj.sale_price_cents) if obj.sale_price_cents is not None else "—"
 
     def get_prepopulated_fields(
         self, request: HttpRequest, obj: Piece | None = None
@@ -238,11 +276,13 @@ class PieceAdmin(TranslatedAdmin):
             ),
             None,
         )
-        return format_html('<img src="{}" width="64" alt="">', image.original.url) if image else "—"
+        return (
+            format_html('<img src="{}" width="64" alt="">', thumbnail_url(image)) if image else "—"
+        )
 
     @admin.display(description=_("Precio COP"))
     def formatted_price(self, obj: Piece) -> str:
-        return f"$ {obj.effective_price.amount_cents // 100:,}".replace(",", ".")
+        return format_admin_cop(obj.effective_price.amount_cents)
 
     def _action(self, request: HttpRequest, queryset: QuerySet[Piece], action: str) -> None:
         for piece in queryset:
@@ -287,9 +327,10 @@ class PieceAdmin(TranslatedAdmin):
 
 
 @admin.register(PieceImage)
-class PieceImageAdmin(TabbedTranslationAdmin[PieceImage], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+class PieceImageAdmin(ClientPresentationMixin, TabbedTranslationAdmin[PieceImage], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
     form: Any = PieceImageForm
-    readonly_fields = ("renditions", "width", "height", "processing_status", "error")
+    exclude = ("renditions", "width", "height", "processing_status", "error")
+    readonly_fields = ("image_preview", "image_status")
 
     def save_model(self, request: HttpRequest, obj: PieceImage, form: Any, change: bool) -> None:
         services.save_piece_image(obj)
