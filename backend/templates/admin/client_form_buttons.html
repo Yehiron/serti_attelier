@@ -1,0 +1,5 @@
+{% load i18n %}
+<div class="flex flex-wrap gap-3 items-center mt-6">
+  <button type="submit" {% if submit_name %}name="{{ submit_name }}" value="1"{% endif %} class="bg-primary-600 font-medium px-4 py-2 rounded-default text-white hover:bg-primary-700">{{ submit_label }}</button>
+  {% if back_url %}<a href="{{ back_url }}" class="border border-base-200 font-medium px-4 py-2 rounded-default dark:border-base-700">{% translate "Cancelar" %}</a>{% endif %}
+</div>

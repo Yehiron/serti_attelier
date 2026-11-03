@@ -167,3 +167,22 @@ def save_related_user(user: User, save: Callable[[], None], *, request: HttpRequ
     old = access_snapshot(user)
     save()
     record_access_changes(user, old, request=request)
+
+
+@transaction.atomic
+def assign_team_role(user: User, role: str, *, request: HttpRequest) -> None:
+    """Assign a managed role without allowing callers to grant their own missing privileges."""
+    if role not in ROLE_PERMISSIONS:
+        raise PermissionDenied
+    if not request.user.is_superuser:
+        if user.is_superuser or not request.user.has_perm("accounts.change_user"):
+            raise PermissionDenied
+        if not all(request.user.has_perm(permission) for permission in ROLE_PERMISSIONS[role]):
+            raise PermissionDenied
+    old = access_snapshot(user)
+    sync_roles()
+    user.groups.set([Group.objects.get(name=role)])
+    user.user_permissions.clear()
+    user.is_staff = True
+    user.save(update_fields=["is_staff"])
+    record_access_changes(user, old, request=request)

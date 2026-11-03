@@ -590,3 +590,59 @@ def test_spanish_admin_labels_and_login() -> None:
         assert "Iniciar sesión" in html
         assert "Return to site" not in html
         assert "Claro" in html and "Oscuro" in html and "Sistema" in html
+
+
+def test_order_detail_actions(order: Order) -> None:
+    from apps.core.tests.test_dashboard_client import staff
+
+    browser, _ = staff(OPERACIONES)
+    order.payment_status = "approved"
+    order.fulfillment_status = "preparing"
+    order.customer_phone = "3001234567"
+    order.save()
+    change_url = reverse("admin:orders_order_change", args=[order.pk])
+    url = reverse("admin:orders_order_detail_fulfillment", args=[order.pk])
+    assert browser.get(url).status_code == 200
+    with patch("apps.orders.admin.transition_status", wraps=transition_status) as called:
+        response = browser.post(
+            url,
+            {
+                "apply": "1",
+                "target": "shipped",
+                "carrier": "Transportadora",
+                "tracking_number": "TRACK-123",
+                "tracking_url": "https://example.com/track",
+            },
+        )
+    called.assert_called_once()
+    assert response.status_code == 302 and response["Location"] == change_url
+    order.refresh_from_db()
+    assert order.fulfillment_status == "shipped"
+    page = browser.get(change_url)
+    html = page.content.decode()
+    assert "TRACK-123" in html and "https://example.com/track" in html
+    assert "detail_manual" not in html
+    assert "detail_certificate" not in html
+    assert "https://wa.me/573001234567" in html
+    response = browser.get(reverse("admin:orders_order_detail_whatsapp", args=[order.pk]))
+    assert response["Location"] == "https://wa.me/573001234567"
+    order.payment_status = "awaiting_manual_payment"
+    order.save()
+    assert "detail_manual" in browser.get(change_url).content.decode()
+    order.payment_status = "approved"
+    order.wants_certificate = True
+    order.save()
+    assert "detail_certificate" in browser.get(change_url).content.decode()
+
+
+def test_order_detail_permissions(order: Order) -> None:
+    from apps.core.tests.test_dashboard_client import staff
+
+    browser, _ = staff(CONTENIDO)
+    assert (
+        browser.get(reverse("admin:orders_order_detail_fulfillment", args=[order.pk])).status_code
+        == 403
+    )
+    assert (
+        browser.get(reverse("admin:orders_order_detail_manual", args=[order.pk])).status_code == 403
+    )

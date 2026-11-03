@@ -13,6 +13,7 @@ from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import action
 
 from apps.core.admin import ReadOnlyAdmin
 from apps.core.admin_presentation import ClientPresentationMixin
@@ -41,7 +42,7 @@ class ContentAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAd
     form: Any = ContentForm
     readonly_fields: ClassVar[tuple[str, ...]] = ("created_at", "updated_at")
 
-    def has_publish_permission(self, request: HttpRequest) -> bool:
+    def has_publish_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
         return request.user.has_perm("cms.publish_content")
 
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
@@ -272,6 +273,61 @@ class PageAdmin(ContentAdmin):
         "preview_link",
     )
     actions = ("publish",)
+    actions_detail = ("detail_preview", "detail_publish")
+    change_form_before_template = "admin/cms/page_status.html"
+
+    def change_view(
+        self,
+        request: HttpRequest,
+        object_id: str,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> Any:
+        page = self.get_object(request, object_id)
+        revision = page.revisions.first() if page else None
+        pending = not revision or any(
+            revision.snapshot[locale].get("source", {}).get(field)
+            != getattr(page, f"{field}_{locale}")
+            for locale in ("es", "en")
+            for field in ("title", "slug", "body")
+        )
+        return super().change_view(
+            request, object_id, form_url, {**(extra_context or {}), "pending_page_changes": pending}
+        )
+
+    @action(
+        description=_("Vista previa"),
+        permissions=["change"],
+        attrs={"target": "_blank", "rel": "noopener"},
+    )  # type: ignore[untyped-decorator]
+    def detail_preview(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.preview(request, int(object_id))
+
+    @action(description=_("Publicar"), permissions=["publish", "change"])  # type: ignore[untyped-decorator]
+    def detail_publish(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        page = self.get_object(request, object_id)
+        if page is None or not self.has_change_permission(request, page):
+            raise PermissionDenied
+        back_url = reverse("admin:cms_page_change", args=[object_id])
+        if request.method != "POST":
+            from django.template.response import TemplateResponse
+
+            return TemplateResponse(
+                request,
+                "admin/catalog/confirm_action.html",
+                {
+                    **self.admin_site.each_context(request),
+                    "title": _("Publicar"),
+                    "original": page,
+                    "back_url": back_url,
+                },
+            )
+        try:
+            services.publish_page(page, request.user, request)
+            self.message_user(request, _("Página publicada."), messages.SUCCESS)
+        except (DomainError, ValidationError) as exc:
+            self.message_user(request, str(exc), messages.ERROR)
+        return HttpResponseRedirect(back_url)
 
     def get_urls(self) -> list[Any]:
         return [
@@ -336,7 +392,7 @@ class PublicationAdmin(ReadOnlyAdmin):
     def has_view_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return bool(request.user.has_perm(f"cms.view_{self.model._meta.model_name}"))
 
-    def has_publish_permission(self, request: HttpRequest) -> bool:
+    def has_publish_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
         return request.user.has_perm("cms.publish_content")
 
     @admin.action(description=_("Restaurar como borrador"), permissions=["publish"])

@@ -1,6 +1,12 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/client_form_page.html" %}
 {% load i18n %}
-{% block content %}
-<h1>{% translate "Confirmar pago manual" %} — {{ order.number }}</h1>
-<form method="post" enctype="multipart/form-data">{% csrf_token %}{{ form.as_p }}<button type="submit">{% translate "Confirmar pago manual" %}</button></form>
+{% block page_title %}{% translate "Confirmar pago manual" %} — {{ order.number }}{% endblock %}
+{% block page_subtitle %}{{ order.customer_name }} · {% translate "Adjunta el soporte de la transferencia para dejar el pago aprobado." %}{% endblock %}
+{% block page_body %}
+<form method="post" enctype="multipart/form-data">{% csrf_token %}
+{% include "admin/client_form_fields.html" %}
+{% url 'admin:orders_order_change' order.pk as back_url %}
+{% translate "Confirmar pago" as submit_label %}
+{% include "admin/client_form_buttons.html" with submit_label=submit_label back_url=back_url %}
+</form>
 {% endblock %}

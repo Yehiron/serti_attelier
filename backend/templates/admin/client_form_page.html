@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+{# Shared card layout for the dashboard's small intermediate pages (state changes, confirmations). #}
+{% block content %}
+<div class="max-w-2xl">
+  <div class="bg-white border border-base-200 rounded-default shadow-xs p-6 dark:bg-base-900 dark:border-base-800">
+    <h1 class="font-semibold mb-1 text-important text-xl">{% block page_title %}{{ title }}{% endblock %}</h1>
+    <div class="mb-6 text-subtle">{% block page_subtitle %}{% endblock %}</div>
+    {% block page_body %}{% endblock %}
+  </div>
+</div>
+{% endblock %}

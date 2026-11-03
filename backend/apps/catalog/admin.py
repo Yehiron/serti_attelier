@@ -4,15 +4,17 @@ from collections.abc import Sequence
 from typing import Any, ClassVar
 
 from django.contrib import admin, messages
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.template.response import TemplateResponse
 from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.decorators import action
 
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.exceptions import DomainError
@@ -66,6 +68,7 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
     tab = True
     verbose_name = _("Foto")
     verbose_name_plural = _("Fotos")
+    template_before = "admin/catalog/new_photos.html"
     model = PieceImage
     form: Any = PieceImageForm
     formset = PieceImageFormSet
@@ -203,8 +206,8 @@ class PieceAdmin(TranslatedAdmin):
             {
                 "fields": ("price_cents", "sale_price_cents", "status", "sale_state"),
                 "description": _(
-                    "Cambia el estado desde las acciones de la lista: Publicar, Ocultar, "
-                    "Archivar o Preventa."
+                    "Usa los botones de esta página para publicar, ocultar, archivar "
+                    "o cambiar la preventa."
                 ),
             },
         ),
@@ -234,6 +237,179 @@ class PieceAdmin(TranslatedAdmin):
     )
     inlines = (PieceImageInline, PieceVideoInline, CollectionPieceInline)
     actions = ("publish", "hide", "unhide", "archive", "preorder_on", "preorder_off", "duplicate")
+
+    actions_detail = (
+        "detail_publish",
+        "detail_hide",
+        "detail_unhide",
+        "detail_preorder_on",
+        "detail_preorder_off",
+        "detail_archive",
+        "detail_duplicate",
+    )
+    actions_row = ("detail_publish",)
+    actions_submit_line = ("save_publish",)
+    change_form_before_template = "admin/catalog/piece_status.html"
+
+    def get_actions_detail(self, request: HttpRequest, object_id: int | str) -> Any:
+        actions = super().get_actions_detail(request, object_id)
+        piece = self.get_object(request, str(object_id))
+        if piece and piece.status == "hidden":
+            return [item for item in actions if item.action_name != "catalog_piece_detail_publish"]
+        return actions
+
+    def detail_allowed(self, request: HttpRequest, object_id: Any, operation: str) -> bool:
+        piece = self.get_object(request, str(object_id)) if object_id else None
+        if not piece or not self.has_change_permission(request, piece):
+            return False
+        if operation == "duplicate":
+            return bool(self.has_duplicate_permission(request))
+        return bool(
+            {
+                "publish": piece.status in ("draft", "hidden"),
+                "hide": piece.status == "published",
+                "unhide": piece.status == "hidden",
+                "archive": piece.status != "archived",
+                "preorder_on": piece.status != "archived" and piece.sale_state == "available",
+                "preorder_off": piece.status != "archived" and piece.sale_state == "preorder",
+            }.get(operation, False)
+        )
+
+    def piece_detail_action(
+        self, request: HttpRequest, object_id: str, operation: str
+    ) -> HttpResponse:
+        if not self.detail_allowed(request, object_id, operation):
+            raise PermissionDenied
+        piece = self.get_object(request, object_id)
+        if piece is None:
+            raise PermissionDenied
+        if request.method != "POST":
+            return TemplateResponse(
+                request,
+                "admin/catalog/confirm_action.html",
+                {
+                    **self.admin_site.each_context(request),
+                    "original": piece,
+                    "title": {
+                        "publish": _("Publicar"),
+                        "hide": _("Ocultar"),
+                        "unhide": _("Volver a publicar"),
+                        "archive": _("Archivar"),
+                        "duplicate": _("Duplicar"),
+                        "preorder_on": _("Marcar preventa"),
+                        "preorder_off": _("Quitar preventa"),
+                    }[operation],
+                    "back_url": reverse("admin:catalog_piece_change", args=[object_id]),
+                },
+            )
+        try:
+            if operation == "duplicate":
+                services.duplicate_piece(piece, request.user)
+            elif operation == "hide":
+                services.hide_pieces(Piece.objects.filter(pk=piece.pk), request.user, request)
+            elif operation.startswith("preorder_"):
+                set_preorder(piece, operation == "preorder_on", request.user)
+            else:
+                {
+                    "publish": services.publish_piece,
+                    "unhide": services.unhide,
+                    "archive": services.archive_piece,
+                }[operation](piece, request.user, request)
+            self.message_user(request, _("Acción completada."), messages.SUCCESS)
+        except (DomainError, ValidationError) as exc:
+            self.message_user(request, str(exc), messages.ERROR)
+        return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[object_id]))
+
+    @action(description=_("Guardar y publicar"), permissions=["change"])  # type: ignore[untyped-decorator]
+    def save_publish(self, request: HttpRequest, obj: Piece) -> None:
+        # Called after related images are saved, so publication sees the complete piece.
+        try:
+            services.publish_piece(obj, request.user, request)
+            self.message_user(request, _("Pieza publicada."), messages.SUCCESS)
+        except (DomainError, ValidationError) as exc:
+            self.message_user(request, str(exc), messages.ERROR)
+
+    def response_change(self, request: HttpRequest, obj: Piece) -> HttpResponse:
+        if "catalog_piece_save_publish" in request.POST:
+            if not self.has_change_permission(request, obj):
+                raise PermissionDenied
+            self.save_publish(request, obj)
+            return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[obj.pk]))
+        return super().response_change(request, obj)
+
+    def has_detail_publish_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "publish")
+
+    @action(description=_("Publicar"), permissions=["detail_publish"])  # type: ignore[untyped-decorator]
+    def detail_publish(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "publish")
+
+    def has_detail_hide_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "hide")
+
+    @action(description=_("Ocultar"), permissions=["detail_hide"])  # type: ignore[untyped-decorator]
+    def detail_hide(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "hide")
+
+    def has_detail_unhide_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "unhide")
+
+    @action(description=_("Volver a publicar"), permissions=["detail_unhide"])  # type: ignore[untyped-decorator]
+    def detail_unhide(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "unhide")
+
+    def has_detail_preorder_on_permission(
+        self, request: HttpRequest, object_id: Any = None
+    ) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "preorder_on")
+
+    @action(description=_("Marcar preventa"), permissions=["detail_preorder_on"])  # type: ignore[untyped-decorator]
+    def detail_preorder_on(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "preorder_on")
+
+    def has_detail_preorder_off_permission(
+        self, request: HttpRequest, object_id: Any = None
+    ) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "preorder_off")
+
+    @action(description=_("Quitar preventa"), permissions=["detail_preorder_off"])  # type: ignore[untyped-decorator]
+    def detail_preorder_off(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "preorder_off")
+
+    def has_detail_archive_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "archive")
+
+    @action(description=_("Archivar"), permissions=["detail_archive"])  # type: ignore[untyped-decorator]
+    def detail_archive(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "archive")
+
+    def has_detail_duplicate_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        # Row actions are filtered per object by the row template and checked again here.
+        if object_id is None:
+            return bool(self.has_change_permission(request))
+        return self.detail_allowed(request, object_id, "duplicate")
+
+    @action(description=_("Duplicar"), permissions=["detail_duplicate"])  # type: ignore[untyped-decorator]
+    def detail_duplicate(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.piece_detail_action(request, object_id, "duplicate")
 
     def has_duplicate_permission(self, request: HttpRequest) -> bool:
         return request.user.has_perm("catalog.add_piece") and request.user.has_perm(
@@ -306,12 +482,16 @@ class PieceAdmin(TranslatedAdmin):
         services.save_piece_relations(form.instance, form.cleaned_data)
         for formset in formsets:
             self.save_formset(request, form, formset, change)
+        for error in services.append_piece_photos(
+            form.instance, request.FILES.getlist("new_photos")
+        ):
+            self.message_user(request, error, messages.ERROR)
 
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
         instances = formset.save(commit=False)
         for obj in formset.deleted_objects:
             if isinstance(obj, PieceVideo):
-                obj.delete()
+                services.delete_catalog_object(obj)
             elif isinstance(obj, PieceImage):
                 services.delete_piece_image(obj)
             else:

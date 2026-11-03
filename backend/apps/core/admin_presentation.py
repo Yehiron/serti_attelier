@@ -73,6 +73,9 @@ class ClientPresentationMixin:
     def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
         form = super().get_form(request, obj, **kwargs)  # type: ignore[misc]
         for name, field in form.base_fields.items():
+            if hasattr(field, "empty_label"):
+                field.empty_label = _("Selecciona una opción")
+            field.widget.attrs["data-placeholder"] = _("Selecciona una opción")
             base = name.removesuffix("_es").removesuffix("_en")
             if base in HELP and not field.help_text:
                 field.help_text = HELP[base]

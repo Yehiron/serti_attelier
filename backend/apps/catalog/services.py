@@ -195,7 +195,7 @@ def save_collection_piece(obj: CollectionPiece) -> None:
 
 
 @transaction.atomic
-def delete_catalog_object(obj: Taxonomy | CollectionPiece) -> None:
+def delete_catalog_object(obj: Taxonomy | CollectionPiece | PieceVideo) -> None:
     obj.delete()
 
 
@@ -349,3 +349,31 @@ def save_piece_video(obj: PieceVideo) -> None:
     obj.save()
     if changed or obj.processing_status == "pending":
         transaction.on_commit(lambda: process_piece_video.delay(obj.pk))
+
+
+@transaction.atomic
+def append_piece_photos(piece: Piece, uploads: list[Any]) -> list[str]:
+    """Validate each upload independently while serializing ordering and primary selection."""
+    Piece.objects.select_for_update().get(pk=piece.pk)
+    position = max(piece.images.values_list("position", flat=True), default=-1) + 1
+    primary = not piece.images.filter(is_primary=True).exists()
+    errors = []
+    for upload in uploads:
+        try:
+            with transaction.atomic():
+                validated_image(upload)
+                image = PieceImage(
+                    piece=piece,
+                    original=upload,
+                    position=position,
+                    alt_es=piece.name_es,
+                    alt_en=piece.name_en or piece.name_es,
+                    is_primary=primary,
+                )
+                save_piece_image(image)
+        except ValidationError as exc:
+            errors.append(f"{upload.name}: {'; '.join(exc.messages)}")
+        else:
+            position += 1
+            primary = False
+    return errors

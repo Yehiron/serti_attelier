@@ -216,7 +216,7 @@ def test_owner_resets_teammate_device() -> None:
         "username": teammate.username,
         "email": teammate.email,
         "is_active": "on",
-        "is_staff": "on",
+        "role": OPERACIONES,
         "date_joined_0": "2026-10-23",
         "date_joined_1": "12:00:00",
         f"{prefix}-0-id": device.pk,

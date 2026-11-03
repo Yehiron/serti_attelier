@@ -1,0 +1,10 @@
+{% extends "admin/client_form_page.html" %}
+{% load i18n %}
+{% block page_title %}{{ title }}: {{ original }}{% endblock %}
+{% block page_subtitle %}{% translate "¿Confirmas esta acción?" %}{% endblock %}
+{% block page_body %}
+<form method="post">{% csrf_token %}
+{% translate "Confirmar" as submit_label %}
+{% include "admin/client_form_buttons.html" with submit_label=submit_label back_url=back_url %}
+</form>
+{% endblock %}

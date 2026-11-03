@@ -1,11 +1,13 @@
-{% extends "admin/base_site.html" %}
+{% extends "admin/client_form_page.html" %}
 {% load i18n %}
-{% block content %}
-<h1>{{ title }}</h1>
+{% block page_subtitle %}{% for order in orders %}{{ order.number }}{% if not forloop.last %}, {% endif %}{% endfor %} · {% translate "Al marcarlo como enviado el cliente recibe un correo con la transportadora y la guía." %}{% endblock %}
+{% block page_body %}
 <form method="post">{% csrf_token %}
-{{ form.as_p }}
-{% for order in orders %}<input type="hidden" name="_selected_action" value="{{ order.pk }}"><p>{{ order.number }}</p>{% endfor %}
+{% include "admin/client_form_fields.html" %}
+{% for order in orders %}<input type="hidden" name="_selected_action" value="{{ order.pk }}">{% endfor %}
 <input type="hidden" name="action" value="fulfillment">
-<button type="submit" name="apply" value="1">{% translate "Aplicar" %}</button>
+{% if orders|length == 1 %}{% url 'admin:orders_order_change' orders.0.pk as back_url %}{% else %}{% url 'admin:orders_order_changelist' as back_url %}{% endif %}
+{% translate "Guardar estado" as submit_label %}
+{% include "admin/client_form_buttons.html" with submit_name="apply" submit_label=submit_label back_url=back_url %}
 </form>
 {% endblock %}

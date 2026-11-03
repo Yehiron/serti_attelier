@@ -11,7 +11,7 @@ from django.urls import path, reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
-from unfold.decorators import display
+from unfold.decorators import action, display
 from unfold.utils import display_for_label
 
 from apps.accounts.models import User
@@ -206,7 +206,17 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
     date_hierarchy = "created_at"
     inlines = (ItemInline, NoteInline, HistoryInline)
     actions = ("fulfillment", "export_csv", "confirm_manual", "print_certificate")
+    actions_detail = (
+        "detail_fulfillment",
+        "detail_manual",
+        "detail_certificate",
+        "detail_whatsapp",
+    )
+    actions_row = ("detail_fulfillment",)
     readonly_fields = (
+        "carrier",
+        "tracking_number",
+        "tracking_url",
         "number",
         "created_at",
         "customer_name",
@@ -253,6 +263,9 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
                     "destination",
                     "shipping_notes",
                     "fulfillment_summary",
+                    "carrier",
+                    "tracking_number",
+                    "tracking_url",
                 ),
             },
         ),
@@ -273,6 +286,74 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
             },
         ),
     )
+
+    def has_detail_fulfillment_permission(
+        self, request: HttpRequest, object_id: Any = None
+    ) -> bool:
+        return self.has_fulfillment_permission(request) and bool(
+            self.has_change_permission(request)
+        )
+
+    def has_detail_manual_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
+        order = self.get_object(request, str(object_id)) if object_id else None
+        return bool(
+            order
+            and self.has_view_permission(request, order)
+            and self.has_manual_permission(request)
+            and order.payment_status == "awaiting_manual_payment"
+        )
+
+    def has_detail_certificate_permission(
+        self, request: HttpRequest, object_id: Any = None
+    ) -> bool:
+        order = self.get_object(request, str(object_id)) if object_id else None
+        return bool(
+            order and self.has_view_permission(request, order) and certificate_available(order)
+        )
+
+    @action(description=_("Cambiar estado"), permissions=["detail_fulfillment"])  # type: ignore[untyped-decorator]
+    def detail_fulfillment(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        order = self.get_object(request, object_id)
+        if order is None:
+            raise Http404
+        if not self.has_change_permission(request, order):
+            raise PermissionDenied
+        response = self.fulfillment(request, Order.objects.filter(pk=order.pk))
+        if isinstance(response, HttpResponseRedirect):
+            self.message_user(request, _("Estado de entrega actualizado."), messages.SUCCESS)
+            return HttpResponseRedirect(reverse("admin:orders_order_change", args=[object_id]))
+        return response
+
+    @action(description=_("Confirmar pago manual"), permissions=["detail_manual"])  # type: ignore[untyped-decorator]
+    def detail_manual(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return HttpResponseRedirect(reverse("admin:orders-confirm-manual", args=[object_id]))
+
+    @action(
+        description=_("Imprimir certificado"),
+        permissions=["detail_certificate"],
+        attrs={"target": "_blank", "rel": "noopener"},
+    )  # type: ignore[untyped-decorator]
+    def detail_certificate(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        return self.certificate_page(request, int(object_id))
+
+    @action(
+        description=_("Escribir por WhatsApp"),
+        permissions=["view"],
+        attrs={"target": "_blank", "rel": "noopener"},
+    )  # type: ignore[untyped-decorator]
+    def detail_whatsapp(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        order = self.get_object(request, object_id)
+        if order is None:
+            raise Http404
+        if not self.has_view_permission(request, order):
+            raise PermissionDenied
+        return HttpResponseRedirect(self.whatsapp_url(order))
+
+    def whatsapp_url(self, obj: Order) -> str:
+        digits = "".join(c for c in obj.customer_phone if c.isdigit())
+        if len(digits) == 10:
+            digits = "57" + digits
+        return f"https://wa.me/{digits}"
 
     @admin.display(description=_("Fecha"), ordering="created_at")
     def order_date(self, obj: Order) -> Any:
@@ -310,13 +391,9 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
 
     @admin.display(description=_("Teléfono / WhatsApp"))
     def phone_link(self, obj: Order) -> str:
-        digits = "".join(c for c in obj.customer_phone if c.isdigit())
-        if len(digits) == 10:
-            digits = "57" + digits
         return format_html(
-            '<a class="text-primary-600 underline" href="https://wa.me/{}" '
-            'target="_blank" rel="noopener">{}</a>',
-            digits,
+            '<a class="text-primary-600 underline" href="{}" target="_blank" rel="noopener">{}</a>',
+            self.whatsapp_url(obj),
             obj.customer_phone,
         )
 
@@ -560,7 +637,7 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
                 add_order_note(form.instance, note.text, request=request) for note in instances
             ]
 
-    @admin.action(description=_("Cambiar estado operativo"), permissions=["fulfillment"])
+    @admin.action(description=_("Cambiar estado de entrega"), permissions=["fulfillment"])
     def fulfillment(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
         if not self.has_fulfillment_permission(request):
             raise PermissionDenied
@@ -589,7 +666,7 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
                 **self.admin_site.each_context(request),
                 "form": form,
                 "orders": queryset,
-                "title": _("Cambiar estado operativo"),
+                "title": _("Cambiar estado de entrega"),
             },
         )
 
