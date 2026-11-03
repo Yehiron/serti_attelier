@@ -4,6 +4,7 @@ from decimal import Decimal
 from typing import TYPE_CHECKING, Any
 
 from django import forms
+from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
 from unfold.widgets import UnfoldAdminIntegerFieldWidget
 
@@ -41,7 +42,10 @@ else:
 
 class PieceForm(BasePieceForm):
     related = forms.ModelMultipleChoiceField(
-        queryset=Piece.objects.all(), required=False, label=_("Piezas relacionadas")
+        queryset=Piece.objects.all(),
+        required=False,
+        label=_("Piezas relacionadas"),
+        widget=FilteredSelectMultiple(_("Piezas relacionadas"), is_stacked=False),
     )
     price_cents = PesosField(label=_("Precio (COP)"), min_value=1)
     sale_price_cents = PesosField(label=_("Precio rebajado (COP)"), min_value=1, required=False)
@@ -73,6 +77,11 @@ class ValidatedImageForm(BaseImageForm):
 
 
 class PieceImageForm(ValidatedImageForm):
+    class Meta:
+        model = PieceImage
+        fields = "__all__"
+        labels = {"original": _("Foto")}
+
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean()
         if cleaned.get("is_primary") and cleaned.get("is_hover"):

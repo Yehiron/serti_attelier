@@ -311,3 +311,20 @@ def test_unverified_session_does_not_see_dashboard_sections(client: Client, staf
     page = client.get(reverse("admin-2fa-verify")).content.decode()
     assert "Verificar acceso" in page
     assert reverse("admin:catalog_piece_changelist") not in page
+
+
+@override_settings(ADMIN_2FA_REQUIRED=False)
+def test_two_factor_can_be_disabled_for_local_development(client: Client, staff: User) -> None:
+    staff.is_superuser = True
+    staff.save()
+    TOTPDevice.objects.create(user=staff, confirmed=True)
+    login(client, staff)
+    assert client.get(reverse("admin:index")).status_code == 200
+
+
+def test_two_factor_is_required_outside_development() -> None:
+    # Only the development module may relax it; production inherits the base default.
+    folder = settings.BASE_DIR / "config" / "settings"
+    assert "ADMIN_2FA_REQUIRED" not in (folder / "prod.py").read_text()
+    assert "ADMIN_2FA_REQUIRED" not in (folder / "test.py").read_text()
+    assert settings.ADMIN_2FA_REQUIRED is True

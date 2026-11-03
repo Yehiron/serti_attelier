@@ -35,6 +35,9 @@ HELP = {
     "certificate_price_cents": _(
         "Precio en pesos que se cobra si el cliente solicita un certificado."
     ),
+    "stones": _("Pasa a la derecha las piedras de la pieza."),
+    "materials": _("Pasa a la derecha los materiales de la pieza."),
+    "related": _("Piezas que se sugieren al final de esta pieza en la página web."),
     "description": _("Describe la pieza o el contenido con palabras sencillas."),
     "original": _("Sube una foto nítida de la pieza."),
     "image": _("Selecciona la imagen que se mostrará en esta sección."),
@@ -63,12 +66,18 @@ def thumbnail_url(image: Any) -> str:
     return default_storage.url(paths[min(paths, key=int)]) if paths else str(image.original.url)
 
 
+MULTI_SELECT = {"stones", "materials", "related"}
+
+
 class ClientPresentationMixin:
     def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
         form = super().get_form(request, obj, **kwargs)  # type: ignore[misc]
         for name, field in form.base_fields.items():
             base = name.removesuffix("_es").removesuffix("_en")
             if base in HELP and not field.help_text:
+                field.help_text = HELP[base]
+            if base in MULTI_SELECT:
+                # Replaces Django's "hold Control/Command" hint, wrong for the two-list widget.
                 field.help_text = HELP[base]
             if base.startswith("whatsapp_") and base != "whatsapp_number":
                 field.help_text = _(

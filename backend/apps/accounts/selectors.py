@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal, cast
 
+from django.conf import settings
 from django.contrib.auth.models import AnonymousUser
 from django.db.models import QuerySet
 from django_otp.plugins.otp_totp.models import TOTPDevice
@@ -20,6 +21,8 @@ def confirmed_devices(user: User | AnonymousUser) -> QuerySet[TOTPDevice]:
 
 def pending_second_factor(user: User) -> Literal["setup", "verify"] | None:
     """Single source of the 2FA policy for the dashboard and the staff API."""
+    if not settings.ADMIN_2FA_REQUIRED:
+        return None
     has_device = confirmed_devices(user).exists()
     if requires_totp(user) and not has_device:
         return "setup"

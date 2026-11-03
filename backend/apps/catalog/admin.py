@@ -63,6 +63,9 @@ admin.site.register(Material, TranslatedAdmin)
 class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     ordering_field = "position"
     hide_ordering_field = True
+    tab = True
+    verbose_name = _("Foto")
+    verbose_name_plural = _("Fotos")
     model = PieceImage
     form: Any = PieceImageForm
     formset = PieceImageFormSet
@@ -100,6 +103,9 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
 
 
 class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
+    tab = True
+    verbose_name = _("Video")
+    verbose_name_plural = _("Video")
     model = PieceVideo
     form: Any = PieceVideoForm
     max_num = 1
@@ -120,6 +126,9 @@ class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInlin
 class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     ordering_field = "position"
     hide_ordering_field = True
+    tab = True
+    verbose_name = _("Colección")
+    verbose_name_plural = _("Colecciones")
     model = CollectionPiece
     extra = 0
 
@@ -167,6 +176,62 @@ class PieceAdmin(TranslatedAdmin):
     )
     search_fields = ("sku", "name_es", "name_en")
     readonly_fields = ("status", "sale_state", "published_at", "sold_at")
+    filter_horizontal = ("stones", "materials")
+    fieldsets = (
+        (
+            _("Información"),
+            {
+                "fields": (
+                    "name",
+                    "sku",
+                    "short_description",
+                    "long_description",
+                    "story",
+                    "care",
+                ),
+            },
+        ),
+        (
+            _("Clasificación"),
+            {
+                # `related` is a form-only field (custom through model); added in get_fieldsets.
+                "fields": ("category", "stones", "materials", "is_new"),
+            },
+        ),
+        (
+            _("Precio y disponibilidad"),
+            {
+                "fields": ("price_cents", "sale_price_cents", "status", "sale_state"),
+                "description": _(
+                    "Cambia el estado desde las acciones de la lista: Publicar, Ocultar, "
+                    "Archivar o Preventa."
+                ),
+            },
+        ),
+        (
+            _("Buscadores (SEO)"),
+            {
+                "classes": ["collapse"],
+                "fields": ("seo_title", "seo_description"),
+                "description": _("Opcional. Cómo aparece la pieza en Google."),
+            },
+        ),
+        (
+            _("Avanzado"),
+            {
+                # Django expands collapsed fieldsets that contain errors.
+                "classes": ["collapse"],
+                "fields": (
+                    "slug",
+                    "piece_number",
+                    "attributes",
+                    "published_at",
+                    "sold_at",
+                    "position",
+                ),
+            },
+        ),
+    )
     inlines = (PieceImageInline, PieceVideoInline, CollectionPieceInline)
     actions = ("publish", "hide", "unhide", "archive", "preorder_on", "preorder_off", "duplicate")
 
@@ -197,7 +262,12 @@ class PieceAdmin(TranslatedAdmin):
         return fields
 
     def get_fieldsets(self, request: HttpRequest, obj: Piece | None = None) -> Any:
-        fieldsets = super().get_fieldsets(request, obj)
+        fieldsets = [
+            (title, {**options, "fields": [*options["fields"], "related"]})
+            if "is_new" in options["fields"]
+            else (title, options)
+            for title, options in super().get_fieldsets(request, obj)
+        ]
         if request.user.has_perm("catalog.change_piece_price"):
             return fieldsets
         replacements = {"price_cents": "regular_price_cop", "sale_price_cents": "sale_price_cop"}
