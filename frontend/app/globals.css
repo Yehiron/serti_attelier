@@ -178,24 +178,16 @@ body:has(dialog[open]) { overflow: hidden; }
 .section-heading h2 { margin-top: 25px; }
 .stone-section { background: var(--color-paper); color: var(--color-wine); padding-top: 100px; }
 .stone-section .section-heading { padding-inline: var(--spacing-gutter); }
-.stone-stage { position: relative; background: var(--color-ink); color: var(--color-cream); min-height: max(590px, calc(100svh - 90px)); overflow: hidden; }
-.stone-backdrops { position: absolute; inset: 0; }
-/* Stone backdrops crossfade and settle from a slight zoom, like a lens focusing. */
-.stone-backdrops img { position: absolute; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: opacity 1.2s var(--ease-editorial), transform 2.4s var(--ease-editorial); }
-.stone-backdrops img.active { opacity: 1; transform: none; }
-.stone-stage::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: #1f020bc0; }
-.stone-panels { display: flex; min-height: inherit; padding-inline: var(--spacing-gutter); position: relative; z-index: 1; }
-.stone-panel { position: relative; flex: 1; min-width: 0; display: flex; align-items: center; justify-content: center; text-align: center; padding: 64px clamp(20px,2.4vw,40px); border-left: 1px solid #ead9cb60; }
-.stone-panel::before { content: ''; position: absolute; inset: 0; background: #ead9cb10; clip-path: polygon(15% 0,100% 0,85% 100%,0 100%); }
-.stone-panel:hover::before,.stone-panel:focus-visible::before { background: #ead9cb20; }
-.stone-panel:last-child { border-right: 1px solid #ead9cb60; }
-.stone-panel > img { display: none; }
-.stone-panel > div { position: relative; display: flex; flex-direction: column; align-items: center; width: 100%; max-width: 34ch; }
-.stone-panel h3 { font-size: clamp(2rem,4vw,4.8rem); margin: 18px 0 16px; }
-.stone-panel p { font-size: 13px; line-height: 1.8; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 4; line-clamp: 4; overflow: hidden; }
-.stone-panel .text-link { margin-top: 22px; }
-/* Same block height in every panel so titles line up whatever the text length. */
-@media(min-width:761px) { .stone-panel p { min-height: calc(4 * 1.8em); } }
+.stone-panels { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 3px; padding: 0 var(--spacing-gutter) 110px; }
+.stone-panel { position: relative; display: flex; align-items: flex-end; aspect-ratio: 4 / 5; overflow: hidden; color: var(--color-cream); background: var(--color-ink); }
+.stone-panel > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+/* Dark only where the text sits: the photo stays bright and the name reads on any image. */
+.stone-panel::after { content: ''; position: absolute; inset: 0; pointer-events: none; background: linear-gradient(to top, #1f020be6 0%, #1f020b99 34%, #1f020b00 66%); }
+.stone-panel > div { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: flex-start; padding: clamp(24px, 2.6vw, 44px); text-shadow: 0 1px 14px #00000073; }
+.stone-panel h3 { font-size: clamp(2.2rem, 3.6vw, 4.2rem); margin: 10px 0 12px; }
+.stone-panel p { font-size: 13px; line-height: 1.75; max-width: 34ch; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; line-clamp: 3; overflow: hidden; }
+.stone-panel .text-link { margin-top: 18px; }
+.stone-panel:focus-visible { outline: 3px solid var(--color-cream); outline-offset: -6px; }
 .rail-section { padding: 110px var(--spacing-gutter); position: relative; color: var(--color-wine); }
 .rail-controls { display: flex; justify-content: flex-end; gap: 10px; margin: -30px 0 26px; }
 .rail-controls button { font-size: 28px; width: 46px; height: 46px; border: 1px solid #651c3240; border-radius: 50%; }
@@ -456,17 +448,10 @@ legend { padding: 0 0 14px; }
  .statement { padding: 85px var(--spacing-gutter); }
  .statement h2 { margin-top: 35px; }
  .stone-section { padding-top: 70px; }
- .stone-stage { min-height: 0; }
- .stone-backdrops { display: none; }
- .stone-stage::after { display: none; }
- .stone-panels { display: block; padding: 0; }
- /* Each stone nearly fills the screen; the next one peeks in so it is clear there is more. */
- .stone-panel { border: 0 !important; min-height: max(420px, 85svh); padding: 48px var(--spacing-gutter); overflow: hidden; }
- .stone-panel::before { clip-path: none; background: #1f020bb0; z-index: 1; }
- .stone-panel > img { display: block; position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
- .stone-panel > div { z-index: 2; }
- .stone-panel h3 { font-size: 3.5rem; margin: 12px 0; }
- .stone-panel .text-link { margin-top: 18px; }
+ /* One stone per row on phones, still a tall fixed photo with the name over it. */
+ .stone-panels { grid-template-columns: 1fr; padding: 0 0 70px; }
+ .stone-panel > div { padding: 32px var(--spacing-gutter); }
+ .stone-panel h3 { font-size: 3.2rem; }
  .rail-section { padding: 70px var(--spacing-gutter); }
  .editorial-section { display: flex; flex-direction: column; align-items: stretch; gap: 50px; padding: 75px var(--spacing-gutter); }
  .editorial-section .ornament { align-self: center; }

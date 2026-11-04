@@ -9,7 +9,7 @@ from django.core.files.storage import default_storage
 from PIL import Image
 
 from apps.catalog.images import MAX_BYTES, validated_image
-from apps.catalog.models import Category, Piece, PieceImage
+from apps.catalog.models import Category, Piece, PieceImage, Stone
 from apps.catalog.services import save_piece_image, save_taxonomy
 from apps.catalog.tasks import process_piece_image
 
@@ -124,6 +124,15 @@ def test_covers_are_center_cropped_to_16_9(size: tuple[int, int]) -> None:
     save_taxonomy(obj)
     with obj.cover_image.open("rb") as source, Image.open(source) as image:
         assert image.width * 9 == image.height * 16
+
+
+def test_stone_covers_keep_their_proportion() -> None:
+    obj = Stone(
+        name_es="Esmeralda", slug_es="esmeralda", cover_image=image_file("JPEG", (900, 1125))
+    )
+    save_taxonomy(obj)
+    assert (obj.cover_width, obj.cover_height) == (900, 1125)
+    assert set(obj.cover_renditions["webp"]) == {"480", "900"}
 
 
 @pytest.mark.parametrize("fmt", ["JPEG", "PNG"])
