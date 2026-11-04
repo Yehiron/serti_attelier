@@ -1,0 +1,77 @@
+{% extends "admin/base_site.html" %}
+{% load i18n static client_actions %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/editor.css' %}">{% endblock %}
+{% block content %}
+<div id="visual-editor" data-device="{{ device }}" data-action-url="{% url 'visual-editor-action' action='ACTION' %}">
+  <form hidden>{% csrf_token %}</form>
+  <nav class="ve-controls" aria-label="{% translate 'Editor visual' %}">
+    <a href="?device={{ device }}" {% if not taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Página de inicio' %}</a>
+    <a href="?tab=taxonomy&amp;device={{ device }}" {% if taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Categorías, piedras y colecciones' %}</a>
+    <span class="ve-devices"><a href="?device=desktop{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'desktop' %}aria-current="page"{% endif %}>{% translate 'Computador' %}</a><a href="?device=mobile{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'mobile' %}aria-current="page"{% endif %}>{% translate 'Celular' %}</a></span>
+  </nav>
+  <p id="ve-message" role="alert" tabindex="-1" hidden></p>
+  <span hidden id="ve-failure">{% translate 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.' %}</span>
+  {% if taxonomy_tab %}
+    {% for group in groups %}
+    <section class="ve-group"><h2>{{ group.label }}</h2><p>{{ group.note }}</p><div class="ve-grid">
+      {% for card in group.cards %}
+      <article id="{{ group.model }}-{{ card.id }}" class="ve-card">
+        <div class="ve-cover">{% if card.image %}<img src="{{ card.image }}" alt="{{ card.name }}" loading="lazy">{% endif %}<h3>{{ card.name }}</h3></div>
+        {% if card.can_change %}<label class="ve-drop" data-upload="taxonomy-cover" data-model="{{ group.model }}" data-id="{{ card.id }}"><span>{% if card.image %}{% translate 'Reemplazar foto' %}{% else %}{% translate 'Agregar foto' %}{% endif %}</span><input type="file" accept="image/*" aria-label="{% translate 'Foto de portada' %}"></label>{% endif %}
+        <p>{{ card.count }} {% translate 'piezas publicadas' %}</p>
+        <div>{% for child in card.children %}<span class="ve-chip">{{ child.name }}</span>{% endfor %}</div>
+        <div class="ve-toolbar">{% if card.can_change %}<a href="{{ card.edit }}">{% translate 'Editar' %}</a>{% endif %}<a href="{{ card.pieces }}">{% translate 'Ver piezas' %}</a></div>
+      </article>
+      {% endfor %}
+      {% if group.can_add %}<a class="ve-new" href="{{ group.add }}">+ {{ group.add_label }}</a>{% endif %}
+    </div></section>
+    {% endfor %}
+  {% else %}
+    <div class="ve-publication">
+      {% if pending_home_changes %}<strong>{% translate 'Tienes cambios sin publicar' %}</strong>{% else %}<span>{% translate 'Publicado' %} · {{ last_home_publication.published_at|date:"d/m/Y H:i" }}</span>{% endif %}
+      {% if can_preview %}<a href="{% url 'admin:cms-home-preview' %}" target="_blank" rel="noopener">{% translate 'Vista previa' %} ↗</a>{% endif %}
+      {% if can_publish and pending_home_changes %}<form method="post" action="{% url 'admin:cms-home-publish' %}">{% csrf_token %}<input type="hidden" name="return_to" value="editor"><button type="submit">{% translate 'Publicar ahora' %}</button></form>{% endif %}
+    </div>
+    <div class="ve-frame {% if device == 'mobile' %}ve-mobile{% endif %}">
+      <header class="ve-header"><img src="{% static 'core/brand/wordmark-wine.webp' %}" alt="SERTI"><span>{% translate 'Joyería' %} · {% translate 'Piedras' %} · {% translate 'Nuestra historia' %}</span></header>
+      <div data-sort="sections-reorder">
+      {% for section in sections %}
+      <article class="ve-section ve-{{ section.obj.kind }} {% if not section.obj.is_visible %}ve-hidden{% endif %}" data-id="{{ section.obj.pk }}">
+        <div class="ve-toolbar">
+          <span>{{ section.obj.get_kind_display }}</span>{% if not section.obj.is_visible %}<strong>{% translate 'Oculta' %}</strong>{% endif %}
+          {% if can_change_home %}
+          <button type="button" class="ve-handle" draggable="true" aria-label="{% translate 'Arrastrar para ordenar sección' %}">⠿</button>
+          <button type="button" data-move="-1" aria-label="{% translate 'Subir sección' %}">↑</button><button type="button" data-move="1" aria-label="{% translate 'Bajar sección' %}">↓</button>
+          <a href="{{ section.edit }}">{% if section.obj.kind == 'hero' %}{% translate 'Editar textos' %}{% else %}{% translate 'Editar' %}{% endif %}</a>
+          <button type="button" data-action="section-visibility" data-section="{{ section.obj.pk }}" data-visible="{{ section.obj.is_visible|yesno:'false,true' }}">{% if section.obj.is_visible %}{% translate 'Ocultar' %}{% else %}{% translate 'Mostrar' %}{% endif %}</button>
+          {% endif %}
+        </div>
+        {% if section.obj.kind == 'hero' %}
+          <div class="ve-hero-layout"><div class="ve-stack">
+          {% for slide in section.slides %}{% if slide.image %}<img style="--i:{{ forloop.counter0 }};z-index:{{ forloop.revcounter }}" src="{{ slide.image }}" alt="{{ slide.alt }}" loading="lazy">{% endif %}{% endfor %}
+          <div class="ve-hero-copy"><h2>{{ section.obj.title|title_lines }}</h2><p>{{ section.obj.subtitle }}</p><span>{{ section.obj.cta_label }}</span></div></div>
+          <div class="ve-photo-tools">
+          <p>{% if device == 'mobile' %}{% translate 'Celular: 1080 × 1350 px, vertical' %}{% else %}{% translate 'Computador: 1920 × 900 px, horizontal' %}{% endif %}</p>
+          <div class="ve-thumbs" data-sort="hero-reorder" data-section="{{ section.obj.pk }}">
+          {% for slide in section.slides %}<div data-id="{{ slide.id }}">{% if slide.image %}<img src="{{ slide.image }}" alt="{{ slide.alt }}" loading="lazy">{% endif %}{% if can_change_home %}<button type="button" class="ve-handle" draggable="true" aria-label="{% translate 'Arrastrar para ordenar foto' %}">⠿</button><button type="button" data-move="-1" aria-label="{% translate 'Mover foto antes' %}">←</button><button type="button" data-move="1" aria-label="{% translate 'Mover foto después' %}">→</button><button type="button" data-action="hero-delete" data-section="{{ section.obj.pk }}" data-id="{{ slide.id }}" data-confirm="{% translate '¿Eliminar esta foto de la portada?' %}" aria-label="{% translate 'Eliminar foto' %}">×</button>{% endif %}</div>{% endfor %}
+          </div>
+          {% if can_change_home %}<label class="ve-drop" data-upload="hero-upload" data-section="{{ section.obj.pk }}"><span>+ {% translate 'Agregar fotos' %}</span><input type="file" multiple accept="image/*" aria-label="{% translate 'Agregar fotos a la portada' %}"></label>{% endif %}
+          </div></div>
+        {% else %}
+          <div class="ve-section-body">
+          {% if section.obj.kind == 'story' or section.obj.kind == 'personalize' or section.obj.kind == 'banner' %}
+          <div>{% if section.image %}<img class="ve-editorial-photo" src="{{ section.image }}" alt="{{ section.obj.image_alt }}" loading="lazy">{% endif %}{% if can_change_home %}<label class="ve-drop" data-upload="section-image" data-section="{{ section.obj.pk }}"><span>{% if section.image %}{% translate 'Reemplazar foto' %}{% else %}{% translate 'Agregar foto' %}{% endif %}</span><input type="file" accept="image/*" aria-label="{% translate 'Foto de la sección' %}"></label>{% endif %}</div>
+          {% endif %}
+          <div><h2>{{ section.obj.title|title_lines }}</h2><p>{{ section.obj.subtitle }}</p><div class="ve-body">{{ section.obj.body|linebreaksbr }}</div><span>{{ section.obj.cta_label }}</span></div>
+          </div>
+          {% if section.obj.kind == 'stone_panels' %}<div class="ve-stones">{% for stone in stones %}<a href="?tab=taxonomy&amp;device={{ device }}#stone-{{ stone.id }}">{% if stone.image %}<img src="{{ stone.image }}" alt="{{ stone.name }}" loading="lazy">{% endif %}<h3>{{ stone.name }}</h3></a>{% endfor %}</div>{% endif %}
+          {% if section.obj.kind == 'collection_rail' %}{% if section.obj.collection.name != section.obj.title %}<h3>{{ section.obj.collection.name }}</h3>{% endif %}<div class="ve-rail">{% for piece in section.pieces %}<div>{% if piece.image %}<img src="{{ piece.image }}" alt="{{ piece.name }}" loading="lazy">{% endif %}<p>{{ piece.name }}</p></div>{% endfor %}</div>{% endif %}
+        {% endif %}
+      </article>
+      {% endfor %}
+      </div><footer class="ve-footer">SERTI · {% translate 'Joyería de autor · Colombia' %}</footer>
+    </div>
+  {% endif %}
+</div>
+<script src="{% static 'core/editor.js' %}" defer></script>
+{% endblock %}

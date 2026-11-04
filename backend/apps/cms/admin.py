@@ -242,6 +242,8 @@ class HomeSectionAdmin(ContentAdmin):
             self.message_user(request, _("Inicio publicado."), messages.SUCCESS)
         except (ValidationError, DomainError) as exc:
             self.message_user(request, str(exc), messages.ERROR)
+        if request.POST.get("return_to") == "editor":
+            return HttpResponseRedirect(reverse("visual-editor"))
         section_id = request.POST.get("section_id", "")
         if section_id.isdecimal() and HomeSection.objects.filter(pk=section_id).exists():
             return HttpResponseRedirect(reverse("admin:cms_homesection_change", args=[section_id]))

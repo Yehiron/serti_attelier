@@ -82,6 +82,15 @@ NAVIGATION: list[dict[str, Any]] = [
     {
         "title": _("Página web"),
         "items": [
+            {
+                "title": _("Editor visual"),
+                "icon": "preview",
+                "link": reverse_lazy("visual-editor"),
+                "permission": lambda request: (
+                    request.user.has_perm("cms.change_homesection")
+                    or request.user.has_perm("catalog.change_category")
+                ),
+            },
             item("Página de inicio", "web", "cms.homesection"),
             item("Páginas", "article", "cms.page"),
             item("Servicios de personalización", "design_services", "cms.personalizationservice"),
