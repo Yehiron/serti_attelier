@@ -1,4 +1,5 @@
 import 'server-only';
+import { decodeOrderProbe, orderProbeHeader } from '../order-probe';
 import { cacheLife, cacheTag } from 'next/cache';
 import { cookies, draftMode, headers as requestHeaders } from 'next/headers';
 import { connection } from 'next/server';
@@ -79,6 +80,11 @@ export async function optionalPage(locale: Locale, kind: string) {
 export async function getOrder(locale: Locale, token: string) {
   await connection();
   const incoming = await requestHeaders();
+  const probe = decodeOrderProbe(incoming.get(orderProbeHeader), token, locale);
+  if (probe) {
+    if (probe.status < 200 || probe.status >= 300) throw new ApiError(probe.status, probe.body as import('./types').Problem);
+    return probe.body as import('../commerce').Order;
+  }
   const ip = incoming.get('x-forwarded-for')?.split(',').at(-1)?.trim();
   return request<import('../commerce').Order>(`orders/${encodeURIComponent(token)}`, locale, '', undefined, ip);
 }

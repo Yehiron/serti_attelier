@@ -47,6 +47,7 @@
           oscillator.frequency.value = 660; oscillator.start(); oscillator.stop(audio.currentTime + .2);
         }
       }
+      document.dispatchEvent(new CustomEvent('orders:notifications', { detail: { fresh: initialized && data.new.length > 0 } }));
       initialized = true; delay = 45000; error.textContent = '';
     } catch { delay = Math.min(delay * 2, 360000); error.textContent = 'No pudimos actualizar los avisos. Lo intentaremos de nuevo.'; }
     finally { busy = false; schedule(); }

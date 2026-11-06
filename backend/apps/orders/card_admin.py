@@ -512,6 +512,144 @@ class OrderCardAdminMixin:
         response["Referrer-Policy"] = "no-referrer"
         return response
 
+    def center_queryset(self, request):
+        # Reuse admin filters/search/permissions, without pagination/count queries.
+        from django.contrib.admin.views.main import ChangeList
+
+        class MetricsChangeList(ChangeList):
+            def get_results(self, request):
+                pass
+
+        return MetricsChangeList(
+            request,
+            self.model,
+            self.get_list_display(request),
+            self.get_list_display_links(request, self.get_list_display(request)),
+            self.get_list_filter(request),
+            self.date_hierarchy,
+            self.get_search_fields(request),
+            self.get_list_select_related(request),
+            self.list_per_page,
+            self.list_max_show_all,
+            self.list_editable,
+            self,
+            self.sortable_by,
+            self.search_help_text,
+        ).queryset
+
+    def center_tabs(self, clean_request):
+        count_request = copy(clean_request)
+        count_request.GET = clean_request.GET.copy()
+        for key in (
+            "p",
+            "pedido",
+            "center",
+            "fulfillment_status",
+            "fulfillment_status__exact",
+            "fulfillment_status__in",
+        ):
+            count_request.GET.pop(key, None)
+        base = self.center_queryset(count_request)
+        from django.db.models import Count, Exists, OuterRef, Q
+
+        from .models import OrderIncident
+
+        base = base.annotate(
+            center_blocked=Exists(
+                OrderIncident.objects.filter(order_id=OuterRef("pk"), status="open", blocking=True)
+            )
+        )
+        counts = base.aggregate(
+            all=Count("pk"),
+            prepare=Count(
+                "pk",
+                filter=Q(
+                    payment_status="approved",
+                    fulfillment_status="unfulfilled",
+                    center_blocked=False,
+                ),
+            ),
+            preparing=Count("pk", filter=Q(fulfillment_status="preparing")),
+            shipped=Count("pk", filter=Q(fulfillment_status="shipped")),
+            delivered=Count("pk", filter=Q(fulfillment_status="delivered")),
+            cancelled=Count("pk", filter=Q(fulfillment_status__in=["cancelled", "returned"])),
+        )
+        specs = [
+            ("Todos", {}),
+            (
+                "Por preparar",
+                {
+                    "fulfillment_status__exact": "unfulfilled",
+                    "payment_status__exact": "approved",
+                },
+            ),
+            ("En preparación", {"fulfillment_status__exact": "preparing"}),
+            ("Enviados", {"fulfillment_status__exact": "shipped"}),
+            ("Entregados", {"fulfillment_status__exact": "delivered"}),
+            ("Cancelados/devueltos", {"fulfillment_status__in": "cancelled,returned"}),
+        ]
+        tabs = []
+        for index, (label, filters) in enumerate(specs):
+            query = count_request.GET.copy()
+            query.update(
+                {
+                    key: value
+                    for key, value in filters.items()
+                    if not key.startswith("payment_status")
+                }
+            )
+            if label == "Por preparar":
+                query["center"] = "prepare"
+            active = all(clean_request.GET.get(key) == value for key, value in filters.items())
+            if label == "Por preparar" and clean_request.GET.get("center") == "prepare":
+                active = True
+            if not filters:
+                active = clean_request.GET.get("center") != "prepare" and not any(
+                    key.startswith("fulfillment_status") for key in clean_request.GET
+                )
+            tabs.append(
+                {
+                    "label": label,
+                    "url": "?" + query.urlencode(),
+                    "count": counts[
+                        ("all", "prepare", "preparing", "shipped", "delivered", "cancelled")[index]
+                    ],
+                    "active": active,
+                }
+            )
+        return tabs
+
+    def center_metrics(self, request):
+        from .metrics import order_center_metrics
+
+        metrics = order_center_metrics(request.GET.get("period", "today"))
+        if not request.user.has_perm("orders.view_order"):
+            for metric in metrics:
+                metric.pop("amount", None)
+                metric.pop("cancelled_amount", None)
+        return metrics
+
+    def center_json(self, request):
+        from django.http import JsonResponse
+
+        if (
+            not request.user.is_active
+            or not request.user.is_staff
+            or not self.has_view_permission(request)
+        ):
+            return JsonResponse({"detail": "Sin permiso."}, status=403)
+        if request.method != "GET":
+            return HttpResponseNotAllowed(["GET"])
+        from django.contrib.admin.views.main import IncorrectLookupParameters
+
+        try:
+            tabs = self.center_tabs(request)
+        except IncorrectLookupParameters:
+            return JsonResponse({"detail": "Filtros inválidos."}, status=400)
+        response = JsonResponse({"metrics": self.center_metrics(request), "tabs": tabs})
+        response["Cache-Control"] = "private, no-store"
+        return response
+
     def changelist_view(self, request, extra_context=None):
         clean_request = copy(request)
         clean_request.GET = request.GET.copy()
@@ -522,81 +660,11 @@ class OrderCardAdminMixin:
             and response.context_data
             and "cl" in response.context_data
         ):
-            count_request = copy(clean_request)
-            count_request.GET = clean_request.GET.copy()
-            for key in (
-                "p",
-                "center",
-                "fulfillment_status",
-                "fulfillment_status__exact",
-                "fulfillment_status__in",
-            ):
-                count_request.GET.pop(key, None)
-            base = self.get_changelist_instance(count_request).queryset
-            specs = [
-                ("Todos", {}),
-                (
-                    "Por preparar",
-                    {
-                        "fulfillment_status__exact": "unfulfilled",
-                        "payment_status__exact": "approved",
-                    },
-                ),
-                ("En preparación", {"fulfillment_status__exact": "preparing"}),
-                ("Enviados", {"fulfillment_status__exact": "shipped"}),
-                ("Entregados", {"fulfillment_status__exact": "delivered"}),
-                ("Cancelados/devueltos", {"fulfillment_status__in": "cancelled,returned"}),
-            ]
-            tabs = []
-            for label, filters in specs:
-                query = count_request.GET.copy()
-                query.update(
-                    {
-                        key: value
-                        for key, value in filters.items()
-                        if not key.startswith("payment_status")
-                    }
-                )
-                if label == "Por preparar":
-                    query["center"] = "prepare"
-                lookup = {
-                    key: value.split(",") if key.endswith("__in") else value
-                    for key, value in filters.items()
-                }
-                active = all(clean_request.GET.get(key) == value for key, value in filters.items())
-                if label == "Por preparar" and clean_request.GET.get("center") == "prepare":
-                    active = True
-                if not filters:
-                    active = clean_request.GET.get("center") != "prepare" and not any(
-                        key.startswith("fulfillment_status") for key in clean_request.GET
-                    )
-                tab_base = base
-                if label == "Por preparar":
-                    from django.db.models import Exists, OuterRef
-
-                    from .models import OrderIncident
-
-                    tab_base = tab_base.filter(
-                        ~Exists(
-                            OrderIncident.objects.filter(
-                                order_id=OuterRef("pk"), status="open", blocking=True
-                            )
-                        )
-                    )
-                tabs.append(
-                    {
-                        "label": label,
-                        "url": "?" + query.urlencode(),
-                        "count": tab_base.filter(**lookup).count(),
-                        "active": active,
-                    }
-                )
+            tabs = self.center_tabs(clean_request)
             cl = response.context_data["cl"]
             page = cl.page_num
-            from .metrics import order_center_metrics
-
             response.context_data.update(
-                center_metrics=order_center_metrics(request.GET.get("period", "today")),
+                center_metrics=self.center_metrics(request),
                 center_period=request.GET.get("period", "today"),
                 order_tabs=tabs,
                 page_number=page,

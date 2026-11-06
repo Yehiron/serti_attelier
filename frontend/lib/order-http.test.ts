@@ -23,3 +23,8 @@ test('missing link response is a complete localized document without a token', (
     assert.ok(!html.includes('public_token'));
   }
 });
+
+test('unavailable page uses store brand, local font and navigable header/footer', () => {
+  const html = unavailableTrackingHtml('es');
+  for (const fragment of ['<header class="site-header"', '<footer class="site-footer"', '/fonts/ninna-regular.otf', '/brand/logo/wordmark-wine.webp', 'Escríbenos y con gusto te ayudamos.', '/es/contacto']) assert.ok(html.includes(fragment));
+});

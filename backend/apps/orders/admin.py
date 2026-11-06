@@ -383,23 +383,36 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
             digits = "57" + digits
         return f"https://wa.me/{digits}"
 
+    @admin.display(description=_("Seleccionar pedido"))
+    def action_checkbox(self, obj):
+        return format_html(
+            '<label class="oc-select-order">{}<span class="oc-sr-only">'
+            "Seleccionar pedido {}</span></label>",
+            super().action_checkbox(obj),
+            obj.number,
+        )
+
     @admin.display(description=_("Fecha"), ordering="created_at")
     def order_date(self, obj: Order) -> Any:
         from apps.core.formatting import BOGOTA
 
         local = timezone.localtime(obj.created_at, BOGOTA)
         return format_html(
-            '<span style="white-space:nowrap">{}</span><br>'
-            '<small style="white-space:nowrap;opacity:.7">{}</small>',
+            '<span class="oc-date-desktop" style="white-space:nowrap">{}</span>'
+            '<br class="oc-date-desktop">'
+            '<small class="oc-date-desktop" style="white-space:nowrap;opacity:.7">{}</small>'
+            '<time class="oc-date-mobile">{}</time>',
             local.strftime("%d/%m/%Y"),
             local.strftime("%I:%M %p").lstrip("0").lower(),
+            local.strftime("%d/%m · %-H:%M"),
         )
 
     @admin.display(description=_("Cliente"), ordering="customer_name")
     def client_name(self, obj: Order) -> str:
         # Name and phone share one column so the row keeps room for "Ver pedido".
         return format_html(
-            '{}<br><small style="white-space:nowrap;opacity:.7">{}</small>',
+            '<span class="oc-client-name">{}</span><span class="oc-client-phone"><br>'
+            '<small style="white-space:nowrap;opacity:.7">{}</small></span>',
             obj.customer_name,
             obj.customer_phone,
         )
@@ -518,6 +531,7 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
 
     def get_urls(self) -> list[Any]:
         return [
+            path("metrics/", self.center_json, name="orders-center-json"),
             path(
                 "<int:pk>/card/piece/",
                 self.admin_site.admin_view(self.card_piece_decision),
@@ -695,7 +709,7 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
                 " · ".join(str(i.get_kind_display()) for i in opened),
                 len(opened),
             )
-        return "—"
+        return format_html('<span class="oc-no-incident">—</span>')
 
     def get_queryset(self, request):
         from django.db.models import OuterRef, Subquery

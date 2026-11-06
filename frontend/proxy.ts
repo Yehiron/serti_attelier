@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
+import { encodeOrderProbe, orderProbeHeader } from "@/lib/order-probe";
 
 import { localeCookie, localeFromPath, negotiateLocale } from "@/lib/i18n";
 
@@ -10,6 +11,10 @@ const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  // Never trust a browser-supplied preflight. These are request headers only,
+  // overwritten on every proxy traversal, never returned to the browser.
+  const forwarded = new Headers(request.headers);
+  forwarded.delete(orderProbeHeader);
   const pathLocale = localeFromPath(pathname);
 
   if (pathLocale) {
@@ -30,15 +35,18 @@ export async function proxy(request: NextRequest) {
           headers, cache: 'no-store', signal: AbortSignal.timeout(8000),
         });
         missingOrder = trackingHttpStatus(probe.status) === 404;
-        await probe.body?.cancel();
-      } catch { /* The page keeps the existing unavailable-service handling. */ }
+        if (!missingOrder) {
+          const body = await probe.json().catch(() => ({}));
+          forwarded.set(orderProbeHeader, encodeOrderProbe({ token: tracking.token, locale: tracking.locale, status: probe.status, body }));
+        }
+      } catch { forwarded.set(orderProbeHeader, encodeOrderProbe({ token: tracking.token, locale: tracking.locale, status: 503, body: { code: 'network_unavailable' } })); }
     }
     // Finish missing/expired requests before React starts streaming. A rewrite
     // alone can still have its status replaced by the parent Suspense shell.
     const response = missingOrder ? new NextResponse(unavailableTrackingHtml(pathLocale), {
       status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' },
     }) : decision.kind === "redirect" ? NextResponse.redirect(url, 308)
-      : decision.kind === "rewrite" ? NextResponse.rewrite(url) : NextResponse.next();
+      : decision.kind === "rewrite" ? NextResponse.rewrite(url, { request: { headers: forwarded } }) : NextResponse.next({ request: { headers: forwarded } });
     if (request.cookies.get(localeCookie)?.value !== pathLocale) {
       response.cookies.set(localeCookie, pathLocale, {
         maxAge: ONE_YEAR,
@@ -74,5 +82,5 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Django owns /api, /static, /media and the admin path (routed by Caddy);
   // files with an extension and Next internals never need a locale.
-  matcher: ["/((?!preview|api|static|media|healthz|_next|.*\\..*).*)"],
+  matcher: ["/es/pedido/:path*", "/en/pedido/:path*", "/es/order/:path*", "/en/order/:path*", "/((?!preview|api|static|media|healthz|_next|.*\\..*).*)"],
 };

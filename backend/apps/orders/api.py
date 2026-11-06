@@ -170,4 +170,16 @@ class OrderDetailView(PrivateOrderView):
 
     @extend_schema(responses={200: OrderDetailSerializer, **ERRORS})
     def get(self, request: Request, public_token: str) -> Response:
+        # Explicitly armed by a DEBUG-only management command; no public control
+        # endpoint, response field, raw token or customer information is recorded.
+        from django.conf import settings
+
+        if settings.DEBUG:
+            import hashlib
+
+            from django.core.cache import cache
+
+            key = "e2e:tracking:" + hashlib.sha256(public_token.encode()).hexdigest()
+            if cache.get(key) is not None:
+                cache.incr(key)
         return Response(order_detail(public_token))
