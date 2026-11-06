@@ -1,0 +1,4 @@
+{% if can_add_category %}
+<a class="ca-button" data-category-open href="{% url 'admin:catalog_category_add' %}" target="_blank" rel="noopener"><span class="material-symbols-outlined" aria-hidden="true">add</span>Nueva categoría</a>
+<span data-category-notice aria-live="polite"></span>
+{% endif %}

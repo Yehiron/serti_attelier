@@ -9,7 +9,7 @@
       {% for hidden in photo_form.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
       {% for fieldset in photo_form %}{% for line in fieldset %}{% for field in line %}
         <div class="ca-photo-field ca-photo-{{ field.field.name }} {% if field.field.name == 'position' or field.field.name == 'is_primary' or field.field.name == 'is_hover' %}ca-photo-internal{% endif %}">
-        {% if field.is_readonly %}{{ field.contents }}{% else %}{{ field.errors }}<label for="{{ field.field.id_for_label }}">{{ field.field.label }}{% if field.field.field.required %} *{% endif %}</label>{{ field.field }}{% endif %}
+        {% if field.is_readonly %}{{ field.contents }}{% elif field.field.name == "original" %}{{ field.errors }}<label class="ca-button ca-replace" for="{{ field.field.id_for_label }}"><span class="material-symbols-outlined" aria-hidden="true">swap_horiz</span>Reemplazar foto</label>{{ field.field }}<span data-replacement-note aria-live="polite"></span>{% else %}{{ field.errors }}<label for="{{ field.field.id_for_label }}">{{ field.field.label }}{% if field.field.field.required %} *{% endif %}</label>{{ field.field }}{% endif %}
         </div>
       {% endfor %}{% endfor %}{% endfor %}
       <div class="ca-photo-choices" data-photo-choices></div>

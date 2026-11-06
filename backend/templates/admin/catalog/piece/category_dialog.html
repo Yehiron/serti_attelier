@@ -1,0 +1,12 @@
+{% if can_add_category %}
+<dialog class="ca-panel ca-category-dialog" aria-labelledby="ca-category-title" data-category-dialog>
+  <form data-category-form action="{% url 'admin:catalog_category_quick_add' %}" method="post">{% csrf_token %}
+    <header class="ca-list-head"><h2 id="ca-category-title">Nueva categoría</h2><button class="ca-icon" type="button" data-category-close aria-label="Cerrar">×</button></header>
+    <label for="ca-category-name">Nombre *</label><input id="ca-category-name" name="name" required maxlength="200" aria-describedby="ca-category-name-error" autofocus><p id="ca-category-name-error" data-category-error="name" class="ca-field-error"></p>
+    <label for="ca-category-parent">¿Es una subcategoría de…?</label><select id="ca-category-parent" name="parent" aria-describedby="ca-category-parent-error"><option value="">No, es una categoría principal</option>{% for root in category_roots %}<option value="{{ root.pk }}">{{ root.name_es }}</option>{% endfor %}</select><p id="ca-category-parent-error" data-category-error="parent" class="ca-field-error"></p>
+    <p>Podrás agregar la foto, el nombre en inglés y el SEO después, en Categorías.</p>
+    <p data-category-error="__all__" class="ca-field-error" role="alert"></p>
+    <button class="ca-button ca-primary" type="submit">Crear categoría</button>
+  </form>
+</dialog>
+{% endif %}

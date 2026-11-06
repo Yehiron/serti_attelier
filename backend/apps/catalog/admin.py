@@ -3,13 +3,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from copy import copy
 from typing import Any, ClassVar
+from urllib.parse import quote
 
+from django.conf import settings
 from django.contrib import admin, messages
 from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.db.models import Count, Prefetch, QuerySet
+from django.db.models import Case, Count, IntegerField, Max, Prefetch, Q, QuerySet, When
+from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -26,6 +29,7 @@ from modeltranslation.admin import (
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
+from apps.audit.services import record
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop
@@ -33,7 +37,15 @@ from apps.core.selectors import piece_url
 from apps.inventory.services import set_preorder
 
 from . import services
-from .forms import PieceForm, PieceImageForm, PieceImageFormSet, PieceVideoForm, ValidatedImageForm
+from .forms import (
+    CategoryForm,
+    PieceForm,
+    PieceImageForm,
+    PieceImageFormSet,
+    PieceVideoForm,
+    QuickCategoryForm,
+    ValidatedImageForm,
+)
 from .models import (
     Category,
     Collection,
@@ -67,7 +79,141 @@ class TranslatedAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], Mode
             services.delete_catalog_object(obj)
 
 
-admin.site.register(Category, TranslatedAdmin)
+@admin.register(Category)
+class CategoryAdmin(TranslatedAdmin):
+    form = CategoryForm
+    ordering_field = "position"
+    list_display = (
+        "category_photo",
+        "hierarchical_name",
+        "parent",
+        "published_count",
+        "active_badge",
+        "category_actions",
+        "position",
+    )
+    list_display_links = ("hierarchical_name",)
+    change_list_template = "admin/catalog/category/change_list.html"
+
+    class Media:
+        css = {"all": ("catalog/catalog-admin.css",)}
+
+    def get_ordering(self, request):
+        return (
+            Coalesce("parent__position", "position"),
+            Coalesce("parent_id", "pk"),
+            Case(When(parent=None, then=0), default=1, output_field=IntegerField()),
+            "position",
+            "pk",
+        )
+
+    def get_queryset(self, request):
+        return (
+            super()
+            .get_queryset(request)
+            .select_related("parent")
+            .annotate(
+                published_total=Count("pieces", filter=Q(pieces__status=Piece.Status.PUBLISHED)),
+                root_position=Coalesce("parent__position", "position"),
+                root_id=Coalesce("parent_id", "pk"),
+                hierarchy_level=Case(
+                    When(parent=None, then=0), default=1, output_field=IntegerField()
+                ),
+            )
+            .order_by("root_position", "root_id", "hierarchy_level", "position", "pk")
+        )
+
+    @admin.display(description="Foto")
+    def category_photo(self, obj):
+        paths = obj.cover_renditions.get("webp", {})
+        src = (
+            default_storage.url(paths[min(paths, key=int)])
+            if paths
+            else (obj.cover_image.url if obj.cover_image else "")
+        )
+        return format_html('<img class="ca-thumb" src="{}" alt="">', src) if src else "—"
+
+    @admin.display(description="Nombre")
+    def hierarchical_name(self, obj):
+        return (
+            format_html('<span class="ca-child">↳ {}</span>', obj.name_es)
+            if obj.parent_id
+            else format_html("<strong>{}</strong>", obj.name_es)
+        )
+
+    @admin.display(description="Piezas publicadas")
+    def published_count(self, obj):
+        return obj.published_total
+
+    @admin.display(description="Activa")
+    def active_badge(self, obj):
+        return format_html(
+            '<span class="ca-badge">{}</span>', "Activa" if obj.is_active else "Inactiva"
+        )
+
+    @admin.display(description="Acciones")
+    def category_actions(self, obj):
+        edit = format_html(
+            '<a class="ca-icon" href="{}" aria-label="Editar" title="Editar">'
+            '<span class="material-symbols-outlined" aria-hidden="true">edit</span></a>',
+            reverse("admin:catalog_category_change", args=[obj.pk]),
+        )
+        view = (
+            format_html(
+                '<a class="ca-icon" href="{}/es/joyeria/{}" target="_blank" rel="noopener" '
+                'aria-label="Ver en la tienda" title="Ver en la tienda">'
+                '<span class="material-symbols-outlined" aria-hidden="true">open_in_new</span></a>',
+                settings.PUBLIC_SITE_URL.rstrip("/"),
+                quote(obj.slug_es),
+            )
+            if obj.is_active
+            else ""
+        )
+        return format_html('<div class="ca-actions">{}{}</div>', edit, view)
+
+    def get_urls(self):
+        return [
+            path(
+                "quick-add/",
+                self.admin_site.admin_view(self.quick_add),
+                name="catalog_category_quick_add",
+            ),
+            *super().get_urls(),
+        ]
+
+    @method_decorator(require_POST)
+    def quick_add(self, request):
+        if not self.has_add_permission(request):
+            raise PermissionDenied
+        form = QuickCategoryForm(request.POST)
+        if form.is_valid():
+            obj = Category(name_es=form.cleaned_data["name"], parent=form.cleaned_data["parent"])
+            try:
+                with transaction.atomic():
+                    last_position = Category.objects.filter(parent=obj.parent).aggregate(
+                        last=Max("position")
+                    )["last"]
+                    obj.position = (last_position + 1) if last_position is not None else 0
+                    services.save_taxonomy(obj)
+                    record("catalog.category_created", actor=request.user, obj=obj, request=request)
+            except ValidationError as exc:
+                for field, errors in (
+                    exc.message_dict if hasattr(exc, "message_dict") else {"__all__": exc.messages}
+                ).items():
+                    form.add_error(
+                        "name"
+                        if field in ("name", "name_es", "slug_es")
+                        else field
+                        if field in form.fields
+                        else None,
+                        errors,
+                    )
+            else:
+                label = f"{obj.parent.name_es} → {obj.name_es}" if obj.parent_id else obj.name_es
+                return JsonResponse({"id": obj.pk, "label": label})
+        return JsonResponse({"errors": dict(form.errors)}, status=400)
+
+
 admin.site.register(Collection, TranslatedAdmin)
 admin.site.register(Stone, TranslatedAdmin)
 admin.site.register(Material, TranslatedAdmin)
@@ -464,6 +610,8 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
             and Piece.Status.PUBLISHED in services.EDITORIAL_TRANSITIONS[piece.status]
         )
         context.update(
+            can_add_category=request.user.has_perm("catalog.add_category"),
+            category_roots=Category.objects.filter(parent=None, is_active=True),
             publication_checklist=checklist,
             publication_missing=missing,
             can_publish=can_publish,

@@ -19,7 +19,7 @@
         {% if has_change_permission or has_add_permission %}<div class="ca-panel ca-save"><button class="ca-button ca-primary" type="submit" name="_continue" value="1">{% if add or original.status == 'draft' %}Guardar borrador{% else %}Guardar cambios{% endif %}</button>{% if can_publish %}<button class="ca-button" type="submit" name="catalog_piece_save_publish" value="1" data-publish-button aria-describedby="ca-publish-reason" {% if not publication_ready %}disabled{% endif %}>Publicar</button>{% endif %}<span data-save-feedback aria-live="polite"></span></div>{% endif %}
       </aside>
       <main class="ca-main">
-        {% for fieldset in adminform %}{% if 'collapse' not in fieldset.classes and fieldset.name != 'Precio y disponibilidad' %}<section class="ca-panel">{% include 'admin/includes/fieldset.html' %}</section>{% endif %}{% endfor %}
+        {% for fieldset in adminform %}{% if 'collapse' not in fieldset.classes and fieldset.name != 'Precio y disponibilidad' %}<section class="ca-panel">{% include 'admin/includes/fieldset.html' %}{% if fieldset.name == 'Clasificación' %}{% include 'admin/catalog/piece/category_link.html' %}{% endif %}</section>{% endif %}{% endfor %}
         {% for inline_admin_formset in inline_admin_formsets %}{% if inline_admin_formset.opts.verbose_name_plural == 'Fotos' %}{% include inline_admin_formset.opts.template %}{% endif %}{% endfor %}
         {% for fieldset in adminform %}{% if 'collapse' in fieldset.classes %}<section class="ca-panel ca-secondary">{% include 'admin/includes/fieldset.html' %}</section>{% endif %}{% endfor %}
         {% for inline_admin_formset in inline_admin_formsets %}{% if inline_admin_formset.opts.verbose_name_plural != 'Fotos' %}<details class="ca-panel" {% if inline_admin_formset.formset.errors %}open{% endif %}><summary>{{ inline_admin_formset.opts.verbose_name_plural }}</summary>{% include inline_admin_formset.opts.template %}</details>{% endif %}{% endfor %}
@@ -28,6 +28,7 @@
     <script id="django-admin-form-add-constants" src="{% static 'admin/js/change_form.js' %}"{% if add %} data-model-name="piece"{% endif %} async></script>
     {% prepopulated_fields_js %}
   </form>
+  {% include "admin/catalog/piece/category_dialog.html" %}
 </div>
 {% endblock %}
 {% block submit_buttons_bottom %}{% endblock %}

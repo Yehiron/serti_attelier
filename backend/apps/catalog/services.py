@@ -289,6 +289,26 @@ def save_taxonomy(obj: Taxonomy) -> None:
         obj.cover_image.save(f"{uuid4().hex}.webp", encode_webp(clean), save=False)
     if isinstance(obj, (Category, Collection, Stone)) and not obj.cover_image:
         obj.cover_renditions, obj.cover_width, obj.cover_height = {}, 0, 0
+    if isinstance(obj, Category):
+        from django.utils.text import slugify
+
+        duplicate = Category.objects.filter(
+            parent_id=obj.parent_id, name_es__iexact=obj.name_es.strip()
+        ).exclude(pk=obj.pk)
+        if duplicate.exists():
+            location = (
+                f" dentro de {obj.parent.name_es}"
+                if obj.parent_id
+                else " entre las categorías principales"
+            )
+            raise ValidationError({"name_es": f"Ya existe «{obj.name_es}»{location}."})
+        if not obj.slug_es:
+            base = slugify(obj.name_es) or "categoria"
+            candidate, suffix = base, 2
+            while Category.objects.filter(slug_es=candidate).exclude(pk=obj.pk).exists():
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            obj.slug_es = candidate
     obj.full_clean()
     obj.save()
 

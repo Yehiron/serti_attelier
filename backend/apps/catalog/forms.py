@@ -5,6 +5,8 @@ from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
+from django.db.models import Case, IntegerField, When
+from django.db.models.functions import Coalesce
 from django.utils.translation import gettext_lazy as _
 from unfold.widgets import (
     UnfoldAdminIntegerFieldWidget,
@@ -21,7 +23,7 @@ from .validators import ATTRIBUTE_FIELDS
 
 class CategoryChoiceField(forms.ModelChoiceField):
     def label_from_instance(self, obj: Category) -> str:
-        return f"{obj.parent.name} → {obj.name}" if obj.parent_id else str(obj.name)
+        return f"{obj.parent.name_es} → {obj.name_es}" if obj.parent_id else str(obj.name_es)
 
 
 class PesosField(forms.IntegerField):
@@ -59,7 +61,15 @@ class PieceForm(BasePieceForm):
         widget=forms.TextInput(attrs={"placeholder": "SRT-ANI-0042"}),
     )
     category = CategoryChoiceField(
-        queryset=Category.objects.select_related("parent"), required=False, label=_("Categoría")
+        queryset=Category.objects.select_related("parent").order_by(
+            Coalesce("parent__position", "position"),
+            Coalesce("parent_id", "pk"),
+            Case(When(parent=None, then=0), default=1, output_field=IntegerField()),
+            "position",
+            "pk",
+        ),
+        required=False,
+        label=_("Categoría"),
     )
     metal = forms.CharField(label=_("Metal"), required=False, max_length=100)
     metal_purity = forms.CharField(
@@ -187,7 +197,52 @@ class ValidatedImageForm(BaseImageForm):
         return cleaned
 
 
+class CategoryForm(ValidatedImageForm):
+    class Meta:
+        model = Category
+        fields = "__all__"
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "parent" in self.fields:
+            self.fields["parent"].queryset = Category.objects.filter(parent=None).exclude(
+                pk=self.instance.pk
+            )
+            self.fields["parent"].help_text = (
+                "Déjalo vacío si es una categoría principal (p. ej. Anillos). "
+                "Elige una si es subcategoría (p. ej. Solitarios dentro de Anillos)."
+            )
+
+
+class QuickCategoryForm(forms.Form):
+    name = forms.CharField(
+        max_length=200, error_messages={"required": "Escribe el nombre de la categoría."}
+    )
+    parent = forms.ModelChoiceField(
+        queryset=Category.objects.filter(parent=None, is_active=True),
+        required=False,
+        error_messages={
+            "invalid_choice": (
+                "Elige una categoría principal activa. Solo se permite un nivel de subcategorías."
+            )
+        },
+    )
+
+
 class PieceImageForm(ValidatedImageForm):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if "original" in self.fields:
+            self.fields["original"].widget = forms.FileInput(
+                attrs={"class": "ca-file-input", "accept": "image/*"}
+            )
+        for key, label in (
+            ("alt_es", "Descripción de la foto (para accesibilidad y Google)"),
+            ("alt_en", "Descripción en inglés (opcional)"),
+        ):
+            if key in self.fields:
+                self.fields[key].label = label
+
     class Meta:
         model = PieceImage
         fields = "__all__"

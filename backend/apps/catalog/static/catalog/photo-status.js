@@ -38,7 +38,7 @@
         label.append(" ", button);
       }
       const preview = document.querySelector(`[data-photo-preview="${photo.id}"]`);
-      if (preview && photo.thumb_url) {
+      if (preview && !preview.dataset.localReplacement && photo.thumb_url) {
         const img = document.createElement("img");
         img.src = photo.thumb_url;
         img.alt = "";

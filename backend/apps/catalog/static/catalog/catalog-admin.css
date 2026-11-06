@@ -21,3 +21,35 @@
 @media(min-width:768px){.ca-editor .selector{display:flex;gap:8px;width:100%}.ca-editor .selector-available,.ca-editor .selector-chosen{min-width:0;flex:1;width:auto}.ca-editor .selector select{min-width:0;width:100%}}
 .ca-editor [data-photo-monitor]{display:block;min-height:3.2em;margin-top:12px;font-size:13px;line-height:1.6}
 .ca-photo-image_status{min-height:44px}
+.model-category{--ca-bg:var(--color-white,#fff);--ca-line:var(--color-base-200,#ddd);--ca-muted:var(--color-base-600,#555);--ca-ink:var(--color-base-900,#222);--ca-accent:var(--color-primary-600,#765738)}
+.dark .model-category{--ca-bg:var(--color-base-900,#18181b);--ca-line:var(--color-base-700,#444);--ca-muted:var(--color-base-300,#ccc);--ca-ink:var(--color-base-100,#f4f4f5)}
+.ca-child{display:inline-block;padding-left:20px}.ca-category-dialog{margin:auto;width:min(440px,calc(100% - 32px));max-height:85dvh;overflow:auto;color:var(--ca-ink)}
+.ca-category-dialog::backdrop{background:#0006}.ca-category-dialog[open]{animation:ca-dialog-in 180ms ease-out}.ca-category-dialog input,.ca-category-dialog select{display:block;width:100%;min-height:44px;border:1px solid var(--ca-line);border-radius:4px;background:var(--ca-bg);padding:8px;margin-top:8px}.ca-category-dialog .ca-list-head{margin-bottom:16px}.ca-category-dialog h2{margin:0}.ca-field-error{min-height:1.5em;color:#b42318!important;margin-bottom:12px}.ca-category-dialog :focus-visible{outline:2px solid var(--ca-accent);outline-offset:2px}
+.ca-photo-original{position:relative}.ca-file-input{position:absolute!important;width:1px!important;height:1px!important;min-height:0!important;padding:0!important;clip-path:inset(50%);overflow:hidden;white-space:nowrap}.ca-photo-original:focus-within .ca-replace{outline:2px solid var(--ca-accent);outline-offset:2px}.ca-replace{font-size:12px!important;display:inline-flex!important}.ca-text-action{min-height:44px;text-decoration:underline;font-size:13px}.ca-text-action[hidden]{display:none}[data-replacement-note]{display:block;min-height:1.5em;font-size:12px}
+@keyframes ca-dialog-in{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){.ca-category-dialog[open]{animation:none}}
+@media(max-width:760px){
+.model-piece #result_list,.model-category #result_list{display:block;width:100%;table-layout:auto}
+.model-piece #result_list thead,.model-category #result_list thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.model-piece #result_list tbody,.model-category #result_list tbody{display:grid;gap:16px}
+.model-piece #result_list tbody tr,.model-category #result_list tbody tr{display:grid;grid-template-columns:64px minmax(0,1fr) 44px;gap:8px 12px;position:relative;padding:16px;border:1px solid var(--ca-line);border-radius:8px;background:var(--ca-bg)}
+.model-piece #result_list td,.model-piece #result_list th,.model-category #result_list td,.model-category #result_list th{display:block;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;min-width:0;grid-column:2/4}
+.model-piece #result_list .field-thumbnail,.model-category #result_list .field-category_photo{grid-column:1;grid-row:1/4}
+.model-piece #result_list .ca-thumb,.model-category #result_list .ca-thumb{width:64px;height:64px}
+.model-piece #result_list .field-piece_name,.model-category #result_list .field-hierarchical_name{grid-column:2;grid-row:1;font-weight:700}
+.model-piece #result_list .action-checkbox,.model-category #result_list .action-checkbox{grid-column:3;grid-row:1;align-self:start}
+.model-piece #result_list .action-checkbox input,.model-category #result_list .action-checkbox input{width:24px;height:24px;margin:10px}
+.model-piece #result_list .field-row_actions,.model-category #result_list .field-category_actions{grid-column:1/-1;border-top:1px solid var(--ca-line);padding-top:8px}
+.model-category #result_list .field-position{display:none}
+.model-piece #changelist-form,.model-category #changelist-form{min-width:0;max-width:100%}
+}
+@media(max-width:760px){
+.model-piece #result_list,.model-category #result_list{display:grid;gap:16px}
+.model-piece #result_list tbody,.model-category #result_list tbody{display:block;background:transparent}
+.model-category #result_list [x-sort\:handle]{grid-column:1;grid-row:4;min-height:44px;min-width:44px}
+.model-category #result_list [x-sort\:handle]>div{min-width:44px;min-height:44px;margin:0}
+}
+.ca-hover-clear{min-height:44px}
+[data-replacement-note]{min-height:3em;line-height:1.5}
+/* The whole dashed zone is the label; the native file control stays focusable but out of sight. */
+.ca-upload{position:relative}.ca-upload>label{margin-bottom:0}.ca-upload>input[type=file]{position:absolute;width:1px;height:1px;min-height:0;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
