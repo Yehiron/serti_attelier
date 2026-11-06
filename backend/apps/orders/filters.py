@@ -1,7 +1,9 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
 
+from django.contrib import admin
 from django.contrib.admin.views.main import IncorrectLookupParameters
+from django.db.models import Exists, OuterRef
 from django.utils.dateparse import parse_date
 from unfold.contrib.filters.admin import RangeDateFilter, RangeNumericFilter
 
@@ -54,3 +56,47 @@ class OrderTotalFilter(RangeNumericFilter):
             return queryset
         except (InvalidOperation, ValueError, TypeError) as exc:
             raise IncorrectLookupParameters("Indica un total válido en pesos.") from exc
+
+
+class CenterFilter(admin.SimpleListFilter):
+    title = "Centro de pedidos"
+    parameter_name = "center"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("paid", "Cobros aprobados"),
+            ("prepare", "Por preparar"),
+            ("incidents", "Incidencias abiertas"),
+        )
+
+    def queryset(self, request, queryset):
+        from .metrics import collection_window
+        from .models import OrderIncident
+
+        incidents = OrderIncident.objects.filter(order_id=OuterRef("pk"), status="open")
+        if self.value() == "paid":
+            start, end = collection_window(request.GET.get("period", "today"))
+            return queryset.filter(payment_status="approved", paid_at__gte=start, paid_at__lte=end)
+        if self.value() == "prepare":
+            return queryset.filter(
+                payment_status="approved", fulfillment_status="unfulfilled"
+            ).filter(~Exists(incidents.filter(blocking=True)))
+        if self.value() == "incidents":
+            return queryset.filter(Exists(incidents))
+        return queryset
+
+
+class PeriodFilter(admin.SimpleListFilter):
+    title = "Período de cobros"
+    parameter_name = "period"
+
+    def lookups(self, request, model_admin):
+        return (
+            ("today", "Hoy"),
+            ("seven_days", "7 días"),
+            ("thirty_days", "30 días"),
+            ("month", "Mes actual"),
+        )
+
+    def queryset(self, request, queryset):
+        return queryset

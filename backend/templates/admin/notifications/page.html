@@ -1,0 +1,5 @@
+{% extends "admin/base_site.html" %}{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'notifications/panel.css' %}">{% endblock %}
+{% block content %}<section class="an-page"><h1>Avisos de pedidos</h1><ol>
+{% for notice in notices %}<li><a class="an-button" href="{{ notice.url }}">{{ notice.message }} · {{ notice.number }}{% if notice.amount %} · {{ notice.amount }}{% endif %}</a><p>{{ notice.created_at }} · {% if notice.read %}Leído{% else %}Sin leer{% endif %}</p></li>{% empty %}<li>No hay avisos de pedidos.</li>{% endfor %}
+</ol><nav aria-label="Páginas de avisos">{% if page.has_previous %}<a class="an-button" href="?p={{ page.previous_page_number }}">Anterior</a>{% endif %}<span>{{ page.number }} de {{ page.paginator.num_pages }}</span>{% if page.has_next %}<a class="an-button" href="?p={{ page.next_page_number }}">Siguiente</a>{% endif %}</nav></section>{% endblock %}

@@ -51,10 +51,20 @@ def _notify(order_id, event, *, event_key="", audience=None, metadata=None):
 
 
 def order_paid(order_id):
+    from apps.notifications.panel import publish
+
+    from .models import Order
+
+    publish(Order.objects.get(pk=order_id), "paid", f"order:{order_id}:paid")
     return _notify(order_id, "order_paid")
 
 
 def manual_order_created(order_id):
+    from apps.notifications.panel import publish
+
+    from .models import Order
+
+    publish(Order.objects.get(pk=order_id), "manual", f"order:{order_id}:manual")
     return _notify(order_id, "manual_payment_instructions")
 
 

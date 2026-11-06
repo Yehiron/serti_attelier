@@ -2,11 +2,13 @@ import { NextResponse, type NextRequest } from "next/server";
 
 import { localeCookie, localeFromPath, negotiateLocale } from "@/lib/i18n";
 
+import { trackingPath, trackingHttpStatus, unavailableTrackingHtml } from "@/lib/order-http";
+
 import { routeDecision } from "@/lib/routes";
 
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
-export function proxy(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const pathLocale = localeFromPath(pathname);
 
@@ -15,7 +17,27 @@ export function proxy(request: NextRequest) {
     const decision = routeDecision(pathname);
     const url = request.nextUrl.clone();
     url.pathname = decision.pathname;
-    const response = decision.kind === "redirect" ? NextResponse.redirect(url, 308)
+    let missingOrder = false;
+    const tracking = trackingPath(pathname);
+    if (tracking && decision.kind !== 'redirect') {
+      const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
+      if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
+      const ip = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
+      if (ip) headers['X-Forwarded-For'] = ip;
+      try {
+        const api = (process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '');
+        const probe = await fetch(`${api}/orders/${tracking.token}?locale=${tracking.locale}`, {
+          headers, cache: 'no-store', signal: AbortSignal.timeout(8000),
+        });
+        missingOrder = trackingHttpStatus(probe.status) === 404;
+        await probe.body?.cancel();
+      } catch { /* The page keeps the existing unavailable-service handling. */ }
+    }
+    // Finish missing/expired requests before React starts streaming. A rewrite
+    // alone can still have its status replaced by the parent Suspense shell.
+    const response = missingOrder ? new NextResponse(unavailableTrackingHtml(pathLocale), {
+      status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' },
+    }) : decision.kind === "redirect" ? NextResponse.redirect(url, 308)
       : decision.kind === "rewrite" ? NextResponse.rewrite(url) : NextResponse.next();
     if (request.cookies.get(localeCookie)?.value !== pathLocale) {
       response.cookies.set(localeCookie, pathLocale, {

@@ -7,8 +7,22 @@ from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView
 
 from apps.cms.editor import action, editor
+from apps.notifications import views as notification_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    path(
+        settings.ADMIN_URL + "notifications/unread/",
+        notification_views.unread,
+        name="admin-notifications-unread",
+    ),
+    path(
+        settings.ADMIN_URL + "notifications/read/",
+        notification_views.mark_read,
+        name="admin-notifications-read",
+    ),
+    path(
+        settings.ADMIN_URL + "notifications/", notification_views.page, name="admin-notifications"
+    ),
     path(settings.ADMIN_URL, include("apps.accounts.urls")),
     path(settings.ADMIN_URL + "editor/", admin.site.admin_view(editor), name="visual-editor"),
     path(

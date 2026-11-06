@@ -61,7 +61,7 @@
     root.getBoundingClientRect(); root.classList.add('is-open');
     body.querySelector('h2').focus();
     try {
-      const response = await fetch(endpoint, { signal: controller.signal, headers: { 'X-Order-Card': '1' } });
+      const response = await fetch(endpoint, { signal: controller.signal, headers: { 'X-Order-Card': '1', 'X-Order-Page': container.dataset.fullPage || '0' } });
       if (!response.ok || response.redirected) throw new Error('load');
       const html = await response.text();
       if (ticket !== serial) return;
@@ -120,15 +120,15 @@
     }
   });
   document.addEventListener('submit', async event => {
-    const form = event.target.closest('[data-status-form], [data-note-form], [data-incident-form], [data-communication-form]'); if (!form) return;
+    const form = event.target.closest('[data-status-form], [data-note-form], [data-incident-form], [data-communication-form], [data-piece-form]'); if (!form) return;
     event.preventDefault(); if (form.dataset.sending) return;
     form.dataset.sending = '1';
-    const data = new FormData(form), submit = form.querySelector('[type=submit]');
+    const data = new FormData(form, event.submitter), submit = form.querySelector('[type=submit]');
     const originalLabel = submit.textContent;
     submit.disabled = true; submit.textContent = 'Guardando…'; form.setAttribute('aria-busy', 'true');
     const container = form.closest('[data-card-content]');
     try {
-      const response = await fetch(form.action, { method: 'POST', body: data, headers: { 'X-Order-Card': '1' } });
+      const response = await fetch(form.action, { method: 'POST', body: data, headers: { 'X-Order-Card': '1', 'X-Order-Page': container.dataset.fullPage || '0' } });
       if (response.redirected || (!response.ok && response.status !== 422)) throw new Error('save');
       const html = await response.text();
       if (!container.isConnected) return;

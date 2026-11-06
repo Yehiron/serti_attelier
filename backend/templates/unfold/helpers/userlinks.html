@@ -1,0 +1,30 @@
+{% load i18n static unfold %}
+
+{% if not is_popup %}
+    <div class="flex flex-row gap-3 items-center ml-auto">
+        {% if environment %}
+            {% include "unfold/helpers/label.html" with text=environment.0 type=environment.1 %}
+        {% endif %}
+
+        {% action_list %}
+
+        {% if nav_global_side %}
+            {{ nav_global_side }}
+        {% endif %}
+    </div>
+{% endif %}
+{% if has_permission and perms.orders.view_order %}
+<link rel="stylesheet" href="{% static 'notifications/panel.css' %}">
+<script src="{% static 'notifications/panel.js' %}" defer></script>
+<div class="an-root" data-notifications data-unread-url="{% url 'admin-notifications-unread' %}" data-read-url="{% url 'admin-notifications-read' %}">
+  <button type="button" class="an-button" data-notice-toggle aria-expanded="false" aria-controls="admin-notice-panel" aria-label="Avisos de pedidos"><span class="material-symbols-outlined" aria-hidden="true">notifications</span><span data-notice-count aria-live="polite" aria-atomic="true">0</span></button>
+  <section id="admin-notice-panel" class="an-panel" aria-label="Avisos de pedidos" hidden>
+    <div class="an-heading"><h2>Avisos de pedidos</h2><button type="button" class="an-button" data-notice-close aria-label="Cerrar avisos"><span class="material-symbols-outlined" aria-hidden="true">close</span></button></div>
+    <form data-notice-read>{% csrf_token %}<button type="submit" class="an-button">Marcar todo como leído</button></form>
+    <label class="an-sound"><input type="checkbox" data-notice-sound> Sonido para avisos nuevos</label>
+    <p data-notice-error role="status"></p><ol data-notice-list><li>Cargando avisos…</li></ol>
+    <a class="an-button" href="{% url 'admin-notifications' %}">Ver todos los avisos</a>
+  </section>
+  <p class="an-toast" data-notice-toast role="status" hidden></p>
+</div>
+{% endif %}

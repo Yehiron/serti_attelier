@@ -212,3 +212,69 @@ def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[st
         metrics = compute_metrics()
         cache.set(key, metrics, 60)
     return {**context, "shop_metrics": metrics}
+
+
+def collection_window(period, now=None):
+    now = (now or timezone.now()).astimezone(BOGOTA)
+    today = now.replace(hour=0, minute=0, second=0, microsecond=0)
+    start = {
+        "today": today,
+        "seven_days": today - timedelta(days=6),
+        "thirty_days": today - timedelta(days=29),
+        "month": month_start(now),
+    }
+    return start.get(period, today), now
+
+
+def order_center_metrics(period="today", now=None):
+    from django.db.models import Exists, OuterRef
+
+    from .models import OrderIncident
+
+    start, end = collection_window(period, now)
+    paid = Order.objects.filter(payment_status="approved", paid_at__gte=start, paid_at__lte=end)
+    cancelled = Q(fulfillment_status__in=["cancelled", "returned"])
+    amounts = paid.aggregate(
+        count=Count("pk"),
+        total=Sum("total_cents", default=0),
+        cancelled_count=Count("pk", filter=cancelled),
+        cancelled_total=Sum("total_cents", filter=cancelled, default=0),
+    )
+    blocking = OrderIncident.objects.filter(order_id=OuterRef("pk"), status="open", blocking=True)
+    open_incidents = OrderIncident.objects.filter(status="open")
+    incident_counts = open_incidents.aggregate(
+        count=Count("pk"), payment=Count("pk", filter=~Q(kind="other"))
+    )
+    counts = Order.objects.annotate(blocked=Exists(blocking)).aggregate(
+        prepare=Count(
+            "pk",
+            filter=Q(payment_status="approved", fulfillment_status="unfulfilled", blocked=False),
+        ),
+        manual=Count("pk", filter=Q(payment_status="awaiting_manual_payment")),
+    )
+    return [
+        {
+            "label": "Cobros aprobados",
+            "count": amounts["count"],
+            "amount": format_admin_cop(amounts["total"]),
+            "cancelled_count": amounts["cancelled_count"],
+            "cancelled_amount": format_admin_cop(amounts["cancelled_total"]),
+            "url": admin_link("orders_order", {"center": "paid", "period": period}),
+        },
+        {
+            "label": "Por preparar",
+            "count": counts["prepare"],
+            "url": admin_link("orders_order", {"center": "prepare"}),
+        },
+        {
+            "label": "Pagos manuales por confirmar",
+            "count": counts["manual"],
+            "url": admin_link("orders_order", {"payment_status__exact": "awaiting_manual_payment"}),
+        },
+        {
+            "label": "Incidencias abiertas",
+            "count": incident_counts["count"],
+            "payment_count": incident_counts["payment"],
+            "url": admin_link("orders_order", {"center": "incidents"}),
+        },
+    ]

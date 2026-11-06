@@ -137,3 +137,51 @@ def release_expired_reservations() -> int:
                 release_reservation(reservation_id, reason="reservation_expired")
                 count += 1
     return count
+
+
+@transaction.atomic
+def decide_cancelled_piece(piece_id, *, actor, order_id=None, release=False):
+    """Explicit commercial decision; never release an active reservation."""
+    from django.core.exceptions import PermissionDenied
+
+    from apps.audit.services import record
+    from apps.catalog.services import require_commercial_permission
+    from apps.orders.models import Order
+
+    if actor is None or not actor.is_authenticated:
+        raise PermissionDenied
+    require_commercial_permission(actor)
+    # Match cancellation's order -> piece lock order.
+    if order_id is not None:
+        order = Order.objects.select_for_update(of=("self",)).get(pk=order_id)
+        if (
+            order.fulfillment_status != "cancelled"
+            or not order.items.filter(piece_id=piece_id).exists()
+        ):
+            raise ValidationError("La pieza no corresponde a este pedido cancelado.")
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece_id)
+    latest = piece.status_changes.order_by("-at", "-pk").first()
+    cancelled_order = (
+        Order.objects.filter(
+            number=latest.ref, fulfillment_status="cancelled", items__piece=piece
+        ).exists()
+        if latest
+        else False
+    )
+    if (
+        piece.sale_state != "reserved"
+        or piece.reservations.filter(status="active").exists()
+        or not latest
+        or latest.from_state != "sold"
+        or latest.to_state != "reserved"
+        or not cancelled_order
+    ):
+        raise ValidationError("La pieza ya cambió o tiene una reserva activa. Recarga la página.")
+    if release:
+        _transition(piece, "available", reason="admin", ref=latest.ref, actor=actor)
+    record(
+        "inventory.cancelled_piece_released" if release else "inventory.cancelled_piece_retained",
+        obj=piece,
+        actor=actor,
+    )
+    return piece

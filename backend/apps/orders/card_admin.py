@@ -31,6 +31,10 @@ class OrderCardAdminMixin:
             .select_related("shipping_municipality__department", "coupon")
             .prefetch_related(
                 "items__piece__images",
+                "items__piece__reservations",
+                "items__piece__status_changes",
+                "payment_attempts",
+                "payment_events",
                 "notes__author",
                 "incidents__created_by",
                 "incidents__resolved_by",
@@ -79,6 +83,7 @@ class OrderCardAdminMixin:
         return {
             **self.admin_site.each_context(request),
             "title": f"Pedido {order.number}",
+            "full_page": request.headers.get("X-Order-Page") == "1",
             "opts": self.model._meta,
             "original": order,
             "is_fullwidth": "1",
@@ -91,6 +96,9 @@ class OrderCardAdminMixin:
             else "",
             "order": order,
             "incidents": incidents,
+            "open_incidents": [
+                row["incident"] for row in incidents if row["incident"].status == "open"
+            ],
             "can_open_incident": request.user.has_perm("orders.add_orderincident"),
             "incident_url": reverse("admin:orders-card-incident", args=[order.pk]),
             "date": format_bogota_datetime(order.created_at, "es"),
@@ -117,6 +125,10 @@ class OrderCardAdminMixin:
             ],
             "pieces": [
                 {
+                    "id": item.piece_id,
+                    "held": order.fulfillment_status == "cancelled"
+                    and item.piece.sale_state == "reserved"
+                    and not any(r.status == "active" for r in item.piece.reservations.all()),
                     "name": item.name_es,
                     "sku": item.sku,
                     "url": reverse("admin:catalog_piece_change", args=[item.piece_id]),
@@ -134,6 +146,11 @@ class OrderCardAdminMixin:
             ],
             "total": self.total_cop(order),
             "history": history,
+            "payments": self.payment_rows(order),
+            "payment_events": self.payment_event_rows(order),
+            "can_release_piece": request.user.has_perm("catalog.publish_piece")
+            and request.user.has_perm("catalog.change_piece"),
+            "piece_decision_url": reverse("admin:orders-card-piece", args=[order.pk]),
             "communications": communication_rows(
                 order, can_manage=request.user.has_perm("notifications.resend_notificationdelivery")
             ),
@@ -141,6 +158,107 @@ class OrderCardAdminMixin:
             "form": CardFulfillmentForm(order=order, can_cancel=can_cancel),
             **extra,
         }
+
+    @staticmethod
+    def payment_rows(order):
+        states = {
+            "PENDING": "Pendiente",
+            "APPROVED": "Aprobado",
+            "DECLINED": "Rechazado",
+            "ERROR": "Error",
+            "VOIDED": "Anulado",
+        }
+        methods = {
+            "CARD": "Tarjeta",
+            "PSE": "PSE",
+            "NEQUI": "Nequi",
+            "BANCOLOMBIA_TRANSFER": "Transferencia Bancolombia",
+            "BANCOLOMBIA_COLLECT": "Bancolombia",
+            "DAVIPLATA": "Daviplata",
+        }
+        return [
+            {
+                "reference": a.reference,
+                "method": "Manual"
+                if a.channel == "manual"
+                else methods.get(a.payment_method_type, "Wompi"),
+                "status": states.get(a.status, "En revisión"),
+                "amount": format_admin_cop(a.amount_cents),
+                "created": format_bogota_datetime(a.created_at, "es"),
+                "updated": format_bogota_datetime(a.updated_at, "es"),
+            }
+            for a in order.payment_attempts.all()
+        ]
+
+    @staticmethod
+    def payment_event_rows(order):
+        outcomes = {
+            "applied": "Aplicado",
+            "duplicate": "Ya recibido",
+            "rejected_checksum": "Firma rechazada",
+            "mismatch": "Datos no coinciden",
+            "unknown_reference": "Referencia desconocida",
+            "ignored_event": "Recibido sin aplicar",
+        }
+        states = {
+            "PENDING": "Pendiente",
+            "APPROVED": "Aprobado",
+            "DECLINED": "Rechazado",
+            "ERROR": "Error",
+            "VOIDED": "Anulado",
+        }
+        return [
+            {
+                "date": format_bogota_datetime(e.received_at, "es"),
+                "result": outcomes.get(e.outcome, "En revisión"),
+                "status": states.get(e.status, "En revisión"),
+            }
+            for e in order.payment_events.all()
+        ]
+
+    def card_piece_decision(self, request, pk):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        from django.shortcuts import get_object_or_404
+
+        from apps.inventory.services import decide_cancelled_piece
+
+        order = self.card_order(request, pk)
+        if not self.has_change_permission(request, order):
+            raise PermissionDenied
+        error = ""
+        try:
+            if request.POST.get("confirm") != "yes":
+                raise ValidationError("Confirma qué deseas hacer con la pieza.")
+            action = request.POST.get("decision")
+            if action not in {"release", "retain"}:
+                raise ValidationError("Selecciona una decisión válida.")
+            piece_id = request.POST.get("piece_id", "")
+            if not piece_id.isdecimal() or len(piece_id) > 18:
+                raise Http404
+            item = get_object_or_404(order.items, piece_id=piece_id)
+            decide_cancelled_piece(
+                item.piece_id, actor=request.user, order_id=order.pk, release=action == "release"
+            )
+        except ValidationError as exc:
+            error = " ".join(exc.messages)
+        response = TemplateResponse(
+            request,
+            "admin/orders/card.html"
+            if request.headers.get("X-Order-Card")
+            else "admin/orders/card_page.html",
+            self.card_context(
+                request,
+                self.card_order(request, pk),
+                incident_error=error,
+                success="" if error else "Decisión guardada.",
+                full_page=not request.headers.get("X-Order-Card"),
+            ),
+            status=422 if error else 200,
+        )
+        if not error:
+            response["X-Order-Updated"] = "1"
+        return response
 
     @staticmethod
     def card_piece_image(item):
@@ -155,7 +273,7 @@ class OrderCardAdminMixin:
             return TemplateResponse(
                 request,
                 "admin/orders/card_page.html",
-                self.card_context(request, order, **(extra_context or {})),
+                self.card_context(request, order, full_page=True, **(extra_context or {})),
             )
         return super().change_view(request, object_id, form_url, extra_context)
 
@@ -196,7 +314,7 @@ class OrderCardAdminMixin:
             template = "admin/orders/card_print.html"
         elif request.GET.get("full") == "1":
             template = "admin/orders/card_page.html"
-        context = self.card_context(request, order)
+        context = self.card_context(request, order, full_page=request.GET.get("full") == "1")
         if request.GET.get("print") == "1":
             context.update(print_mode=True, can_transition=False, can_add_note=False)
         return TemplateResponse(request, template, context)
@@ -408,11 +526,10 @@ class OrderCardAdminMixin:
             count_request.GET = clean_request.GET.copy()
             for key in (
                 "p",
+                "center",
                 "fulfillment_status",
                 "fulfillment_status__exact",
                 "fulfillment_status__in",
-                "payment_status",
-                "payment_status__exact",
             ):
                 count_request.GET.pop(key, None)
             base = self.get_changelist_instance(count_request).queryset
@@ -433,27 +550,54 @@ class OrderCardAdminMixin:
             tabs = []
             for label, filters in specs:
                 query = count_request.GET.copy()
-                query.update(filters)
+                query.update(
+                    {
+                        key: value
+                        for key, value in filters.items()
+                        if not key.startswith("payment_status")
+                    }
+                )
+                if label == "Por preparar":
+                    query["center"] = "prepare"
                 lookup = {
                     key: value.split(",") if key.endswith("__in") else value
                     for key, value in filters.items()
                 }
                 active = all(clean_request.GET.get(key) == value for key, value in filters.items())
+                if label == "Por preparar" and clean_request.GET.get("center") == "prepare":
+                    active = True
                 if not filters:
-                    active = not any(
+                    active = clean_request.GET.get("center") != "prepare" and not any(
                         key.startswith("fulfillment_status") for key in clean_request.GET
+                    )
+                tab_base = base
+                if label == "Por preparar":
+                    from django.db.models import Exists, OuterRef
+
+                    from .models import OrderIncident
+
+                    tab_base = tab_base.filter(
+                        ~Exists(
+                            OrderIncident.objects.filter(
+                                order_id=OuterRef("pk"), status="open", blocking=True
+                            )
+                        )
                     )
                 tabs.append(
                     {
                         "label": label,
                         "url": "?" + query.urlencode(),
-                        "count": base.filter(**lookup).count(),
+                        "count": tab_base.filter(**lookup).count(),
                         "active": active,
                     }
                 )
             cl = response.context_data["cl"]
             page = cl.page_num
+            from .metrics import order_center_metrics
+
             response.context_data.update(
+                center_metrics=order_center_metrics(request.GET.get("period", "today")),
+                center_period=request.GET.get("period", "today"),
                 order_tabs=tabs,
                 page_number=page,
                 page_total=cl.paginator.num_pages,

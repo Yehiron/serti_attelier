@@ -65,7 +65,18 @@ NAVIGATION: list[dict[str, Any]] = [
             }
         ]
     },
-    {"title": _("Pedidos"), "items": [item("Pedidos", "shopping_bag", "orders.order")]},
+    {
+        "title": _("Pedidos"),
+        "items": [
+            item("Pedidos", "shopping_bag", "orders.order"),
+            {
+                "title": _("Avisos de pedidos"),
+                "icon": "notifications",
+                "link": reverse_lazy("admin-notifications"),
+                "permission": permission("orders.view_order"),
+            },
+        ],
+    },
     {
         "title": _("Catálogo"),
         "items": [

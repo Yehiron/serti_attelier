@@ -1,14 +1,19 @@
-<article class="order-card" data-card-content data-order-number="{{ order.number }}" data-status="{{ order.get_fulfillment_status_display }}" data-card-url="{{ card_url }}">
+<article class="order-card" data-card-content data-full-page="{% if full_page %}1{% else %}0{% endif %}" data-order-number="{{ order.number }}" data-status="{{ order.get_fulfillment_status_display }}" data-card-url="{{ card_url }}">
   <header class="oc-header">
     <p class="oc-eyebrow">SERTI · PEDIDO</p>
     <h2 id="order-card-title" tabindex="-1">{{ order.number }}</h2>
     <p class="oc-muted">{{ date }}</p>
     <div class="oc-badges"><span>{{ order.get_payment_status_display }}</span><span>{{ order.get_fulfillment_status_display }}</span></div>
-    {% if order.needs_attention %}<p class="oc-notice">Requiere atención: revisa el pago y la disponibilidad.</p>{% endif %}
+    {% for incident in open_incidents %}<p class="oc-notice">{{ incident.get_kind_display }} · {% if incident.blocking %}bloquea preparación{% else %}no bloquea preparación{% endif %}</p>{% endfor %}
   </header>
   {% if success %}<p class="oc-notice" role="status" data-update-success>{{ success }}</p>{% endif %}
 
   <div class="oc-columns"><div class="oc-main">
+  <section><h3>Resumen</h3><dl class="oc-totals">
+    {% for label, amount in totals %}<div><dt>{{ label }}</dt><dd>{{ amount }}</dd></div>{% endfor %}
+    {% if order.coupon %}<div><dt>Cupón</dt><dd>{{ order.coupon.code }}</dd></div>{% endif %}
+    <div class="oc-total"><dt>TOTAL · COP</dt><dd>{{ total }}</dd></div>
+  </dl></section>
   <section><h3>Cliente</h3><p><strong>{{ order.customer_name }}</strong></p>
     <p><a href="mailto:{{ order.customer_email }}">{{ order.customer_email|default:"Sin correo" }}</a></p>
     <p><a href="tel:{{ order.customer_phone }}">{{ order.customer_phone }}</a></p><p class="oc-muted">{{ language }}</p>
@@ -23,24 +28,52 @@
   <section><h3>Piezas</h3><ul class="oc-pieces">
     {% for piece in pieces %}<li>
       {% if piece.image %}<img src="{{ piece.image }}" width="64" height="72" alt="{{ piece.name }}">{% endif %}
-      <div><strong><a href="{{ piece.url }}">{{ piece.name }}</a></strong><p class="oc-muted">Referencia {{ piece.sku }}</p><p>{{ piece.price }}</p><p class="oc-muted">Descuento: {{ piece.discount }}</p></div>
+      <div><strong><a href="{{ piece.url }}">{{ piece.name }}</a></strong><p class="oc-muted">Referencia {{ piece.sku }}</p><p>{{ piece.price }}</p><p class="oc-muted">Descuento: {{ piece.discount }}</p>
+      {% if piece.held %}<p class="oc-notice">Pieza retenida por cancelación</p>
+      {% if can_release_piece and not print_mode %}<form action="{{ piece_decision_url }}" method="post" data-piece-form class="oc-confirm">
+        {% csrf_token %}<input type="hidden" name="piece_id" value="{{ piece.id }}">
+        <label class="oc-checkbox"><input type="checkbox" name="confirm" value="yes" required> Confirmo mi decisión sobre esta pieza</label>
+        <button type="submit" name="decision" value="release" class="oc-button">Volver a poner a la venta</button>
+        <button type="submit" name="decision" value="retain" class="oc-button">Mantener retenida</button>
+      </form>{% endif %}{% endif %}</div>
     </li>{% empty %}<li>No hay piezas registradas.</li>{% endfor %}
   </ul></section>
-  <section><h3>Resumen del pedido</h3><dl class="oc-totals">
-    {% for label, amount in totals %}<div><dt>{{ label }}</dt><dd>{{ amount }}</dd></div>{% endfor %}
-    {% if order.coupon %}<div><dt>Cupón</dt><dd>{{ order.coupon.code }}</dd></div>{% endif %}
-    <div class="oc-total"><dt>TOTAL · COP</dt><dd>{{ total }}</dd></div>
-  </dl></section>
+  <section><h3>Pagos</h3><p>{{ order.get_payment_channel_display }} · {{ order.get_payment_status_display }}</p>
+    <h4>Intentos de pago</h4><ol class="oc-timeline">
+    {% for payment in payments %}<li><p><strong>{{ payment.reference }}</strong> · {{ payment.method }} · {{ payment.status }} · {{ payment.amount }}</p><p class="oc-muted">Creado: {{ payment.created }} · Actualizado: {{ payment.updated }}</p></li>{% empty %}<li>Sin intentos registrados.</li>{% endfor %}</ol>
+    <h4>Eventos recibidos de Wompi</h4><ol class="oc-timeline">{% for event in payment_events %}<li>{{ event.date }} · {{ event.status }} · {{ event.result }}</li>{% empty %}<li>Sin eventos recibidos.</li>{% endfor %}</ol>
+  </section>
+
   </div><div class="oc-side">
   {% if not print_mode %}<nav class="oc-actions oc-no-print" aria-label="Acciones del pedido">
     {% if can_transition and states %}<a class="oc-button" href="#order-state">Cambiar estado</a>{% endif %}
-    <a class="oc-button" href="{{ card_url }}?print=1" target="_blank" rel="noopener">Descargar PDF</a>
-    <a class="oc-button" href="{{ change_url }}">Abrir en página completa</a>
+    <a class="oc-button" href="{{ card_url }}?print=1" target="_blank" rel="noopener">Imprimir / guardar PDF</a>
+    {% if not full_page %}<a class="oc-button" href="{{ change_url }}">Abrir en página completa</a>{% endif %}
     {% if manual_url %}<a class="oc-button" href="{{ manual_url }}">Confirmar pago manual</a>{% endif %}
     <a class="oc-button" href="{{ whatsapp_url }}" target="_blank" rel="noopener">WhatsApp</a>
     {% if certificate_url %}<a class="oc-button" href="{{ certificate_url }}" target="_blank" rel="noopener">Imprimir certificado</a>{% endif %}
   </nav>{% endif %}
-  <section><h3>Pago</h3><p>{{ order.get_payment_channel_display }} · {{ order.get_payment_status_display }}</p>{% if certificate_url %}<p><a href="{{ certificate_url }}">Abrir certificado para imprimir</a></p>{% endif %}</section>
+
+  <section><h3>Incidencias</h3>
+    {% if incident_error %}<p class="oc-notice" role="alert">{{ incident_error }}</p>{% endif %}
+    {% for row in incidents %}{% with incident=row.incident %}
+      <p><strong>{{ incident.get_kind_display }}</strong> · {{ incident.get_status_display }}{% if incident.blocking and incident.status == 'open' %} · Bloquea preparación y envío{% endif %}</p>
+      <p class="oc-muted">{{ incident.created_at }} · {{ incident.created_by|default:"Sistema" }}</p><p class="oc-preserve">{{ incident.detail }}</p>
+      {% if incident.resolved_at %}<p>{{ incident.resolved_at }} · {{ incident.resolved_by }}</p><p class="oc-preserve">{{ incident.resolution_note }}</p>{% endif %}
+      {% if row.can_resolve and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
+        {% csrf_token %}<input type="hidden" name="incident_id" value="{{ incident.pk }}">
+        <label>Nota de resolución (sin datos de tarjeta)<textarea name="note" required minlength="5" maxlength="2000" rows="3"></textarea></label>
+        <label class="oc-checkbox"><input type="checkbox" name="notify"> Avisar a SERTI</label>
+        <label class="oc-checkbox"><input type="checkbox" name="confirm" value="yes" required> Confirmo que la incidencia quedó resuelta</label>
+        <button type="submit" class="oc-button">Resolver</button>
+      </form>{% endif %}
+    {% endwith %}{% empty %}<p class="oc-muted">Sin incidencias.</p>{% endfor %}
+    {% if can_open_incident and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
+      {% csrf_token %}<label>Detalle de la incidencia (sin datos de tarjeta)<textarea name="detail" required minlength="5" maxlength="2000" rows="3"></textarea></label>
+      <label class="oc-checkbox"><input type="checkbox" name="blocking" checked> Bloquea la preparación y el envío</label>
+      <button type="submit" class="oc-button">Abrir incidencia</button>
+    </form>{% endif %}
+  </section>
   {% if can_transition %}<section id="order-state" class="oc-no-print"><h3>Estado del pedido</h3>
     <p>Estado actual: <strong>{{ order.get_fulfillment_status_display }}</strong></p>
     <div data-state-choices {% if confirming %}hidden{% endif %} class="oc-actions">
@@ -67,26 +100,6 @@
     </form>
     <noscript><p>Selecciona el nuevo estado y confirma el cambio.</p><style>[data-status-form][hidden]{display:block!important}[data-state-choices]{display:none}</style></noscript>
   </section>{% endif %}
-  <section><h3>Incidencias</h3>
-    {% if incident_error %}<p class="oc-notice" role="alert">{{ incident_error }}</p>{% endif %}
-    {% for row in incidents %}{% with incident=row.incident %}
-      <p><strong>{{ incident.get_kind_display }}</strong> · {{ incident.get_status_display }}{% if incident.blocking and incident.status == 'open' %} · Bloquea preparación y envío{% endif %}</p>
-      <p class="oc-muted">{{ incident.created_at }} · {{ incident.created_by|default:"Sistema" }}</p><p class="oc-preserve">{{ incident.detail }}</p>
-      {% if incident.resolved_at %}<p>{{ incident.resolved_at }} · {{ incident.resolved_by }}</p><p class="oc-preserve">{{ incident.resolution_note }}</p>{% endif %}
-      {% if row.can_resolve and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
-        {% csrf_token %}<input type="hidden" name="incident_id" value="{{ incident.pk }}">
-        <label>Nota de resolución (sin datos de tarjeta)<textarea name="note" required minlength="5" maxlength="2000" rows="3"></textarea></label>
-        <label class="oc-checkbox"><input type="checkbox" name="notify"> Avisar a SERTI</label>
-        <label class="oc-checkbox"><input type="checkbox" name="confirm" value="yes" required> Confirmo que la incidencia quedó resuelta</label>
-        <button type="submit" class="oc-button">Resolver</button>
-      </form>{% endif %}
-    {% endwith %}{% empty %}<p class="oc-muted">Sin incidencias.</p>{% endfor %}
-    {% if can_open_incident and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
-      {% csrf_token %}<label>Detalle de la incidencia (sin datos de tarjeta)<textarea name="detail" required minlength="5" maxlength="2000" rows="3"></textarea></label>
-      <label class="oc-checkbox"><input type="checkbox" name="blocking" checked> Bloquea la preparación y el envío</label>
-      <button type="submit" class="oc-button">Abrir incidencia</button>
-    </form>{% endif %}
-  </section>
   <section><h3>Comunicaciones</h3>
     {% if communication_error %}<p class="oc-notice" role="alert">{{ communication_error }}</p>{% endif %}
     <ol class="oc-timeline">

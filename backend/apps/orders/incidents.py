@@ -22,6 +22,14 @@ def open_incident(order, kind, *, detail="", actor=None, blocking=True, notify=T
     )
     Order.objects.filter(pk=order.pk).update(needs_attention=True)
     if created:
+        from apps.notifications.panel import publish
+
+        publish(
+            order,
+            "incident",
+            f"incident:{incident.pk}",
+            payment_only=kind != OrderIncident.Kind.OTHER,
+        )
         record("orders.incident_opened", obj=incident, actor=actor)
         if notify:
             from .events import _notify

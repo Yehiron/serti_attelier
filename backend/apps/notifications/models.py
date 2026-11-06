@@ -91,3 +91,50 @@ class NotificationDelivery(models.Model):
 
     def __str__(self) -> str:
         return f"{self.pk}: {self.event} / {self.channel} / {self.status}"
+
+
+class AdminNotification(models.Model):
+    class Kind(models.TextChoices):
+        PAID = "paid", _("Nuevo pedido pagado")
+        MANUAL = "manual", _("Pago manual recibido")
+        INCIDENT = "incident", _("Incidencia abierta")
+        EXHAUSTED = "exhausted", _("Aviso fallido: intentos agotados")
+
+    kind = models.CharField(_("Tipo de aviso"), max_length=12, choices=Kind)
+    order = models.ForeignKey("orders.Order", verbose_name=_("Pedido"), on_delete=models.PROTECT)
+    event_key = models.CharField(_("Identificador del evento"), max_length=150, unique=True)
+    message = models.CharField(_("Mensaje"), max_length=200)
+    payment_only = models.BooleanField(_("Solo responsables de pago"), default=False)
+    created_at = models.DateTimeField(_("Creado el"), auto_now_add=True)
+
+    class Meta:
+        ordering = ["-pk"]
+        verbose_name = _("aviso del panel")
+        verbose_name_plural = _("avisos del panel")
+
+    def __str__(self):
+        return f"{self.pk}: {self.message}"
+
+
+class AdminNotificationReceipt(models.Model):
+    notification = models.ForeignKey(
+        AdminNotification,
+        verbose_name=_("Aviso"),
+        on_delete=models.CASCADE,
+        related_name="receipts",
+    )
+    user = models.ForeignKey("accounts.User", verbose_name=_("Usuario"), on_delete=models.CASCADE)
+    read_at = models.DateTimeField(_("Leído el"), null=True, blank=True)
+
+    class Meta:
+        verbose_name = _("lectura de aviso")
+        verbose_name_plural = _("lecturas de avisos")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "notification"], name="admin_notice_user_unique"
+            )
+        ]
+        indexes = [models.Index(fields=["user", "read_at", "notification"])]
+
+    def __str__(self):
+        return f"{self.user_id}: {self.notification_id}"

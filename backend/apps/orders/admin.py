@@ -23,7 +23,7 @@ from apps.core.formatting import format_admin_cop, format_bogota_date
 
 from .card_admin import OrderCardAdminMixin
 from .exports import export_orders
-from .filters import OrderDateFilter, OrderTotalFilter
+from .filters import CenterFilter, OrderDateFilter, OrderTotalFilter, PeriodFilter
 from .forms import FulfillmentForm
 from .models import Order, OrderItem, OrderNote, OrderStatusChange
 from .services import add_order_note, transition_status
@@ -199,7 +199,7 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
         "order_date",
         "client_name",
         "total_cop",
-        "payment_badge",
+        "payment_summary",
         "fulfillment_badge",
         "certificate_requested",
         "attention_badge",
@@ -212,6 +212,8 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
     ordering = ("-created_at", "-pk")
     search_help_text = "Buscar por número, cliente, correo, teléfono o referencia"
     list_filter = (
+        CenterFilter,
+        PeriodFilter,
         ("fulfillment_status", ChoicesDropdownFilter),
         ("payment_status", ChoicesDropdownFilter),
         ("created_at", OrderDateFilter),
@@ -220,7 +222,15 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
         "needs_attention",
         HasCouponFilter,
     )
-    search_fields = ("number", "customer_name", "customer_email", "customer_phone", "items__sku")
+    search_fields = (
+        "number",
+        "customer_name",
+        "customer_email",
+        "customer_phone",
+        "items__sku",
+        "payment_attempts__reference",
+        "payment_attempts__provider_transaction_id",
+    )
     date_hierarchy = "created_at"
     inlines = (ItemInline, NoteInline, HistoryInline)
     actions = ("fulfillment", "export_csv", "confirm_manual", "print_certificate")
@@ -404,7 +414,10 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
 
     @admin.display(description=_("Pago"))
     def payment_summary(self, obj: Order) -> str:
-        return cast(str, display_for_label(self.payment_badge(obj), "—", self.payment_badge.label))
+        badge = display_for_label(self.payment_badge(obj), "—", self.payment_badge.label)
+        if obj.payment_status == "pending" and obj.last_attempt_status == "DECLINED":
+            return format_html("{}<br><small>Último intento: rechazado</small>", badge)
+        return cast(str, badge)
 
     @admin.display(description=_("Estado"))
     def fulfillment_summary(self, obj: Order) -> str:
@@ -493,22 +506,6 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
             else self.inlines
         )
 
-    def change_view(
-        self,
-        request: HttpRequest,
-        object_id: str,
-        form_url: str = "",
-        extra_context: dict[str, Any] | None = None,
-    ) -> HttpResponse:
-        order = Order.objects.filter(pk=object_id).first()
-        if order and order.needs_attention:
-            self.message_user(
-                request,
-                _("Este pedido requiere atención: revisa el pago y la disponibilidad."),
-                messages.WARNING,
-            )
-        return cast(HttpResponse, super().change_view(request, object_id, form_url, extra_context))
-
     @admin.display(description="Pedido")
     def view_order(self, obj):
         return format_html(
@@ -521,6 +518,11 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
 
     def get_urls(self) -> list[Any]:
         return [
+            path(
+                "<int:pk>/card/piece/",
+                self.admin_site.admin_view(self.card_piece_decision),
+                name="orders-card-piece",
+            ),
             path(
                 "<int:pk>/card/communications/",
                 self.admin_site.admin_view(self.card_communication),
@@ -686,12 +688,27 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
 
     @admin.display(description=_("Requiere atención"), ordering="needs_attention")
     def attention_badge(self, obj: Order) -> str:
-        if obj.needs_attention:
+        opened = [i for i in obj.incidents.all() if i.status == "open"]
+        if opened:
             return format_html(
-                '<span class="bg-red-100 text-red-700 rounded px-2 py-1">{}</span>',
-                _("Atención"),
+                '<span class="oc-notice" title="{}">Incidencia abierta · {}</span>',
+                " · ".join(str(i.get_kind_display()) for i in opened),
+                len(opened),
             )
         return "—"
+
+    def get_queryset(self, request):
+        from django.db.models import OuterRef, Subquery
+
+        from apps.payments.models import PaymentAttempt
+
+        latest = PaymentAttempt.objects.filter(order_id=OuterRef("pk")).order_by("-sequence")
+        return (
+            super()
+            .get_queryset(request)
+            .annotate(last_attempt_status=Subquery(latest.values("status")[:1]))
+            .prefetch_related("incidents")
+        )
 
     def save_model(self, request: HttpRequest, obj: Order, form: Any, change: bool) -> None:
         # Order fields are immutable through this form; writes use domain services.

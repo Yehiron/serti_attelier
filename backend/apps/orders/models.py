@@ -133,6 +133,7 @@ class Order(models.Model):
         ]
         indexes = [
             models.Index(fields=["payment_status", "-created_at"]),
+            models.Index(fields=["payment_status", "paid_at"], name="order_payment_paid_at_idx"),
             models.Index(fields=["fulfillment_status"]),
         ]
 
@@ -284,6 +285,11 @@ class OrderIncident(models.Model):
         verbose_name = _("incidencia del pedido")
         verbose_name_plural = _("incidencias de pedidos")
         ordering = ["created_at", "pk"]
+        indexes = [
+            models.Index(
+                fields=["kind"], condition=models.Q(status="open"), name="order_open_incident_idx"
+            )
+        ]
         constraints = [
             models.UniqueConstraint(
                 fields=["order", "kind"],

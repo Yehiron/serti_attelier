@@ -2,4 +2,4 @@
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/order-card.css' %}">{% endblock %}
 {% block extrahead %}{{ block.super }}<script src="{% static 'orders/order-card.js' %}" defer></script>{% endblock %}
 {% block content %}<nav aria-label="Migas de pan" class="oc-breadcrumbs"><a href="{% url 'admin:orders_order_changelist' %}">Pedidos</a> <span aria-hidden="true">›</span> {{ order.number }}</nav>
-<div class="oc-full-page">{% include "admin/orders/card.html" %}</div>{% endblock %}
+<div class="oc-full-page">{% include "admin/orders/card.html" with full_page=True %}</div>{% endblock %}

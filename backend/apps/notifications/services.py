@@ -169,6 +169,10 @@ def deliver(delivery_id: int) -> None:
             else None
         )
         if delivery.status == "gave_up":
+            if order is not None:
+                from .panel import publish
+
+                publish(order, "exhausted", f"delivery:{delivery.pk}:exhausted")
             logger.warning("Notification gave up delivery=%s attempts=5", delivery.pk)
         else:
             transaction.on_commit(

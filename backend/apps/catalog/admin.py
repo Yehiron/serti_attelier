@@ -447,6 +447,7 @@ class PieceAdmin(
         "detail_unhide",
         "detail_preorder_on",
         "detail_preorder_off",
+        "detail_release_cancelled",
         "detail_archive",
         "detail_duplicate",
     )
@@ -796,6 +797,9 @@ class PieceAdmin(
                 "archive": Piece.Status.ARCHIVED in services.EDITORIAL_TRANSITIONS[piece.status],
                 "preorder_on": piece.status != "archived" and piece.sale_state == "available",
                 "preorder_off": piece.status != "archived" and piece.sale_state == "preorder",
+                "release_cancelled": piece.sale_state == "reserved"
+                and not piece.reservations.filter(status="active").exists()
+                and piece.status_changes.filter(from_state="sold", to_state="reserved").exists(),
             }.get(operation, False)
         )
 
@@ -822,6 +826,7 @@ class PieceAdmin(
                         "duplicate": _("Duplicar"),
                         "preorder_on": _("Marcar preventa"),
                         "preorder_off": _("Quitar preventa"),
+                        "release_cancelled": _("Volver a poner a la venta"),
                     }[operation],
                     "consequence": {
                         "publish": "Se verá en la tienda si cumple los requisitos de publicación.",
@@ -831,6 +836,10 @@ class PieceAdmin(
                         "duplicate": "Se creará un borrador con otro SKU. Las fotos no se copian.",
                         "preorder_on": "Se ofrecerá en preventa.",
                         "preorder_off": "Dejará de ofrecerse en preventa.",
+                        "release_cancelled": (
+                            "La pieza retenida por cancelación "
+                            "volverá a estar disponible para comprar."
+                        ),
                     }[operation],
                     "back_url": reverse("admin:catalog_piece_change", args=[object_id]),
                 },
@@ -842,6 +851,10 @@ class PieceAdmin(
                 )
             elif operation == "hide":
                 services.hide_pieces(Piece.objects.filter(pk=piece.pk), request.user, request)
+            elif operation == "release_cancelled":
+                from apps.inventory.services import decide_cancelled_piece
+
+                decide_cancelled_piece(piece.pk, actor=request.user, release=True)
             elif operation.startswith("preorder_"):
                 set_preorder(piece, operation == "preorder_on", request.user)
             else:
@@ -854,6 +867,13 @@ class PieceAdmin(
         except (DomainError, ValidationError) as exc:
             self.message_user(request, str(exc), messages.ERROR)
         return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[object_id]))
+
+    def has_detail_release_cancelled_permission(self, request, object_id=None):
+        return self.detail_allowed(request, object_id, "release_cancelled")
+
+    @action(description=_("Volver a poner a la venta"), permissions=["detail_release_cancelled"])
+    def detail_release_cancelled(self, request, object_id):
+        return self.piece_detail_action(request, object_id, "release_cancelled")
 
     @action(description=_("Guardar y publicar"), permissions=["commercial"])  # type: ignore[untyped-decorator]
     def save_publish(self, request: HttpRequest, obj: Piece) -> None:

@@ -435,3 +435,15 @@ tr:has([data-order-card]) {
 
 /* Order list: the order number never breaks mid-word. */
 #result_list th.field-number, #result_list td.field-number { white-space: nowrap; }
+
+/* Order center follows the existing Unfold card surfaces. */
+.oc-metrics{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin:16px 0;font-variant-numeric:tabular-nums}
+.oc-metric{display:flex;flex-direction:column;gap:8px;min-height:100px;padding:16px;border:1px solid #e7e5e4;border-radius:8px;transition:transform 180ms ease-out,opacity 180ms ease-out;overflow-wrap:anywhere}
+.dark .oc-metric{border-color:#404040}.oc-metric:active{transform:scale(.97)}.oc-metric:focus-visible{outline:2px solid currentColor;outline-offset:3px}.oc-period{display:flex;align-items:center;gap:12px;flex-wrap:wrap}.oc-period select{min-height:44px}.oc-metric strong{font-size:1.15rem}.oc-tabs span{font-variant-numeric:tabular-nums}
+@media(max-width:1000px){.oc-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){
+.model-order #result_list{display:block;width:100%;table-layout:auto}.model-order #result_list thead{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%)}
+.model-order #result_list tbody{display:grid;gap:16px}.model-order #result_list tbody tr{display:grid;grid-template-columns:minmax(0,1fr) 44px;gap:10px;padding:16px;border:1px solid #e7e5e4;border-radius:8px}.dark.model-order #result_list tbody tr{border-color:#404040}
+.model-order #result_list td,.model-order #result_list th{display:block;padding:0;border:0;white-space:normal;overflow-wrap:anywhere;min-width:0;grid-column:1/-1}.model-order #result_list .field-number{grid-column:1;grid-row:1;font-weight:600}.model-order #result_list .action-checkbox{grid-column:2;grid-row:1;min-height:44px}.model-order #result_list .action-checkbox input{margin:10px}.model-order #result_list .field-view_order{border-top:1px solid #e7e5e4;padding-top:8px}.oc-metrics{grid-template-columns:1fr}
+}
+@media(prefers-reduced-motion:reduce){.oc-metric{transition:none}.oc-metric:active{transform:none}}
