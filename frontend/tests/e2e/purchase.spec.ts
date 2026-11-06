@@ -1,16 +1,5 @@
-import { expect, test } from '@playwright/test';
-import { buyer, createPiece, fillCheckout, localRedirect, simulateWompi, stubWompi, waitForEmails } from './support';
-
-async function addToCartAndCheckout(page: import('@playwright/test').Page, slug: string, name: string) {
-  await page.goto(`/es/piezas/${slug}`);
-  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
-  await page.getByRole('button', { name: 'Agregar al carrito' }).first().click();
-  const drawer = page.locator('dialog.cart-drawer');
-  await expect(drawer).toBeVisible();
-  await expect(drawer.getByText(name)).toBeVisible();
-  await drawer.getByRole('link', { name: /Finalizar compra/ }).click();
-  await expect(page).toHaveURL(/\/es\/checkout$/);
-}
+import { expect, test, localOnly } from './fixtures';
+import { addToCartAndCheckout, buyer, createPiece, fillCheckout, localRedirect, simulateWompi, stubWompi, waitForEmails } from './support';
 
 test('manual payment reserves the unique piece and emails the instructions', async ({ page, request }) => {
   const piece = createPiece();
@@ -24,7 +13,7 @@ test('manual payment reserves the unique piece and emails the instructions', asy
   const status = await (await request.get(`/api/v1/catalog/pieces/status?skus=${piece.sku}`)).json();
   expect(status[piece.sku]).toBe('reserved');
   const subjects = await waitForEmails(who.email, 1);
-  expect(subjects).toEqual([expect.stringMatching(/^SERTI · Instrucciones de pago SRT-/)]);
+  expect(subjects).toEqual([expect.stringMatching(/^SERTI · Pedido SRT-.* · Instrucciones de pago$/)]);
 });
 
 test('online payment: declined, retried and approved through Wompi', async ({ page, request, baseURL }) => {
@@ -56,7 +45,7 @@ test('online payment: declined, retried and approved through Wompi', async ({ pa
   const status = await (await request.get(`/api/v1/catalog/pieces/status?skus=${piece.sku}`)).json();
   expect(status[piece.sku]).toBe('sold');
   const subjects = await waitForEmails(who.email, 1);
-  expect(subjects).toEqual([expect.stringMatching(/^SERTI · Confirmación de compra SRT-/)]);
+  expect(subjects).toEqual([expect.stringMatching(/^SERTI · Pedido SRT-.* · Pago aprobado$/)]);
 
   // The sold piece stays visible and invites a custom piece (DC-09, DC-16).
   await page.goto(`/es/piezas/${piece.slug_es}`);
@@ -64,7 +53,7 @@ test('online payment: declined, retried and approved through Wompi', async ({ pa
   await expect(page.getByText(/Creemos una pieza única para ti/).first()).toBeVisible();
 });
 
-test('a piece reserved by someone else cannot be bought', async ({ page, browser }) => {
+test('a piece reserved by someone else cannot be bought', async ({ page, browser, baseURL }) => {
   const piece = createPiece();
   await addToCartAndCheckout(page, piece.slug_es, piece.name);
   await fillCheckout(page, buyer('first'), 'manual');
@@ -72,6 +61,7 @@ test('a piece reserved by someone else cannot be bought', async ({ page, browser
   await expect(page).toHaveURL(/\/es\/pedido\//);
 
   const other = await browser.newContext();
+  await localOnly(other, baseURL!);
   const second = await other.newPage();
   await second.goto(`/es/piezas/${piece.slug_es}`);
   await expect(second.getByText(/Alguien está completando la compra de esta pieza/).first()).toBeVisible();

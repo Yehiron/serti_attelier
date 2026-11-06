@@ -16,6 +16,7 @@ COUPON_EMAIL_PEPPER = "test-coupon-pepper"
 
 # Deterministic payments: tests never inherit Wompi values from a developer's .env.
 # Credenciales ficticias completas; los tests de indisponibilidad usan override_settings.
+WOMPI_ALLOW_FAKE_API = False
 WOMPI_PUBLIC_KEY = "pub_test_fake"
 WOMPI_PRIVATE_KEY = "prv_test_fake"
 WOMPI_INTEGRITY_SECRET = "test_integrity_fake"  # noqa: S105

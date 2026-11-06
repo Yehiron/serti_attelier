@@ -3,7 +3,7 @@ from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
-from apps.payments.configuration import KEY_PREFIXES, configuration_errors
+from apps.payments.configuration import KEY_PREFIXES, URLS, configuration_errors
 
 from .base import *  # noqa: F403
 from .base import LOGGING as BASE_LOGGING
@@ -31,6 +31,11 @@ X_FRAME_OPTIONS = "DENY"
 
 if not COUPON_EMAIL_PEPPER:  # noqa: F405
     raise ImproperlyConfigured("COUPON_EMAIL_PEPPER is required in production")
+
+if WOMPI_ALLOW_FAKE_API or WOMPI_API_URL not in URLS:  # noqa: F405
+    raise ImproperlyConfigured(
+        "WOMPI_ALLOW_FAKE_API y WOMPI_API_URL no permiten un fake en producción"
+    )
 
 if any(globals().get(name) for name in KEY_PREFIXES):
     _wompi_errors = configuration_errors(globals())

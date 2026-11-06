@@ -1,11 +1,11 @@
 import { execFileSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import type { Page } from '@playwright/test';
+import { expect, type Page } from '@playwright/test';
 
 const repo = resolve(__dirname, '../../..');
 const compose = ['compose', '-f', 'infra/docker-compose.dev.yml', 'exec', '-T', 'backend', 'python', 'manage.py'];
 
-function manage(...args: string[]): string {
+export function manage(...args: string[]): string {
   return execFileSync('docker', [...compose, ...args], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 }
 
@@ -18,8 +18,8 @@ export function createPiece({ hover = false } = {}): Piece {
 }
 
 /** Sign and deliver a Wompi webhook exactly like Wompi would (dev simulator). */
-export function simulateWompi(reference: string, status: 'APPROVED' | 'DECLINED'): void {
-  manage('simulate_wompi_event', '--reference', reference, '--status', status, '--url', 'http://localhost:8000/api/v1/payments/wompi/events');
+export function simulateWompi(reference: string, status: 'APPROVED' | 'DECLINED' | 'PENDING'): void {
+  manage('simulate_wompi_event', '--reference', reference, '--status', status);
 }
 
 export type Buyer = { name: string; email: string; phone: string; address: string };
@@ -79,4 +79,23 @@ export async function stubWompi(page: Page): Promise<() => URLSearchParams> {
 export function localRedirect(redirectUrl: string, baseURL: string): string {
   const target = new URL(redirectUrl);
   return new URL(target.pathname + target.search, baseURL).toString();
+}
+
+export function adminSession(): { name: string; value: string; admin_url: string } {
+  return JSON.parse(manage('e2e_admin_session').trim().split('\n').pop() ?? '{}');
+}
+
+export function advanceOrder(reference: string, target: 'preparing' | 'shipped'): void {
+  manage('e2e_order_status', '--reference', reference, '--target', target);
+}
+
+export async function addToCartAndCheckout(page: import('@playwright/test').Page, slug: string, name: string) {
+  await page.goto(`/es/piezas/${slug}`);
+  await expect(page.getByRole('heading', { level: 1, name })).toBeVisible();
+  await page.getByRole('button', { name: 'Agregar al carrito' }).first().click();
+  const drawer = page.locator('dialog.cart-drawer');
+  await expect(drawer).toBeVisible();
+  await expect(drawer.getByText(name)).toBeVisible();
+  await drawer.getByRole('link', { name: /Finalizar compra/ }).click();
+  await expect(page).toHaveURL(/\/es\/checkout$/);
 }

@@ -146,7 +146,13 @@ class WompiTransaction:
 
 class WompiClient:
     def _get(self, path: str) -> Any:
+        from .configuration import URLS
+
         if not settings.WOMPI_PRIVATE_KEY:
+            return None
+        # Webhooks/sync can query without going through checkout availability.
+        # Enforce the development exception at the transport boundary as well.
+        if settings.WOMPI_API_URL not in URLS and not is_configured():
             return None
         request = Request(  # noqa: S310
             settings.WOMPI_API_URL.rstrip("/") + path,

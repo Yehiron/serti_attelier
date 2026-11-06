@@ -433,25 +433,29 @@ def test_one_approved_constraint(order: Order) -> None:
 @override_settings(DEBUG=False)
 def test_simulator_disabled() -> None:
     with pytest.raises(CommandError, match="DEBUG"):
-        call_command(
-            "simulate_wompi_event", reference="missing", status="APPROVED", in_process=True
-        )
+        call_command("simulate_wompi_event", reference="missing", status="APPROVED")
 
 
-@override_settings(DEBUG=True, WOMPI_EVENTS_SECRET="dev")
+@override_settings(DEBUG=True, WOMPI_ALLOW_FAKE_API=True, WOMPI_API_URL="http://wompi-fake:8080/v1")
 def test_simulator(order: Order) -> None:
+    import json
+    from unittest.mock import MagicMock
+
+    response = MagicMock()
+    response.read.return_value = b'{"webhook_status": 200}'
+    response.__enter__.return_value = response
     with patch(
-        "apps.payments.wompi.WompiClient.get_transaction",
-        return_value=replace(tx_for(order), id=f"dev-{order.payment_attempts.get().reference}"),
-    ):
+        "apps.payments.management.commands.simulate_wompi_event.urlopen", return_value=response
+    ) as transport:
         call_command(
             "simulate_wompi_event",
             reference=order.payment_attempts.get().reference,
             status="APPROVED",
-            in_process=True,
         )
-    order.refresh_from_db()
-    assert order.payment_status == "approved"
+    request = transport.call_args.args[0]
+    assert request.full_url == "http://wompi-fake:8080/control"
+    assert json.loads(request.data)["transaction"]["status"] == "APPROVED"
+    assert json.loads(request.data)["emit"] is True
 
 
 def test_pending_method_and_stale_status(order: Order) -> None:

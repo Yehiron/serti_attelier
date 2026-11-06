@@ -1,5 +1,5 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { createPiece } from './support';
 
 // WCAG 2.2 AA target (docs/ux-ui-plan.md): no serious or critical axe violations.

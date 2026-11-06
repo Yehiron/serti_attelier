@@ -10,15 +10,35 @@ x-backend: &backend
     args:
       REQUIREMENTS: dev
   env_file: ../.env
+  environment:
+    WOMPI_ALLOW_FAKE_API: "true"
+    WOMPI_API_URL: http://wompi-fake:8080/v1
+    WOMPI_PUBLIC_KEY: pub_test_e2e_public
+    WOMPI_PRIVATE_KEY: prv_test_e2e_private
+    WOMPI_INTEGRITY_SECRET: test_integrity_e2e_secret
+    WOMPI_EVENTS_SECRET: test_events_e2e_secret
   volumes:
     - ../backend:/app
+    # Lets the backend test suite exercise the fake's contract (read-only).
+    - ./wompi-fake:/infra/wompi-fake:ro
   depends_on:
+    wompi-fake:
+      condition: service_started
     db:
       condition: service_healthy
     redis:
       condition: service_healthy
 
 services:
+  # No published ports; control is reachable only inside the Compose network.
+  wompi-fake:
+    image: python:3.12-alpine
+    command: python /fake/server.py
+    environment:
+      WOMPI_EVENTS_SECRET: test_events_e2e_secret
+    volumes:
+      - ./wompi-fake:/fake:ro
+
   db:
     image: postgres:16-alpine
     env_file: ../.env

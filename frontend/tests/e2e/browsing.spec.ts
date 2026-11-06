@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { createPiece } from './support';
 
 test('home in Spanish and the language switch keeps the equivalent page', async ({ page }) => {

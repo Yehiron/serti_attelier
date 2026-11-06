@@ -19,6 +19,9 @@ def test_sentry_optional_and_private(monkeypatch: pytest.MonkeyPatch) -> None:
         "WOMPI_EVENTS_SECRET",
     ):
         monkeypatch.setattr(base, name, "")
+    # The dev stack enables the local Wompi fake; production must start without it.
+    monkeypatch.setattr(base, "WOMPI_ALLOW_FAKE_API", False)
+    monkeypatch.setattr(base, "WOMPI_API_URL", "https://sandbox.wompi.co/v1")
     # base has already loaded its environment; prod reads Sentry at import time.
     with patch("sentry_sdk.init") as init:
         monkeypatch.setenv("SENTRY_DSN", "")

@@ -251,6 +251,7 @@ WOMPI_PUBLIC_KEY = env("WOMPI_PUBLIC_KEY", default="")
 WOMPI_PRIVATE_KEY = env("WOMPI_PRIVATE_KEY", default="")
 WOMPI_INTEGRITY_SECRET = env("WOMPI_INTEGRITY_SECRET", default="")
 WOMPI_EVENTS_SECRET = env("WOMPI_EVENTS_SECRET", default="")
+WOMPI_ALLOW_FAKE_API = env.bool("WOMPI_ALLOW_FAKE_API", default=False)
 WOMPI_API_URL = env("WOMPI_API_URL", default="https://sandbox.wompi.co/v1")
 WOMPI_CHECKOUT_URL = env("WOMPI_CHECKOUT_URL", default="https://checkout.wompi.co/p/")
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(

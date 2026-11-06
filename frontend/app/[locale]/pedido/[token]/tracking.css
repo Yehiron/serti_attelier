@@ -6,7 +6,9 @@
 .order-timeline li::before { content: ''; position: absolute; width: 9px; height: 9px; background: currentColor; border-radius: 50%; left: -5px; top: 7px; }
 .order-timeline [aria-current=step] > span { font-weight: 600; }
 .order-timeline [aria-current=step]::before { outline: 1px solid currentColor; outline-offset: 4px; }
-.order-timeline [data-future=true] { opacity: .5; }
+/* Upcoming steps: muted but readable (5:1 on the page background, WCAG AA). */
+.order-timeline [data-future=true] { color: #6f5354; }
+.order-timeline [data-future=true]::before { opacity: .45; }
 .order-timeline time { display: block; font-size: .8em; margin-top: 6px; }
 .order-page .text-link { display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; transition: opacity 180ms ease-out; }
 .order-page .text-link:hover { opacity: .7; }
