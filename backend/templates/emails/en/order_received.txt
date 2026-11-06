@@ -1,0 +1,4 @@
+{% extends "emails/base.txt" %}
+{% block content %}
+We received your order. Your payment is in progress. We will let you know once it is confirmed.
+{% endblock %}

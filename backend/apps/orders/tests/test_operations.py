@@ -83,8 +83,8 @@ def request_for(user: User) -> Any:
 @pytest.mark.parametrize(
     "locale,heading",
     [
-        ("es", "Tu pieza va en camino"),
-        ("en", "Your piece is on its way"),
+        ("es", "Tus piezas van en camino"),
+        ("en", "Your pieces are on their way"),
     ],
 )
 def test_shipping(
@@ -137,7 +137,7 @@ def test_shipping(
         assert heading in body and "Carrier" in body and "ABC" in body
         assert order.tracking_url in body and order.shipping_address_line in body
         assert "/pedido" in body or "/order" in body
-    assert heading in content.subject
+    assert ("Pedido enviado" if locale == "es" else "Order shipped") in content.subject
     assert enqueue(order, "order_shipped", event_key=f"status:{order.status_changes.get().pk}") == 0
     order.save()
     assert NotificationDelivery.objects.count() == 1
@@ -504,7 +504,7 @@ def test_shipped_delivery_sends_once(
     deliver(delivery.pk)
     deliver(delivery.pk)
     assert len(mail.outbox) == 1
-    assert "Tu pieza va en camino" in mail.outbox[0].subject
+    assert f"SERTI · Pedido {order.number} · Pedido enviado" == mail.outbox[0].subject
 
 
 @pytest.mark.parametrize(

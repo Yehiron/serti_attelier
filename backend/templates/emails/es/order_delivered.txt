@@ -1,5 +1,4 @@
-Tu pieza fue entregada · {{ order.number }}
-Tu pedido fue entregado. Gracias por elegir una pieza única de SERTI.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Tu pedido fue entregado. Gracias por elegir SERTI; esperamos que disfrutes tus piezas.
+{% endblock %}

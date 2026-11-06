@@ -7,7 +7,7 @@ from django.db import transaction
 logger = logging.getLogger(__name__)
 
 
-def _notify(order_id, event, *, event_key="", audience=None):
+def _notify(order_id, event, *, event_key="", audience=None, metadata=None):
     try:
         from apps.notifications.services import enqueue
 
@@ -16,7 +16,11 @@ def _notify(order_id, event, *, event_key="", audience=None):
         # Savepoint: a broken template or insert must never roll back real money.
         with transaction.atomic():
             return enqueue(
-                Order.objects.get(pk=order_id), event, event_key=event_key, audience=audience
+                Order.objects.get(pk=order_id),
+                event,
+                event_key=event_key,
+                audience=audience,
+                metadata=metadata,
             )
     except Exception as exc:
         logger.warning(

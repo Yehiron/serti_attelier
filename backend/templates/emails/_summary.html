@@ -1,0 +1,4 @@
+{% include "emails/_items.html" with piece_label=reference_label %}
+{% include "emails/_totals.html" %}
+<p style="margin:20px 0 0;font-size:14px;line-height:1.7;">{{ address_label }}: {{ address }}</p>
+<p style="margin:12px 0;font-size:14px;line-height:1.7;">{{ status_label }}: {{ purchase_status }} · {{ current_status }}</p>

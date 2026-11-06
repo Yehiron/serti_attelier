@@ -1,14 +1,7 @@
 {% extends "emails/base.html" %}
-{% block preheader %}Pay before {{ deadline }}{% endblock %}
-{% block heading %}Your piece is reserved{% endblock %}
 {% block content %}
-<p style="margin:0;font-size:15px;line-height:1.7;">We received your order. Your piece is reserved while you complete the payment:</p>
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0" style="margin:20px 0;background-color:#f2e7dd;"><tr><td style="padding:18px 20px;font-size:15px;line-height:1.7;">{{ instructions|linebreaksbr }}</td></tr></table>
-<p style="margin:16px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">Pay before</p><p style="margin:4px 0 0;font-size:15px;line-height:1.6;"><strong style="color:#651c32;">{{ deadline }}</strong></p>
-{% include "emails/_items.html" with piece_label="Piece no." %}
-{% include "emails/_totals.html" with l_subtotal="Subtotal" l_discount="Discount" l_shipping="Shipping" l_free_shipping="Free in Colombia" l_certificate="Certificate of authenticity" l_included="Included" l_total="Total due" %}
-<p style="margin:20px 0 0;font-size:14px;line-height:1.7;">SERTI will confirm your payment when it arrives and send you the purchase confirmation.</p>
-{% include "emails/_button.html" with url=order_url label="View your order" %}
-<p style="margin:24px 0 0;font-size:12px;line-height:1.6;color:#58513d;">This is a purchase confirmation, not an electronic tax document.</p>
+<p style="font-size:15px;line-height:1.7;">Your pieces are reserved while you complete payment.</p>
+<p style="font-size:15px;line-height:1.7;">{{ instructions|linebreaksbr }}</p>
+<p style="font-size:15px;line-height:1.7;">{% if deadline %}Pay before: {{ deadline }}{% endif %}</p>
+<p style="font-size:15px;line-height:1.7;">We will let you know once we confirm your payment.</p>
 {% endblock %}
-{% block footer %}{% if support_email or whatsapp_url %}<p style="margin:0 0 4px;">Questions about your order? Write to us:</p>{% endif %}{% endblock %}

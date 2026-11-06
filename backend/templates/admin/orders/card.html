@@ -59,6 +59,7 @@
         <label>Enlace de seguimiento {{ form.tracking_url }}</label>
       </div>
       <label>Nota interna (motivo obligatorio al cancelar, mínimo 5 caracteres) {{ form.note }}</label>
+      <label class="oc-checkbox">{{ form.include_reason }} <span>Incluir motivo en el correo de cancelación</span></label>
       <label class="oc-checkbox">{{ form.notify }} <span>Enviar notificación al cliente por correo ({{ order.customer_email|default:"sin correo" }})</span></label>
       {% if not order.customer_email %}<p class="oc-muted">Este pedido no tiene correo; el cambio se guardará sin notificar.</p>{% endif %}
       <p class="oc-muted" data-return-notice hidden>Las devoluciones se guardan sin enviar correo al cliente.</p>
@@ -85,6 +86,26 @@
       <label class="oc-checkbox"><input type="checkbox" name="blocking" checked> Bloquea la preparación y el envío</label>
       <button type="submit" class="oc-button">Abrir incidencia</button>
     </form>{% endif %}
+  </section>
+  <section><h3>Comunicaciones</h3>
+    {% if communication_error %}<p class="oc-notice" role="alert">{{ communication_error }}</p>{% endif %}
+    <ol class="oc-timeline">
+    {% for row in communications %}{% with delivery=row.delivery %}<li>
+      <p><strong>{{ row.event }}</strong> · {{ row.channel }}</p>
+      <p>{{ row.recipient }}</p><p>{{ row.status }} · Intentos: {{ delivery.attempts }}</p>
+      <p class="oc-muted">{{ delivery.created_at }}{% if delivery.sent_at %} · Aceptado: {{ delivery.sent_at }}{% endif %}</p>
+      {% if row.reconstructed %}<p class="oc-muted">Correo anterior sin contenido guardado: la vista previa se reconstruye con los datos actuales.</p>{% endif %}
+      {% if row.error %}<p class="oc-muted">{{ row.error }}</p>{% endif %}
+      {% if not print_mode %}
+      {% if delivery.channel == 'email' %}<a class="oc-button" href="{% url 'admin:orders-card-email' order.pk delivery.pk %}" target="_blank" rel="noopener">Ver correo</a>{% endif %}
+      {% if row.can_resend or row.can_copy %}<form action="{{ communication_url }}" method="post" data-communication-form class="oc-confirm oc-no-print">
+        {% csrf_token %}<input type="hidden" name="delivery_id" value="{{ delivery.pk }}">
+        <input type="hidden" name="action" value="{% if row.can_copy %}copy{% else %}resend{% endif %}">
+        <label class="oc-checkbox"><input type="checkbox" name="confirm" value="yes" required> Confirmo el envío de esta comunicación</label>
+        <button class="oc-button" type="submit">{% if row.can_copy %}Enviar copia al cliente{% else %}Reenviar{% endif %}</button>
+      </form>{% endif %}{% endif %}
+    </li>{% endwith %}{% empty %}<li>Sin comunicaciones registradas.</li>{% endfor %}
+    </ol>
   </section>
   <section><h3>Historial de estados</h3><ol class="oc-timeline">
     {% for change in history %}<li><p class="oc-muted">{{ change.date }}</p><p>{{ change.field }}: <strong>{{ change.previous }} → {{ change.next }}</strong> · {{ change.actor }}</p>{% if change.note %}<p class="oc-preserve">{{ change.note }}</p>{% endif %}</li>{% empty %}<li>Aún no hay cambios de estado.</li>{% endfor %}

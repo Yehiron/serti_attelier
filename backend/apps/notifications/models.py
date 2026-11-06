@@ -4,6 +4,8 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 EVENTS = (
+    "order_received",
+    "payment_issue",
     "incident_resolved",
     "order_preparing",
     "order_delivered",
@@ -14,7 +16,26 @@ EVENTS = (
     "reservation_expired",
     "needs_attention",
 )
-STATUSES = ("queued", "sent", "failed", "gave_up", "skipped")
+EVENT_LABELS = {
+    "order_received": "Pedido recibido · Pago en proceso",
+    "payment_issue": "Pago en revisión",
+    "order_paid": "Pago aprobado",
+    "order_preparing": "En preparación",
+    "order_shipped": "Pedido enviado",
+    "order_delivered": "Pedido entregado",
+    "order_cancelled": "Pedido cancelado",
+    "manual_payment_instructions": "Instrucciones de pago",
+    "reservation_expired": "Reserva vencida",
+    "needs_attention": "Incidencia abierta",
+    "incident_resolved": "Incidencia resuelta",
+}
+STATUS_LABELS = {
+    "queued": "En cola",
+    "sent": "Aceptado por el proveedor",
+    "failed": "Fallido",
+    "gave_up": "Intentos agotados",
+    "skipped": "Omitido",
+}
 
 
 class NotificationDelivery(models.Model):
@@ -26,7 +47,7 @@ class NotificationDelivery(models.Model):
         related_name="deliveries",
     )
     event = models.CharField(
-        verbose_name=_("Evento"), max_length=30, choices=[(s, s) for s in EVENTS]
+        verbose_name=_("Evento"), max_length=30, choices=[(s, EVENT_LABELS[s]) for s in EVENTS]
     )
     channel = models.CharField(
         verbose_name=_("Canal"),
@@ -42,7 +63,10 @@ class NotificationDelivery(models.Model):
     locale = models.CharField(verbose_name=_("Idioma"), max_length=2, default="es")
     recipient_hash = models.CharField(verbose_name=_("Huella del destinatario"), max_length=64)
     status = models.CharField(
-        verbose_name=_("Estado"), max_length=8, default="queued", choices=[(s, s) for s in STATUSES]
+        verbose_name=_("Estado"),
+        max_length=8,
+        default="queued",
+        choices=list(STATUS_LABELS.items()),
     )
     attempts = models.PositiveSmallIntegerField(verbose_name=_("Intentos"), default=0)
     provider_message_id = models.CharField(
@@ -52,6 +76,7 @@ class NotificationDelivery(models.Model):
     idempotency_key = models.CharField(
         verbose_name=_("Clave de idempotencia"), max_length=150, unique=True
     )
+    payload = models.JSONField(_("Contenido y datos del aviso"), default=dict, blank=True)
     created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
     sent_at = models.DateTimeField(verbose_name=_("Enviada el"), null=True, blank=True)
     next_attempt_at = models.DateTimeField(

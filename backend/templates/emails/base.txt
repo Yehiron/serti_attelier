@@ -1,0 +1,12 @@
+{% autoescape off %}SERTI · {{ order.number }}
+{{ title }}
+{% if not internal %}{% if locale == 'es' %}Hola{% else %}Hello{% endif %}, {{ order.customer_name }}.
+{% endif %}
+{% block content %}{% endblock %}
+{% include "emails/_summary.txt" %}
+{% if internal %}{{ admin_label }}: {{ admin_url }}{% else %}{{ order_label }}: {{ order_url }}{% endif %}
+
+{% if support_email %}{{ support_email }}{% endif %}{% if whatsapp_url %} · WhatsApp: {{ whatsapp_url }}{% endif %}
+{% if internal %}{% if locale == 'es' %}Comunicación operativa de SERTI. Consulta el historial del pedido en el dashboard.{% else %}SERTI operational communication. Check the order history in the dashboard.{% endif %}{% else %}{% if locale == 'es' %}Comunicación sobre tu pedido; no es un comprobante fiscal electrónico.{% else %}Order communication; this is not an electronic tax receipt.{% endif %}{% endif %}
+SERTI · Colombia
+{% endautoescape %}

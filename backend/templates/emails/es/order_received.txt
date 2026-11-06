@@ -1,0 +1,4 @@
+{% extends "emails/base.txt" %}
+{% block content %}
+Recibimos tu pedido. Tu pago está en proceso. Te avisaremos cuando tengamos la confirmación.
+{% endblock %}

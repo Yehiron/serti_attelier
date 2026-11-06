@@ -1,0 +1,9 @@
+{% for item in items %}- {{ item.name }} · {{ reference_label }} {{ item.sku }}{% if item.number %} · {{ item.number }}{% endif %}: {{ item.price }}
+{% endfor %}
+{{ l_subtotal }}: {{ subtotal }}
+{{ l_discount }}: -{{ discount }}
+{{ l_shipping }}: {{ shipping }}
+{{ l_certificate }}: {{ certificate_price }}
+{{ l_total }}: {{ total }}
+{{ address_label }}: {{ address }}
+{{ status_label }}: {{ purchase_status }} · {{ current_status }}

@@ -1,10 +1,8 @@
-Your piece is on its way · {{ order.number }}
-Carrier: {{ order.carrier }}
-{% if order.tracking_number %}Tracking: {{ order.tracking_number }}{% endif %}
-{% if order.tracking_url %}{{ order.tracking_url }}{% endif %}
-Delivery: {{ order.customer_name }}, {{ address }}
-View your order: {{ order_url }}
-Store your piece separately in a dry place and avoid contact with perfumes, creams and chemicals.
+{% extends "emails/base.txt" %}
+{% block content %}
+Your pieces are on their way.
 
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
+{% if order.carrier %}Carrier: {{ order.carrier }}{% endif %}{% if order.tracking_number %} · Tracking number: {{ order.tracking_number }}{% endif %}
+
+{% if order.tracking_url %}Track shipment: {{ order.tracking_url }}{% endif %}
+{% endblock %}

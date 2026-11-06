@@ -407,7 +407,7 @@ def validate_fulfillment(order, target):
 
 
 @transaction.atomic
-def cancel_order(order, *, actor, reason, notify, expected_status):
+def cancel_order(order, *, actor, reason, notify, expected_status, include_reason=False):
     from apps.inventory.models import PieceReservation, PieceStatusChange
     from apps.inventory.services import release_reservation
 
@@ -469,12 +469,23 @@ def cancel_order(order, *, actor, reason, notify, expected_status):
         open_incident(order, OrderIncident.Kind.REFUND_PENDING, actor=actor)
     if notify and order.customer_email.strip():
         events._notify(
-            order.pk, "order_cancelled", event_key=f"status:{change.pk}", audience="customer"
+            order.pk,
+            "order_cancelled",
+            event_key=f"status:{change.pk}",
+            audience="customer",
+            metadata={
+                "cancellation_reason": reason if include_reason else "",
+                "refund_due": bool(order.paid_at or order.payment_status == "approved"),
+            },
         )
     events._notify(order.pk, "order_cancelled", event_key=f"status:{change.pk}", audience="serti")
     record(
         "orders.cancelled",
         obj=order,
         actor=actor,
-        diff={"fulfillment_status": [previous, "cancelled"], "reason": ["", reason]},
+        diff={
+            "fulfillment_status": [previous, "cancelled"],
+            "reason": ["", reason],
+            "include_reason": [False, include_reason],
+        },
     )

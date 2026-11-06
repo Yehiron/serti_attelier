@@ -1,5 +1,4 @@
-Your piece was delivered · {{ order.number }}
-Your order was delivered. Thank you for choosing a unique SERTI piece.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Your order has been delivered. Thank you for choosing SERTI; we hope you enjoy your pieces.
+{% endblock %}

@@ -4,7 +4,7 @@ from copy import copy
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Prefetch
-from django.http import Http404, HttpResponseNotAllowed
+from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.template.response import TemplateResponse
 from django.urls import reverse
 
@@ -49,6 +49,8 @@ class OrderCardAdminMixin:
         return order
 
     def card_context(self, request, order, **extra):
+        from apps.notifications.presentation import communication_rows
+
         from .admin import certificate_available
 
         history = []
@@ -132,6 +134,10 @@ class OrderCardAdminMixin:
             ],
             "total": self.total_cop(order),
             "history": history,
+            "communications": communication_rows(
+                order, can_manage=request.user.has_perm("notifications.resend_notificationdelivery")
+            ),
+            "communication_url": reverse("admin:orders-card-communication", args=[order.pk]),
             "form": CardFulfillmentForm(order=order, can_cancel=can_cancel),
             **extra,
         }
@@ -230,6 +236,7 @@ class OrderCardAdminMixin:
                         actor=request.user,
                         reason=data["note"],
                         notify=data["notify"],
+                        include_reason=data["include_reason"],
                         expected_status=data["expected_status"],
                     )
                 else:
@@ -324,6 +331,67 @@ class OrderCardAdminMixin:
         )
         if not error:
             response["X-Order-Updated"] = "1"
+        return response
+
+    def card_communication(self, request, pk):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        from django.shortcuts import get_object_or_404
+
+        from apps.notifications.services import resend, send_copy
+
+        order = self.card_order(request, pk)
+        if not request.user.has_perm("notifications.resend_notificationdelivery"):
+            raise PermissionDenied
+        delivery_id = request.POST.get("delivery_id", "")
+        if not delivery_id.isdecimal():
+            raise Http404
+        delivery = get_object_or_404(order.deliveries, pk=delivery_id)
+        error = ""
+        try:
+            if request.POST.get("confirm") != "yes":
+                raise ValidationError("Confirma el envío de esta comunicación.")
+            if request.POST.get("action") == "copy":
+                send_copy(delivery.pk, request=request)
+            elif request.POST.get("action") == "resend":
+                if not resend(delivery.pk, request=request):
+                    raise ValidationError(
+                        "Este aviso no se puede reenviar con la configuración actual."
+                    )
+            else:
+                raise ValidationError("Selecciona una acción válida.")
+        except ValidationError as exc:
+            error = " ".join(exc.messages)
+        return TemplateResponse(
+            request,
+            "admin/orders/card.html"
+            if request.headers.get("X-Order-Card")
+            else "admin/orders/card_page.html",
+            self.card_context(
+                request,
+                self.card_order(request, pk),
+                communication_error=error,
+                success="" if error else "Comunicación en cola de envío.",
+            ),
+            status=422 if error else 200,
+        )
+
+    def card_email(self, request, pk, delivery_id):
+        if request.method != "GET":
+            return HttpResponseNotAllowed(["GET"])
+        from django.shortcuts import get_object_or_404
+
+        from apps.notifications.rendering import render_email
+
+        order = self.card_order(request, pk)
+        delivery = get_object_or_404(order.deliveries, pk=delivery_id, channel="email")
+        response = HttpResponse(render_email(delivery, order).html)
+        response["Content-Security-Policy"] = (
+            "sandbox; default-src 'none'; style-src 'unsafe-inline'; "
+            "img-src https: http:; base-uri 'none'"
+        )
+        response["Cache-Control"] = "private, no-store"
+        response["Referrer-Policy"] = "no-referrer"
         return response
 
     def changelist_view(self, request, extra_context=None):

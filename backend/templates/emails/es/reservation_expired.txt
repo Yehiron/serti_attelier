@@ -1,12 +1,6 @@
-Tu reserva venció
-{{ order.number }}
-
-La reserva de tu pedido terminó sin un pago confirmado, así que la pieza volvió a estar disponible si aún no encontró dueño.
+{% extends "emails/base.txt" %}
+{% block content %}
+Tu reserva venció sin un pago confirmado. Si necesitas ayuda, puedes escribirnos.
 
 Volver a las piezas: {{ catalog_url }}
-{% if whatsapp_url %}
-¿Te enamoraste de una pieza que ya no está? Podemos crear una pieza única para ti por WhatsApp: {{ whatsapp_url }}
-{% endif %}{% if support_email or whatsapp_url %}
-¿Preguntas? Escríbenos:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
-{% endif %}
-SERTI · Colombia
+{% endblock %}

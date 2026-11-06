@@ -1,18 +1,10 @@
-{% autoescape off %}{{ title }} · {{ order.number }}
-Fecha: {{ date }}
+{% extends "emails/base_internal.txt" %}
+{% block content %}
 Cliente: {{ order.customer_name }}
-Correo: {{ order.customer_email }}
-Teléfono: {{ order.customer_phone }}
-{% for item in items %}Pieza: {{ item.name }} · SKU {{ item.sku }}{% if item.number %} · N.º {{ item.number }}{% endif %} · {{ item.price }}
-{% endfor %}Total: {{ total }}
-Canal: {{ order.payment_channel }}
-Estado: {{ purchase_status }}
-Certificado de autenticidad solicitado: {{ certificate }} · {{ certificate_price }}
-Dirección de entrega: {{ address }}
-Notas de entrega: {{ order.shipping_notes }}
-{% if event == 'needs_attention' %}URGENTE · Motivo: {{ reason }}
-Requiere reembolso o contacto con el cliente.
-{% endif %}Administrar pedido: {{ admin_url }}
 
-SERTI{% if support_email %} · {{ support_email }}{% endif %}{% if whatsapp_url %} · WhatsApp: {{ whatsapp_url }}{% endif %}
-{% endautoescape %}
+{% if paid_date %}Pago aprobado: {{ paid_date }}{% endif %}
+
+{% if incident_label %}Tipo de incidencia: {{ incident_label }}{% endif %}
+
+Revisa el pedido en el dashboard para continuar la atención.
+{% endblock %}

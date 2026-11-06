@@ -1,5 +1,8 @@
-Your order was cancelled · {{ order.number }}
-Your order was cancelled. Please contact us with any questions about your order or payment.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Your order was cancelled. If you have any questions, we are here to help.
+
+{% if cancellation_reason %}Reason: {{ cancellation_reason }}{% endif %}
+
+{% if refund_due %}We will contact you to arrange your refund.{% endif %}
+{% endblock %}

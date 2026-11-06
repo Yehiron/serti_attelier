@@ -1,18 +1,10 @@
-{% autoescape off %}{{ title }} · {{ order.number }}
-Date: {{ date }}
+{% extends "emails/base_internal.txt" %}
+{% block content %}
 Customer: {{ order.customer_name }}
-Email: {{ order.customer_email }}
-Phone: {{ order.customer_phone }}
-{% for item in items %}Piece: {{ item.name }} · SKU {{ item.sku }}{% if item.number %} · No. {{ item.number }}{% endif %} · {{ item.price }}
-{% endfor %}Total: {{ total }}
-Channel: {{ order.payment_channel }}
-Status: {{ purchase_status }}
-Certificate of authenticity requested: {{ certificate }} · {{ certificate_price }}
-Delivery address: {{ address }}
-Delivery notes: {{ order.shipping_notes }}
-{% if event == 'needs_attention' %}URGENT · Reason: {{ reason }}
-Requires a refund or contact with the customer.
-{% endif %}Manage order: {{ admin_url }}
 
-SERTI{% if support_email %} · {{ support_email }}{% endif %}{% if whatsapp_url %} · WhatsApp: {{ whatsapp_url }}{% endif %}
-{% endautoescape %}
+{% if paid_date %}Payment approved: {{ paid_date }}{% endif %}
+
+{% if incident_label %}Incident type: {{ incident_label }}{% endif %}
+
+Review this order in the dashboard to continue assisting the customer.
+{% endblock %}

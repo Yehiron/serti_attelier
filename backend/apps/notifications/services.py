@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import transaction
 from django.db.models import Q
 from django.http import HttpRequest
@@ -22,6 +23,8 @@ from .rendering import render_email, whatsapp_parameters
 logger = logging.getLogger(__name__)
 BACKOFF_SECONDS = (60, 300, 900, 3600)
 EVENT_TARGETS = {
+    "order_received": (("email", "customer"),),
+    "payment_issue": (("email", "customer"),),
     "order_preparing": (("email", "customer"),),
     "order_delivered": (("email", "customer"),),
     "order_cancelled": (("email", "customer"), ("email", "serti")),
@@ -56,7 +59,14 @@ def dispatch(delivery_id: int, countdown: int = 0) -> None:
 
 
 @transaction.atomic
-def enqueue(order: Order, event: str, *, event_key: str = "", audience: str | None = None) -> int:
+def enqueue(
+    order: Order,
+    event: str,
+    *,
+    event_key: str = "",
+    audience: str | None = None,
+    metadata: dict | None = None,
+) -> int:
     if event not in EVENTS:
         raise ValueError("Unsupported notification event")
     count = 0
@@ -64,7 +74,7 @@ def enqueue(order: Order, event: str, *, event_key: str = "", audience: str | No
         if audience is not None and audience != target_audience:
             continue
         target = target_audience
-        locale = order.locale if target == "customer" and order.locale == "en" else "es"
+        locale = "en" if order.locale == "en" else "es"
         from django.template.loader import get_template
 
         if channel == "email":
@@ -76,6 +86,12 @@ def enqueue(order: Order, event: str, *, event_key: str = "", audience: str | No
             + (f":{event_key}" if event_key else ""),
             defaults={
                 "order": order,
+                "payload": {
+                    "metadata": metadata or {},
+                    "recipient_label": masked_recipient(
+                        recipient_for(order, channel, target), channel
+                    ),
+                },
                 "event": event,
                 "channel": channel,
                 "audience": target,
@@ -93,7 +109,9 @@ def enqueue(order: Order, event: str, *, event_key: str = "", audience: str | No
 
 @transaction.atomic
 def deliver(delivery_id: int) -> None:
-    delivery = NotificationDelivery.objects.select_for_update().filter(pk=delivery_id).first()
+    delivery = (
+        NotificationDelivery.objects.select_for_update(of=("self",)).filter(pk=delivery_id).first()
+    )
     if delivery is None or delivery.status in {"sent", "skipped", "gave_up"}:
         return
     now = timezone.now()
@@ -118,6 +136,7 @@ def deliver(delivery_id: int) -> None:
             raise adapters.ChannelSkipped("recipient_changed")
         if delivery.channel == "email":
             content = render_email(delivery, order)
+            delivery.payload["rendered"] = asdict(content)
             message_id = adapters.send_email(
                 recipient, content.subject, content.text, content.html, content.reply_to
             )
@@ -181,10 +200,16 @@ def retry_due() -> int:
 def resend(delivery_id: int, *, request: HttpRequest) -> bool:
     if not request.user.has_perm("notifications.resend_notificationdelivery"):
         raise PermissionDenied
-    delivery = NotificationDelivery.objects.select_for_update().get(pk=delivery_id)
-    if delivery.status not in {"failed", "gave_up"}:
+    delivery = NotificationDelivery.objects.select_for_update(of=("self",)).get(pk=delivery_id)
+    if not can_resend(delivery):
         return False
     previous = delivery.status
+    previous_attempts = delivery.attempts
+    if previous == "skipped":
+        # Explicit, audited reconfiguration may bind a previously missing recipient.
+        recipient = recipient_for(delivery.order, delivery.channel, delivery.audience)
+        delivery.recipient_hash = email_digest(recipient)
+        delivery.payload["recipient_label"] = masked_recipient(recipient, delivery.channel)
     delivery.status = "queued"
     delivery.attempts = 0
     delivery.last_error = ""
@@ -195,7 +220,91 @@ def resend(delivery_id: int, *, request: HttpRequest) -> bool:
         obj=delivery,
         actor=request.user,
         request=request,
-        diff={"status": [previous, "queued"]},
+        diff={
+            "status": [previous, "queued"],
+            "attempts": [previous_attempts, 0],
+            "reconfigured": [False, previous == "skipped"],
+        },
     )
     transaction.on_commit(partial(dispatch, delivery.pk))
     return True
+
+
+def masked_recipient(recipient: str, channel: str = "email") -> str:
+    if not recipient:
+        return "Sin configurar"
+    if channel != "email":
+        return "WhatsApp configurado"
+    local, separator, domain = recipient.partition("@")
+    return f"{local[:1]}***@{domain}" if separator else "Correo configurado"
+
+
+RECONFIGURABLE = {
+    "email_recipient_unconfigured",
+    "email_smtp_unconfigured",
+    "whatsapp_simulation",
+    "whatsapp_provider_unconfigured",
+    "whatsapp_unconfigured",
+    "whatsapp_configuration_invalid",
+}
+
+
+def can_resend(delivery: NotificationDelivery) -> bool:
+    if delivery.status in {"failed", "gave_up"}:
+        return True
+    if (
+        delivery.status != "skipped"
+        or delivery.last_error not in RECONFIGURABLE
+        or not delivery.order_id
+    ):
+        return False
+    if delivery.channel == "whatsapp":
+        return not adapters.whatsapp_unavailable(delivery.event)
+    return bool(recipient_for(delivery.order, delivery.channel, delivery.audience)) and not (
+        not settings.EMAIL_HOST and settings.EMAIL_BACKEND.endswith("smtp.EmailBackend")
+    )
+
+
+@transaction.atomic
+def send_copy(delivery_id: int, *, request: HttpRequest) -> NotificationDelivery:
+    if not request.user.has_perm("notifications.resend_notificationdelivery"):
+        raise PermissionDenied
+    # Serialize all copies for this order before reading the group count, including
+    # copies of copies. Lock only self: order has nullable foreign keys.
+    candidate = NotificationDelivery.objects.get(pk=delivery_id)
+    if not candidate.order_id:
+        raise ValidationError("El pedido ya no está disponible.")
+    Order.objects.select_for_update(of=("self",)).get(pk=candidate.order_id)
+    original = NotificationDelivery.objects.select_for_update(of=("self",)).get(pk=delivery_id)
+    if original.status != "sent" or original.channel != "email" or original.audience != "customer":
+        raise ValidationError(
+            "Solo se pueden copiar correos al cliente aceptados por el proveedor."
+        )
+    root_key = original.idempotency_key.split(":copy:", 1)[0]
+    count = NotificationDelivery.objects.filter(
+        idempotency_key__startswith=root_key + ":copy:"
+    ).count()
+    if count >= 3:
+        raise ValidationError("Este aviso ya tiene el máximo de 3 copias.")
+    content = render_email(original, original.order)
+    duplicate = NotificationDelivery.objects.create(
+        order=original.order,
+        event=original.event,
+        channel="email",
+        audience="customer",
+        template=original.template,
+        locale=original.locale,
+        recipient_hash=original.recipient_hash,
+        idempotency_key=f"{root_key}:copy:{count + 1}",
+        payload={**original.payload, "rendered": asdict(content)},
+        next_attempt_at=timezone.now(),
+    )
+    record(
+        "notifications.copied",
+        obj=duplicate,
+        actor=request.user,
+        request=request,
+        diff={"source_delivery": [None, original.pk]},
+    )
+    transaction.on_commit(partial(dispatch, duplicate.pk))
+    return duplicate

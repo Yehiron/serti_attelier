@@ -1,7 +1,4 @@
 {% extends "emails/base.html" %}
-{% block heading %}Estamos preparando tu pieza{% endblock %}
 {% block content %}
-<p>Tu pago está aprobado y estamos preparando tu pieza con cuidado.</p><p>{{ order.number }}</p>
-{% include "emails/_items.html" with piece_label="SKU" %}
-{% include "emails/_button.html" with url=order_url label="Ver tu pedido" %}
+<p style="font-size:15px;line-height:1.7;">Empezamos a preparar tus piezas con cuidado. Te avisaremos cuando estén en camino.</p>
 {% endblock %}

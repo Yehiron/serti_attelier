@@ -522,6 +522,16 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
     def get_urls(self) -> list[Any]:
         return [
             path(
+                "<int:pk>/card/communications/",
+                self.admin_site.admin_view(self.card_communication),
+                name="orders-card-communication",
+            ),
+            path(
+                "<int:pk>/card/emails/<int:delivery_id>/",
+                self.admin_site.admin_view(self.card_email),
+                name="orders-card-email",
+            ),
+            path(
                 "<int:pk>/card/incidents/",
                 self.admin_site.admin_view(self.card_incident),
                 name="orders-card-incident",

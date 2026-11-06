@@ -68,7 +68,7 @@ def whatsapp_template(event: str) -> str:
 
 def whatsapp_unavailable(event: str) -> str:
     if settings.WHATSAPP_PROVIDER == "log":
-        return ""
+        return "whatsapp_simulation"
     if settings.WHATSAPP_PROVIDER != "cloud":
         return "whatsapp_provider_unconfigured"
     if not all(
@@ -93,9 +93,6 @@ def send_whatsapp(event: str, parameters: list[str], delivery_id: int) -> str:
     reason = whatsapp_unavailable(event)
     if reason:
         raise ChannelSkipped(reason)
-    if settings.WHATSAPP_PROVIDER == "log":
-        logger.info("WhatsApp log delivery=%s event=%s", delivery_id, event)
-        return f"log-{delivery_id}"
     body = {
         "messaging_product": "whatsapp",
         "recipient_type": "individual",

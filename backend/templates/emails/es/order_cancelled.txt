@@ -1,5 +1,8 @@
-Tu pedido fue cancelado · {{ order.number }}
-Tu pedido fue cancelado. Si tienes preguntas sobre tu pedido o tu pago, contáctanos.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Tu pedido fue cancelado. Si tienes preguntas, estamos aquí para acompañarte.
+
+{% if cancellation_reason %}Motivo: {{ cancellation_reason }}{% endif %}
+
+{% if refund_due %}Te contactaremos para la devolución de tu dinero.{% endif %}
+{% endblock %}

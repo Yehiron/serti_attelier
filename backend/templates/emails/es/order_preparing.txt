@@ -1,5 +1,4 @@
-Estamos preparando tu pieza · {{ order.number }}
-Tu pago está aprobado y estamos preparando tu pieza con cuidado.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Empezamos a preparar tus piezas con cuidado. Te avisaremos cuando estén en camino.
+{% endblock %}

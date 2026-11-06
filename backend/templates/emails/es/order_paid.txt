@@ -1,24 +1,6 @@
-Esta pieza es solo tuya.
-{{ order.number }} · {{ date }}
+{% extends "emails/base.txt" %}
+{% block content %}
+Tu pago fue aprobado{% if paid_date %} el {{ paid_date }}{% endif %}. Gracias por elegir SERTI.
 
-Gracias por elegir SERTI. Tu pago fue aprobado y empezamos a preparar tu pieza con el cuidado que merece.
-
-{% for item in items %}- {{ item.name }}{% if item.number %} (Pieza n.º {{ item.number }}){% endif %}: {{ item.price }}
-{% endfor %}Subtotal: {{ subtotal }}
-{% if order.discount_cents %}Descuento: -{{ discount }}
-{% endif %}Envío: gratis en Colombia
-{% if order.wants_certificate %}Certificado de autenticidad: {% if order.certificate_cents %}{{ certificate_price }}{% else %}incluido{% endif %}
-{% endif %}Total pagado: {{ total }}
-
-Entrega: {{ order.customer_name }}, {{ address }}
-Estado: Pago aprobado
-
-Ver tu pedido: {{ order_url }}
-
-Cuidado de tu pieza: guárdala por separado en un lugar seco y evita perfumes, cremas y químicos.
-
-Esta es una confirmación de compra; no es un comprobante fiscal electrónico.
-{% if support_email or whatsapp_url %}
-¿Preguntas? Escríbenos:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
-{% endif %}
-SERTI · Colombia
+Te avisaremos cuando empiece la preparación de tus piezas.
+{% endblock %}

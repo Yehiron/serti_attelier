@@ -26,7 +26,16 @@ def open_incident(order, kind, *, detail="", actor=None, blocking=True, notify=T
         if notify:
             from .events import _notify
 
-            _notify(order.pk, "needs_attention", event_key=f"incident:{incident.pk}")
+            _notify(
+                order.pk,
+                "needs_attention",
+                event_key=f"incident:{incident.pk}",
+                metadata={"incident_kind": incident.kind},
+            )
+        if kind in {OrderIncident.Kind.NO_PIECE, OrderIncident.Kind.CANCELLED_PAYMENT}:
+            from .events import _notify
+
+            _notify(order.pk, "payment_issue", event_key=f"incident:{incident.pk}")
     return incident
 
 
@@ -67,5 +76,10 @@ def resolve_incident(incident, *, actor, note, notify=False):
     if notify:
         from .events import _notify
 
-        _notify(order.pk, "incident_resolved", event_key=f"incident:{incident.pk}:resolved")
+        _notify(
+            order.pk,
+            "incident_resolved",
+            event_key=f"incident:{incident.pk}:resolved",
+            metadata={"incident_kind": incident.kind},
+        )
     return incident

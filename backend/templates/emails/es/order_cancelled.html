@@ -1,7 +1,6 @@
 {% extends "emails/base.html" %}
-{% block heading %}Tu pedido fue cancelado{% endblock %}
 {% block content %}
-<p>Tu pedido fue cancelado. Si tienes preguntas sobre tu pedido o tu pago, contáctanos.</p><p>{{ order.number }}</p>
-{% include "emails/_items.html" with piece_label="SKU" %}
-{% include "emails/_button.html" with url=order_url label="Ver tu pedido" %}
+<p style="font-size:15px;line-height:1.7;">Tu pedido fue cancelado. Si tienes preguntas, estamos aquí para acompañarte.</p>
+<p style="font-size:15px;line-height:1.7;">{% if cancellation_reason %}Motivo: {{ cancellation_reason }}{% endif %}</p>
+<p style="font-size:15px;line-height:1.7;">{% if refund_due %}Te contactaremos para la devolución de tu dinero.{% endif %}</p>
 {% endblock %}

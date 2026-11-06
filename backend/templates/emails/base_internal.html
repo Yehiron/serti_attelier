@@ -1,0 +1,2 @@
+{% extends "emails/base.html" %}
+{% block eyebrow %}SERTI · {% if locale == "es" %}Equipo{% else %}Team{% endif %} · {{ order.number }}{% endblock %}

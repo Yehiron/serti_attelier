@@ -1,5 +1,4 @@
-We are preparing your piece · {{ order.number }}
-Your payment is approved and we are carefully preparing your piece.
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
-{{ order_url }}
+{% extends "emails/base.txt" %}
+{% block content %}
+We have begun preparing your pieces with care. We will let you know when they are on their way.
+{% endblock %}

@@ -29,7 +29,7 @@ from apps.core.formatting import format_bogota_datetime, format_cop
 from apps.core.routes import href
 from apps.core.selectors import get_solo
 from apps.inventory.services import release_reservation
-from apps.notifications.adapters import ChannelFailure, send_whatsapp
+from apps.notifications.adapters import ChannelFailure, ChannelSkipped, send_whatsapp
 from apps.notifications.admin import NotificationDeliveryAdmin
 from apps.notifications.models import NotificationDelivery
 from apps.notifications.rendering import order_context, render_email, whatsapp_parameters
@@ -99,6 +99,7 @@ def test_confirmation_email(order: Order, locale: str, certificate: bool) -> Non
     order.locale = locale
     order.wants_certificate = certificate
     order.payment_status = "approved"
+    order.paid_at = timezone.now() - timedelta(days=1)
     order.save()
     config = get_solo()
     config.support_email = "support@example.com"
@@ -110,9 +111,7 @@ def test_confirmation_email(order: Order, locale: str, certificate: bool) -> Non
     assert delivery.status == "sent" and delivery.sent_at
     message = cast(EmailMultiAlternatives, mail.outbox[-1])
     assert order.number and order.number in message.subject
-    assert (
-        "Confirmación de compra" if locale == "es" else "Purchase confirmation"
-    ) in message.subject
+    assert ("Pago aprobado" if locale == "es" else "Payment approved") in message.subject
     assert delivery.provider_message_id == message.extra_headers["Message-ID"]
     assert message.from_email == settings.DEFAULT_FROM_EMAIL
     assert message.reply_to == [config.support_email]
@@ -122,15 +121,13 @@ def test_confirmation_email(order: Order, locale: str, certificate: bool) -> Non
         assert format_cop(order.total_cents, locale) in body
         assert order.shipping_address_line in body
         assert settings.PUBLIC_SITE_URL + href("order", locale, order) in body
-        assert format_bogota_datetime(order.created_at, locale) in body
-        # The certificate line only appears when the customer asked for one.
+        assert format_bogota_datetime(order.paid_at, locale) in body
+        # Every total is explicit, including zero shipping and certificate amounts.
         certificate_label = (
             "Certificado de autenticidad" if locale == "es" else "Certificate of authenticity"
         )
-        assert (certificate_label in body) is certificate
-        assert ("gratis en Colombia" if locale == "es" else "free in Colombia") in body.replace(
-            "Free in", "free in"
-        ).replace("Gratis en", "gratis en")
+        assert certificate_label in body
+        assert format_cop(order.shipping_cents, locale) in body
         assert "factura" not in body.lower() and "invoice" not in body.lower()
     assert 'lang="' + locale + '"' in html and "/brand/monogram-email.png" in html
     assert "#651c32" in html and "#ead9cb" in html
@@ -147,7 +144,7 @@ def test_every_template_has_no_forbidden_terms(order: Order, locale: str) -> Non
     context = order_context(order, locale)
     context.update(title="SERTI", event="needs_attention")
     paths = list((settings.BASE_DIR / "templates" / "emails" / locale).glob("*"))
-    assert len(paths) == 16
+    assert len(paths) == 20
     for path in paths:
         body = render_to_string(f"emails/{locale}/{path.name}", context)
         assert "factura" not in body.lower() and "invoice" not in body.lower()
@@ -168,16 +165,14 @@ def test_internal_content_and_admin_link(order: Order, event_name: str) -> None:
     assert resolve(path).url_name == "orders_order_change"
     for value in [
         order.customer_name,
-        order.customer_email,
-        order.customer_phone,
         order.shipping_address_line,
         order.items.get().sku,
         settings.PUBLIC_SITE_URL + path,
     ]:
         assert value in content.text
     if event_name == "needs_attention":
-        assert "URGENTE" in content.subject
-        assert "Requiere reembolso o contacto con el cliente" in content.text
+        assert "Incidencia abierta" in content.subject
+        assert "dashboard" in content.text
     deliver(row.pk)
     assert mail.outbox[-1].to == ["orders@example.com"]
 
@@ -208,7 +203,7 @@ def test_manual_creation_and_expiry(
         assert expire_stale_orders() == 1
         assert expire_stale_orders() == 0
     assert order.deliveries.filter(event="reservation_expired").count() == 1
-    assert "Tu reserva venció" in mail.outbox[-1].subject
+    assert "Reserva vencida" in mail.outbox[-1].subject
     assert href("catalog", "es") in mail.outbox[-1].body
     assert "https://wa.me/573001112233" in mail.outbox[-1].body
 
@@ -361,7 +356,8 @@ def test_smtp_host_unconfigured(order: Order) -> None:
 @override_settings(WHATSAPP_PROVIDER="log", WHATSAPP_ORDERS_RECIPIENT="")
 def test_log_never_network(order: Order, caplog: Any) -> None:
     with patch("apps.notifications.adapters.urlopen") as network:
-        assert send_whatsapp("order_paid", whatsapp_parameters(order, "order_paid"), 1) == "log-1"
+        with pytest.raises(ChannelSkipped, match="whatsapp_simulation"):
+            send_whatsapp("order_paid", whatsapp_parameters(order, "order_paid"), 1)
         network.assert_not_called()
     assert order.customer_name not in caplog.text and order.customer_phone not in caplog.text
 

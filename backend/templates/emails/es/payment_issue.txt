@@ -1,0 +1,4 @@
+{% extends "emails/base.txt" %}
+{% block content %}
+Recibimos tu pago y lo estamos revisando; te contactaremos en menos de 1 día hábil.
+{% endblock %}

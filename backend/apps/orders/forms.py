@@ -70,6 +70,9 @@ class CardFulfillmentForm(FulfillmentForm):
     notify = forms.BooleanField(
         label="Enviar notificación al cliente por correo", required=False, initial=True
     )
+    include_reason = forms.BooleanField(
+        label="Incluir motivo en el correo de cancelación", required=False, initial=False
+    )
     expected_status = forms.CharField(max_length=12, widget=forms.HiddenInput)
 
     def __init__(self, *args, order, can_cancel=False, **kwargs):

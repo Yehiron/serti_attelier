@@ -1,19 +1,7 @@
-{% extends "emails/base.html" %}
-
+{% extends "emails/base_internal.html" %}
 {% block content %}
-{{ title }} · {{ order.number }}<br>
-Fecha: {{ date }}<br>
-Cliente: {{ order.customer_name }}<br>
-Correo: {{ order.customer_email }}<br>
-Teléfono: {{ order.customer_phone }}<br>
-{% for item in items %}Pieza: {{ item.name }} · SKU {{ item.sku }}{% if item.number %} · N.º {{ item.number }}{% endif %} · {{ item.price }}<br>
-{% endfor %}Total: {{ total }}<br>
-Canal: {{ order.payment_channel }}<br>
-Estado: {{ purchase_status }}<br>
-Certificado de autenticidad solicitado: {{ certificate }} · {{ certificate_price }}<br>
-Dirección de entrega: {{ address }}<br>
-Notas de entrega: {{ order.shipping_notes }}<br>
-{% if event == 'needs_attention' %}URGENTE · Motivo: {{ reason }}<br>
-Requiere reembolso o contacto con el cliente.<br>
-{% endif %}Administrar pedido: <a href="{{ admin_url }}" style="color:#651c32;">Administrar pedido</a>
+<p style="font-size:15px;line-height:1.7;">Cliente: {{ order.customer_name }}</p>
+<p style="font-size:15px;line-height:1.7;">{% if paid_date %}Pago aprobado: {{ paid_date }}{% endif %}</p>
+<p style="font-size:15px;line-height:1.7;">{% if incident_label %}Tipo de incidencia: {{ incident_label }}{% endif %}</p>
+<p style="font-size:15px;line-height:1.7;">Revisa el pedido en el dashboard para continuar la atención.</p>
 {% endblock %}

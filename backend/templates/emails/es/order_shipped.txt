@@ -1,10 +1,8 @@
-Tu pieza va en camino · {{ order.number }}
-Transportadora: {{ order.carrier }}
-{% if order.tracking_number %}Seguimiento: {{ order.tracking_number }}{% endif %}
-{% if order.tracking_url %}{{ order.tracking_url }}{% endif %}
-Entrega: {{ order.customer_name }}, {{ address }}
-Ver tu pedido: {{ order_url }}
-Guárdala por separado en un lugar seco y evita el contacto con perfumes, cremas y químicos.
+{% extends "emails/base.txt" %}
+{% block content %}
+Tus piezas van en camino.
 
-{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
-{% endfor %}
+{% if order.carrier %}Transportadora: {{ order.carrier }}{% endif %}{% if order.tracking_number %} · Guía: {{ order.tracking_number }}{% endif %}
+
+{% if order.tracking_url %}Rastrear envío: {{ order.tracking_url }}{% endif %}
+{% endblock %}

@@ -1,24 +1,10 @@
-Your piece is reserved
-{{ order.number }} · {{ date }}
-
-We received your order. Your piece is reserved while you complete the payment:
+{% extends "emails/base.txt" %}
+{% block content %}
+Your pieces are reserved while you complete payment.
 
 {{ instructions }}
 
-Pay before: {{ deadline }}
+{% if deadline %}Pay before: {{ deadline }}{% endif %}
 
-{% for item in items %}- {{ item.name }}{% if item.number %} (Piece no. {{ item.number }}){% endif %}: {{ item.price }}
-{% endfor %}Subtotal: {{ subtotal }}
-{% if order.discount_cents %}Discount: -{{ discount }}
-{% endif %}Shipping: free in Colombia
-{% if order.wants_certificate %}Certificate of authenticity: {% if order.certificate_cents %}{{ certificate_price }}{% else %}included{% endif %}
-{% endif %}Total due: {{ total }}
-
-SERTI will confirm your payment when it arrives and send you the purchase confirmation.
-View your order: {{ order_url }}
-
-This is a purchase confirmation, not an electronic tax document.
-{% if support_email or whatsapp_url %}
-Questions? Write to us:{% if support_email %} {{ support_email }}{% endif %}{% if whatsapp_url %} {{ whatsapp_url }}{% endif %}
-{% endif %}
-SERTI · Colombia
+We will let you know once we confirm your payment.
+{% endblock %}

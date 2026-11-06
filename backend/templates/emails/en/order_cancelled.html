@@ -1,7 +1,6 @@
 {% extends "emails/base.html" %}
-{% block heading %}Your order was cancelled{% endblock %}
 {% block content %}
-<p>Your order was cancelled. Please contact us with any questions about your order or payment.</p><p>{{ order.number }}</p>
-{% include "emails/_items.html" with piece_label="SKU" %}
-{% include "emails/_button.html" with url=order_url label="View your order" %}
+<p style="font-size:15px;line-height:1.7;">Your order was cancelled. If you have any questions, we are here to help.</p>
+<p style="font-size:15px;line-height:1.7;">{% if cancellation_reason %}Reason: {{ cancellation_reason }}{% endif %}</p>
+<p style="font-size:15px;line-height:1.7;">{% if refund_due %}We will contact you to arrange your refund.{% endif %}</p>
 {% endblock %}

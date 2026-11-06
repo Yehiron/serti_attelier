@@ -269,6 +269,13 @@ def apply_transaction(
         attempt.save(
             update_fields=["provider_transaction_id", "payment_method_type", "status", "updated_at"]
         )
+        if (
+            tx.status == "PENDING"
+            and order.payment_channel == "wompi"
+            and order.payment_status == "pending"
+            and order.fulfillment_status != "cancelled"
+        ):
+            events._notify(order.pk, "order_received")
         if tx.status == "APPROVED":
             _approve(attempt, order)
         elif tx.status == "VOIDED" and order.payment_status == "approved":
