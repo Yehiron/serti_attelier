@@ -99,8 +99,11 @@ def test_card_permissions_and_versions(order, piece, role):
         ("delivered", "returned"),
     ],
 )
-def test_card_transition(order, notify, current, target, django_capture_on_commit_callbacks):
-    browser, _ = staff(OPERACIONES)
+def test_card_transition(order, piece, notify, current, target, django_capture_on_commit_callbacks):
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
+    browser, _ = staff(PROPIETARIO if target == "cancelled" else OPERACIONES)
     order.payment_status = "approved"
     order.fulfillment_status = current
     order.save()
@@ -111,7 +114,11 @@ def test_card_transition(order, notify, current, target, django_capture_on_commi
         response = browser.post(
             reverse("admin:orders-card-status", args=[order.pk]),
             post_data(
-                order, target=target, carrier="Transportadora", notify="on" if notify else ""
+                order,
+                target=target,
+                carrier="Transportadora",
+                note="Cliente desiste",
+                notify="on" if notify else "",
             ),
             HTTP_X_ORDER_CARD="1",
         )
@@ -120,9 +127,9 @@ def test_card_transition(order, notify, current, target, django_capture_on_commi
     order.refresh_from_db()
     assert order.fulfillment_status == target
     notified = notify and target != "returned"
-    assert NotificationDelivery.objects.count() == int(notified)
+    assert NotificationDelivery.objects.filter(audience="customer").count() == int(notified)
     if notified:
-        assert NotificationDelivery.objects.get().event == f"order_{target}"
+        assert NotificationDelivery.objects.get(audience="customer").event == f"order_{target}"
     assert ("encolado" if notified else "Sin notificar") in order.status_changes.get().note
 
 
@@ -156,7 +163,10 @@ def test_card_invalid_transition(order, target, current, paid, extra):
     assert order.fulfillment_status == current
 
 
-def test_card_stale_state_and_no_email(order, django_capture_on_commit_callbacks):
+def test_card_stale_state_and_no_email(order, piece, django_capture_on_commit_callbacks):
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
     browser, _ = staff(OPERACIONES)
     order.payment_status = "approved"
     order.customer_email = ""
@@ -188,7 +198,9 @@ def test_card_permission_csrf_methods(order):
     assert page.status_code == 200
     assert (
         protected.post(
-            endpoint, post_data(order, target="cancelled"), HTTP_X_CSRFTOKEN=token
+            endpoint,
+            post_data(order, target="cancelled", note="Cliente desiste"),
+            HTTP_X_CSRFTOKEN=token,
         ).status_code
         == 200
     )
@@ -412,7 +424,7 @@ def test_card_state_select_offers_the_allowed_targets(order):
 
     order.payment_status = "approved"
     order.save(update_fields=["payment_status"])
-    html = str(CardFulfillmentForm(order=order)["target"])
+    html = str(CardFulfillmentForm(order=order, can_cancel=True)["target"])
     assert 'value="preparing"' in html
     assert 'value="cancelled"' in html
     assert 'value="shipped"' not in html

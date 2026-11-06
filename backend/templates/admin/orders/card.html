@@ -58,7 +58,7 @@
         <label>Número de guía {{ form.tracking_number }}</label>
         <label>Enlace de seguimiento {{ form.tracking_url }}</label>
       </div>
-      <label>Nota interna (opcional) {{ form.note }}</label>
+      <label>Nota interna (motivo obligatorio al cancelar, mínimo 5 caracteres) {{ form.note }}</label>
       <label class="oc-checkbox">{{ form.notify }} <span>Enviar notificación al cliente por correo ({{ order.customer_email|default:"sin correo" }})</span></label>
       {% if not order.customer_email %}<p class="oc-muted">Este pedido no tiene correo; el cambio se guardará sin notificar.</p>{% endif %}
       <p class="oc-muted" data-return-notice hidden>Las devoluciones se guardan sin enviar correo al cliente.</p>
@@ -66,6 +66,26 @@
     </form>
     <noscript><p>Selecciona el nuevo estado y confirma el cambio.</p><style>[data-status-form][hidden]{display:block!important}[data-state-choices]{display:none}</style></noscript>
   </section>{% endif %}
+  <section><h3>Incidencias</h3>
+    {% if incident_error %}<p class="oc-notice" role="alert">{{ incident_error }}</p>{% endif %}
+    {% for row in incidents %}{% with incident=row.incident %}
+      <p><strong>{{ incident.get_kind_display }}</strong> · {{ incident.get_status_display }}{% if incident.blocking and incident.status == 'open' %} · Bloquea preparación y envío{% endif %}</p>
+      <p class="oc-muted">{{ incident.created_at }} · {{ incident.created_by|default:"Sistema" }}</p><p class="oc-preserve">{{ incident.detail }}</p>
+      {% if incident.resolved_at %}<p>{{ incident.resolved_at }} · {{ incident.resolved_by }}</p><p class="oc-preserve">{{ incident.resolution_note }}</p>{% endif %}
+      {% if row.can_resolve and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
+        {% csrf_token %}<input type="hidden" name="incident_id" value="{{ incident.pk }}">
+        <label>Nota de resolución (sin datos de tarjeta)<textarea name="note" required minlength="5" maxlength="2000" rows="3"></textarea></label>
+        <label class="oc-checkbox"><input type="checkbox" name="notify"> Avisar a SERTI</label>
+        <label class="oc-checkbox"><input type="checkbox" name="confirm" value="yes" required> Confirmo que la incidencia quedó resuelta</label>
+        <button type="submit" class="oc-button">Resolver</button>
+      </form>{% endif %}
+    {% endwith %}{% empty %}<p class="oc-muted">Sin incidencias.</p>{% endfor %}
+    {% if can_open_incident and not print_mode %}<form action="{{ incident_url }}" method="post" data-incident-form class="oc-confirm oc-no-print">
+      {% csrf_token %}<label>Detalle de la incidencia (sin datos de tarjeta)<textarea name="detail" required minlength="5" maxlength="2000" rows="3"></textarea></label>
+      <label class="oc-checkbox"><input type="checkbox" name="blocking" checked> Bloquea la preparación y el envío</label>
+      <button type="submit" class="oc-button">Abrir incidencia</button>
+    </form>{% endif %}
+  </section>
   <section><h3>Historial de estados</h3><ol class="oc-timeline">
     {% for change in history %}<li><p class="oc-muted">{{ change.date }}</p><p>{{ change.field }}: <strong>{{ change.previous }} → {{ change.next }}</strong> · {{ change.actor }}</p>{% if change.note %}<p class="oc-preserve">{{ change.note }}</p>{% endif %}</li>{% empty %}<li>Aún no hay cambios de estado.</li>{% endfor %}
   </ol></section>

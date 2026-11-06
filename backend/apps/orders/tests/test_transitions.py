@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 import pytest
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.test import RequestFactory
 
 from apps.accounts.models import User
@@ -36,16 +36,36 @@ def test_every_transition(
         for target in table:
             Order.objects.filter(pk=order.pk).update(**{field: source})
             if field == "fulfillment_status":
+                order.incidents.update(status="resolved")
+                from apps.catalog.models import Piece
+                from apps.inventory.models import PieceReservation
+
+                Piece.objects.filter(pk=piece.pk).update(sale_state="sold")
+                PieceReservation.objects.filter(order=order).update(status="converted")
                 Order.objects.filter(pk=order.pk).update(
-                    payment_status="approved", carrier="Transportadora"
+                    payment_status="approved", carrier="Transportadora", shipped_at=None
                 )
             if target in table[source]:
-                transition_status(order, field, target, request=request)
+                transition_status(
+                    order,
+                    field,
+                    target,
+                    request=request,
+                    note="Cambio revisado",
+                    expected_status=source,
+                )
                 order.refresh_from_db()
                 assert getattr(order, field) == target
             else:
-                with pytest.raises(CheckoutError):
-                    transition_status(order, field, target, request=request)
+                with pytest.raises((CheckoutError, ValidationError)):
+                    transition_status(
+                        order,
+                        field,
+                        target,
+                        request=request,
+                        note="Cambio revisado",
+                        expected_status=source,
+                    )
 
 
 def test_permission_and_unpaid_preparing(client: Any, piece: Any, payload: dict[str, Any]) -> None:
@@ -58,7 +78,7 @@ def test_permission_and_unpaid_preparing(client: Any, piece: Any, payload: dict[
     request.user = User.objects.create_superuser(
         username="owner", email="owner@example.com", password="test-password"
     )
-    with pytest.raises(CheckoutError):
+    with pytest.raises(ValidationError, match="pago no está aprobado"):
         transition_status(order, "fulfillment_status", "preparing", request=request)
     for role in (OPERACIONES, PROPIETARIO):
         assert "orders.change_fulfillment" in ROLE_PERMISSIONS[role]

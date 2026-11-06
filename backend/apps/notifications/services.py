@@ -7,6 +7,7 @@ from functools import partial
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.http import HttpRequest
 from django.utils import timezone
 
@@ -23,7 +24,8 @@ BACKOFF_SECONDS = (60, 300, 900, 3600)
 EVENT_TARGETS = {
     "order_preparing": (("email", "customer"),),
     "order_delivered": (("email", "customer"),),
-    "order_cancelled": (("email", "customer"),),
+    "order_cancelled": (("email", "customer"), ("email", "serti")),
+    "incident_resolved": (("email", "serti"),),
     "order_shipped": (("email", "customer"),),
     "order_paid": (("email", "customer"), ("email", "serti"), ("whatsapp", "serti")),
     "manual_payment_instructions": (("email", "customer"), ("email", "serti")),
@@ -54,22 +56,32 @@ def dispatch(delivery_id: int, countdown: int = 0) -> None:
 
 
 @transaction.atomic
-def enqueue(order: Order, event: str) -> int:
+def enqueue(order: Order, event: str, *, event_key: str = "", audience: str | None = None) -> int:
     if event not in EVENTS:
         raise ValueError("Unsupported notification event")
     count = 0
-    for channel, audience in EVENT_TARGETS[event]:
-        locale = order.locale if audience == "customer" and order.locale == "en" else "es"
+    for channel, target_audience in EVENT_TARGETS[event]:
+        if audience is not None and audience != target_audience:
+            continue
+        target = target_audience
+        locale = order.locale if target == "customer" and order.locale == "en" else "es"
+        from django.template.loader import get_template
+
+        if channel == "email":
+            template = "internal" if target == "serti" else event
+            for suffix in (".txt", ".html"):
+                get_template(f"emails/{locale}/{template}{suffix}")
         delivery, created = NotificationDelivery.objects.get_or_create(
-            idempotency_key=f"order:{order.pk}:{event}:{channel}:{audience}",
+            idempotency_key=f"order:{order.pk}:{event}:{channel}:{target}"
+            + (f":{event_key}" if event_key else ""),
             defaults={
                 "order": order,
                 "event": event,
                 "channel": channel,
-                "audience": audience,
+                "audience": target,
                 "locale": locale,
-                "template": "internal" if audience == "serti" else event,
-                "recipient_hash": email_digest(recipient_for(order, channel, audience)),
+                "template": "internal" if target == "serti" else event,
+                "recipient_hash": email_digest(recipient_for(order, channel, target)),
                 "next_attempt_at": timezone.now(),
             },
         )
@@ -156,7 +168,8 @@ def deliver(delivery_id: int) -> None:
 def retry_due() -> int:
     ids = list(
         NotificationDelivery.objects.filter(
-            status__in=["failed", "queued"], next_attempt_at__lte=timezone.now()
+            Q(next_attempt_at__lte=timezone.now()) | Q(next_attempt_at__isnull=True),
+            status__in=["failed", "queued"],
         ).values_list("pk", flat=True)
     )
     for pk in ids:

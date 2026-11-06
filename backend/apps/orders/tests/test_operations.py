@@ -92,8 +92,12 @@ def test_shipping(
     operator: User,
     locale: str,
     heading: str,
+    piece: Piece,
     django_capture_on_commit_callbacks: Any,
 ) -> None:
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
     order.locale = locale
     order.payment_status = "approved"
     order.fulfillment_status = "preparing"
@@ -134,7 +138,7 @@ def test_shipping(
         assert order.tracking_url in body and order.shipping_address_line in body
         assert "/pedido" in body or "/order" in body
     assert heading in content.subject
-    assert enqueue(order, "order_shipped") == 0
+    assert enqueue(order, "order_shipped", event_key=f"status:{order.status_changes.get().pk}") == 0
     order.save()
     assert NotificationDelivery.objects.count() == 1
     with pytest.raises(CheckoutError):
@@ -145,7 +149,10 @@ def test_shipping(
     assert AuditLog.objects.filter(action="orders.status_changed").count() == 2
 
 
-def test_shipping_permission_optional_tracking(order: Order, operator: User) -> None:
+def test_shipping_permission_optional_tracking(order: Order, piece: Piece, operator: User) -> None:
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
     with pytest.raises(PermissionDenied):
         transition_status(order, "fulfillment_status", "shipped", carrier="Carrier")
     Order.objects.filter(pk=order.pk).update(
@@ -360,10 +367,11 @@ def test_admin_search_and_form(
             "note": "Cancelación",
         },
     )
-    assert response.status_code == 302
+    assert response.status_code == 200
+    assert "cancelled" not in dict(response.context["form"].fields["target"].choices)
     order.refresh_from_db()
-    assert order.fulfillment_status == "cancelled"
-    assert order.status_changes.get().note == "Cancelación\nCorreo al cliente encolado."
+    assert order.fulfillment_status == "unfulfilled"
+    assert not order.status_changes.exists()
     change = browser.get(reverse("admin:orders_order_change", args=[order.pk]))
     assert change.status_code == 200
 
@@ -403,9 +411,13 @@ def test_normal_index_for_content() -> None:
 
 
 def test_shipping_rollback(
-    order: Order, operator: User, django_capture_on_commit_callbacks: Any
+    order: Order, piece: Piece, operator: User, django_capture_on_commit_callbacks: Any
 ) -> None:
     from django.db import transaction
+
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
 
     Order.objects.filter(pk=order.pk).update(
         payment_status="approved", fulfillment_status="preparing"
@@ -464,11 +476,15 @@ def test_duplicate_relations_texts_and_single_admin_redirect(piece: Piece, opera
 
 
 def test_shipped_delivery_sends_once(
-    order: Order, operator: User, django_capture_on_commit_callbacks: Any
+    order: Order, piece: Piece, operator: User, django_capture_on_commit_callbacks: Any
 ) -> None:
     from django.core import mail
 
     from apps.notifications.services import deliver
+
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
 
     Order.objects.filter(pk=order.pk).update(
         payment_status="approved", fulfillment_status="preparing"
@@ -572,7 +588,10 @@ def test_spanish_admin_labels_and_login() -> None:
         assert "Claro" in html and "Oscuro" in html and "Sistema" in html
 
 
-def test_order_detail_actions(order: Order) -> None:
+def test_order_detail_actions(order: Order, piece: Piece) -> None:
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
     from apps.core.tests.test_dashboard_client import staff
 
     browser, _ = staff(OPERACIONES)
@@ -588,6 +607,7 @@ def test_order_detail_actions(order: Order) -> None:
             url,
             {
                 "apply": "1",
+                f"expected_{order.pk}": "preparing",
                 "target": "shipped",
                 "carrier": "Transportadora",
                 "tracking_number": "TRACK-123",

@@ -4,6 +4,7 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 EVENTS = (
+    "incident_resolved",
     "order_preparing",
     "order_delivered",
     "order_cancelled",

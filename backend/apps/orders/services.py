@@ -3,13 +3,12 @@ from __future__ import annotations
 import hashlib
 import json
 from datetime import timedelta
-from functools import partial
 from typing import Any, cast
 from uuid import UUID
 
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, connection, transaction
-from django.db.models import Field
+from django.db.models import Field, Q
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -243,7 +242,7 @@ def create_order(
         create_wompi_attempt(order)
     record("orders.created", obj=order, request=request, diff={"payment_channel": [None, channel]})
     if channel == "manual":
-        transaction.on_commit(lambda: events.manual_order_created(order.pk), robust=True)
+        events.manual_order_created(order.pk)
     transaction.on_commit(lambda: empty_cart(cart))
     return order, True
 
@@ -260,12 +259,26 @@ def transition_status(
     tracking_number: str = "",
     tracking_url: str = "",
     notify: bool = True,
+    expected_status: str | None = None,
 ) -> None:
-    if field == "fulfillment_status" and (
-        request is None or not request.user.has_perm("orders.change_fulfillment")
+    if (
+        field == "fulfillment_status"
+        and target != "cancelled"
+        and (request is None or not request.user.has_perm("orders.change_fulfillment"))
     ):
         raise PermissionDenied
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    if field == "fulfillment_status" and target == "cancelled":
+        cancel_order(
+            order,
+            actor=request.user if request else None,
+            reason=note,
+            notify=notify,
+            expected_status=expected_status,
+        )
+        return
+    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
+    if expected_status is not None and getattr(order, field) != expected_status:
+        raise ValidationError("El pedido cambió, recarga.")
     transitions = (
         FULFILLMENT_TRANSITIONS
         if field == "fulfillment_status"
@@ -274,12 +287,10 @@ def transition_status(
         else {}
     )
     previous = getattr(order, field, "")
-    if target not in transitions.get(previous, ()) or (
-        field == "fulfillment_status"
-        and target == "preparing"
-        and order.payment_status != "approved"
-    ):
+    if target not in transitions.get(previous, ()):
         raise CheckoutError("invalid_transition")
+    if field == "fulfillment_status" and target in {"preparing", "shipped"}:
+        validate_fulfillment(order, target)
     updates = [field, "updated_at"]
     if field == "fulfillment_status" and target == "shipped":
         order.carrier = (carrier if carrier is not None else order.carrier).strip()
@@ -307,16 +318,12 @@ def transition_status(
         else None
     )
     notified = bool(event and notify and order.customer_email.strip())
-    if notified:
-        from apps.notifications.services import enqueue
-
-        transaction.on_commit(partial(enqueue, order, event), robust=True)
     if field == "fulfillment_status":
         notification_note = (
             "Correo al cliente encolado." if notified else "Sin notificar al cliente."
         )
         note = f"{note.strip()}\n{notification_note}".strip()
-    OrderStatusChange.objects.create(
+    change = OrderStatusChange.objects.create(
         order=order,
         field=field,
         from_state=previous,
@@ -324,6 +331,8 @@ def transition_status(
         actor=request.user if request and request.user.is_authenticated else None,
         note=note,
     )
+    if notified:
+        events._notify(order.pk, event, event_key=f"status:{change.pk}")
     record(
         "orders.status_changed",
         obj=order,
@@ -340,6 +349,7 @@ def expire_stale_orders() -> int:
             payment_status__in=["pending", "awaiting_manual_payment"],
             reservations__isnull=False,
         )
+        .exclude(fulfillment_status="cancelled")
         .values_list("pk", flat=True)
         .distinct()
     ):
@@ -350,7 +360,7 @@ def expire_stale_orders() -> int:
                 and not order.reservations.filter(status__in=["active", "converted"]).exists()
             ):
                 transition_status(order, "payment_status", "expired", note="reservation_expired")
-                transaction.on_commit(partial(events.order_expired, pk), robust=True)
+                events.order_expired(pk)
                 count += 1
     return count
 
@@ -368,3 +378,103 @@ def add_order_note(order: Order, text: str, *, request: HttpRequest) -> OrderNot
     note.save()
     record("orders.note_added", actor=request.user, obj=note, request=request)
     return note
+
+
+def validate_fulfillment(order, target):
+    action = "preparar" if target == "preparing" else "enviar"
+    prefix = f"No se puede {action}: "
+    if order.payment_status != "approved":
+        reason = (
+            "el pago fue anulado"
+            if order.payment_status == "voided"
+            else "el pago no está aprobado"
+        )
+        raise ValidationError(prefix + reason + ".")
+    incident = order.incidents.filter(status="open", blocking=True).first()
+    if incident:
+        raise ValidationError(
+            prefix + f"hay una incidencia abierta ({incident.get_kind_display()})."
+        )
+    items = list(order.items.order_by("piece_id"))
+    locked = list(
+        Piece.objects.select_for_update(of=("self",))
+        .filter(pk__in=[i.piece_id for i in items])
+        .order_by("pk")
+    )
+    owned = set(order.reservations.filter(status="converted").values_list("piece_id", flat=True))
+    if not items or any(p.sale_state != "sold" or p.pk not in owned for p in locked):
+        raise ValidationError(prefix + "las piezas no están vendidas a este pedido.")
+
+
+@transaction.atomic
+def cancel_order(order, *, actor, reason, notify, expected_status):
+    from apps.inventory.models import PieceReservation, PieceStatusChange
+    from apps.inventory.services import release_reservation
+
+    from .incidents import open_incident
+    from .models import OrderIncident
+
+    if actor is None or not actor.has_perm("orders.cancel_order"):
+        raise PermissionDenied
+    reason = reason.strip()
+    if len(reason) < 5 or len(reason) > 2000:
+        raise ValidationError("Indica un motivo de cancelación de entre 5 y 2000 caracteres.")
+    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
+    if order.fulfillment_status != expected_status:
+        raise ValidationError("El pedido cambió, recarga.")
+    if order.fulfillment_status not in {"unfulfilled", "preparing"} or order.shipped_at:
+        raise ValidationError("Solo se pueden cancelar pedidos sin preparar o en preparación.")
+    previous = order.fulfillment_status
+    # Lock in piece order, shared with approval. Never create an expiring hold for sold pieces.
+    for piece in (
+        Piece.objects.select_for_update(of=("self",))
+        .filter(
+            Q(pk__in=order.items.values("piece_id"))
+            | Q(pk__in=order.reservations.values("piece_id"))
+        )
+        .order_by("pk")
+    ):
+        for reservation in order.reservations.filter(piece=piece, status="active"):
+            release_reservation(reservation.pk, reason="released")
+        if (
+            piece.sale_state == "sold"
+            and order.reservations.filter(piece=piece, status="converted").exists()
+        ):
+            piece.sale_state = "reserved"
+            piece.sold_at = None
+            piece.save(update_fields=["sale_state", "sold_at"])
+            PieceReservation.objects.filter(order=order, piece=piece, status="converted").update(
+                status="released"
+            )
+            PieceStatusChange.objects.create(
+                piece=piece,
+                from_state="sold",
+                to_state="reserved",
+                reason="admin",
+                ref=order.number or "",
+                actor=actor,
+            )
+    order.fulfillment_status = "cancelled"
+    order.save(update_fields=["fulfillment_status", "updated_at"])
+    change = OrderStatusChange.objects.create(
+        order=order,
+        field="fulfillment_status",
+        from_state=previous,
+        to_state="cancelled",
+        actor=actor,
+        note=reason
+        + ("\nCorreo al cliente encolado." if notify else "\nSin notificar al cliente."),
+    )
+    if order.payment_status == "approved":
+        open_incident(order, OrderIncident.Kind.REFUND_PENDING, actor=actor)
+    if notify and order.customer_email.strip():
+        events._notify(
+            order.pk, "order_cancelled", event_key=f"status:{change.pk}", audience="customer"
+        )
+    events._notify(order.pk, "order_cancelled", event_key=f"status:{change.pk}", audience="serti")
+    record(
+        "orders.cancelled",
+        obj=order,
+        actor=actor,
+        diff={"fulfillment_status": [previous, "cancelled"], "reason": ["", reason]},
+    )

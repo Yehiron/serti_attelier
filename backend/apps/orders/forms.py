@@ -14,6 +14,7 @@ from .models import Order
 
 
 class FulfillmentForm(forms.Form):
+    notify = forms.BooleanField(label="Avisar al cliente", required=False, initial=False)
     target = forms.ChoiceField(
         label=_("Estado de entrega"),
         choices=Order._meta.get_field("fulfillment_status").choices or [],
@@ -42,6 +43,12 @@ class FulfillmentForm(forms.Form):
         validators=[URLValidator(schemes=["https"])],
     )
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["target"].choices = [
+            (k, v) for k, v in self.fields["target"].choices if k != "cancelled"
+        ]
+
     def clean_carrier(self) -> str:
         value: str = self.cleaned_data["carrier"].strip()
         if self.cleaned_data.get("target") == "shipped" and not value:
@@ -65,7 +72,7 @@ class CardFulfillmentForm(FulfillmentForm):
     )
     expected_status = forms.CharField(max_length=12, widget=forms.HiddenInput)
 
-    def __init__(self, *args, order, **kwargs):
+    def __init__(self, *args, order, can_cancel=False, **kwargs):
         from .transitions import FULFILLMENT_TRANSITIONS
 
         super().__init__(*args, **kwargs)
@@ -75,7 +82,7 @@ class CardFulfillmentForm(FulfillmentForm):
         self.fields["target"].choices = [
             (key, label)
             for key, label in Order._meta.get_field("fulfillment_status").choices
-            if key in allowed
+            if key in allowed and (key != "cancelled" or can_cancel)
         ]
         self.fields["target"].widget.disable_preparing = order.payment_status != "approved"
         self.fields["expected_status"].initial = order.fulfillment_status

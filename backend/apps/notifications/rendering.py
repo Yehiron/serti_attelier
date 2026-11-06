@@ -27,6 +27,9 @@ class EmailContent:
 
 
 def attention_reason(order: Order) -> str:
+    incident = order.incidents.filter(status="open").first()
+    if incident:
+        return str(incident.get_kind_display())
     # Payment event outcomes are fixed internal codes, never provider text.
     has_mismatch = PaymentEvent.objects.filter(order=order, outcome="mismatch").exists()
     if order.payment_status == "voided":
@@ -116,6 +119,8 @@ def render_email(delivery: NotificationDelivery, order: Order) -> EmailContent:
     if delivery.audience == "serti":
         title = {
             "order_paid": "Nuevo pedido",
+            "order_cancelled": "Pedido cancelado; revisa sus piezas y pagos",
+            "incident_resolved": "Incidencia resuelta",
             "manual_payment_instructions": "Nuevo pedido con pago manual",
             "needs_attention": "URGENTE · Pedido requiere atención",
         }[delivery.event]

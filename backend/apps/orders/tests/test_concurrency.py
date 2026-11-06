@@ -65,3 +65,75 @@ def test_concurrent_checkout(limit: bool, payload: dict[str, Any]) -> None:
     assert Order.objects.count() == 1
     assert PieceReservation.objects.filter(status="active").count() == 1
     assert config.online_reservation_minutes > 0
+
+
+def test_two_admins_one_status_winner(payload):
+    from datetime import timedelta
+
+    from django.core.exceptions import ValidationError
+    from django.utils import timezone
+
+    from apps.accounts.models import User
+    from apps.core.models import Municipality
+    from apps.inventory.services import convert_reservation, reserve_piece
+    from apps.orders.models import OrderItem
+    from apps.orders.services import transition_status
+
+    user = User.objects.create_superuser(username="race-owner", password="test")
+    order = Order.objects.create(
+        number="SRT-RACE",
+        idempotency_key=uuid4(),
+        request_hash="x",
+        customer_name="Cliente",
+        customer_email="test@example.com",
+        customer_phone="3001234567",
+        email_hash="x",
+        shipping_address_line="Calle",
+        shipping_municipality=Municipality.objects.get(pk="05001"),
+        subtotal_cents=10000,
+        total_cents=10000,
+        payment_channel="wompi",
+        payment_status="approved",
+        terms_version=1,
+        privacy_version=1,
+        privacy_consent_at=timezone.now(),
+    )
+    piece = Piece.objects.create(sku="RACE-STATUS", name_es="Anillo", price_cents=10000)
+    OrderItem.objects.create(
+        order=order, piece=piece, sku=piece.sku, name_es="Anillo", unit_price_cents=10000
+    )
+    reservation = reserve_piece(
+        piece.pk,
+        kind="online",
+        reference=order.number,
+        expires_at=timezone.now() + timedelta(minutes=5),
+    )
+    reservation.order = order
+    reservation.save()
+    convert_reservation(reservation.pk, reason="payment_approved")
+    barrier = Barrier(2)
+
+    def change(_):
+        close_old_connections()
+        request = RequestFactory().post("/")
+        request.user = User.objects.get(pk=user.pk)
+        try:
+            barrier.wait(timeout=10)
+            transition_status(
+                order,
+                "fulfillment_status",
+                "preparing",
+                request=request,
+                expected_status="unfulfilled",
+                notify=False,
+            )
+            return "updated"
+        except ValidationError as exc:
+            return " ".join(exc.messages)
+        finally:
+            connection.close()
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(change, range(2)))
+    assert sorted(results) == sorted(["updated", "El pedido cambió, recarga."])
+    assert order.status_changes.count() == 1

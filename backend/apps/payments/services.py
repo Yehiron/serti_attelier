@@ -20,7 +20,8 @@ from apps.catalog.images import encode_webp, validated_image
 from apps.inventory.services import PieceNotAvailable, convert_reservation, reserve_piece
 from apps.orders import events
 from apps.orders.exceptions import CheckoutError
-from apps.orders.models import Order
+from apps.orders.incidents import open_incident
+from apps.orders.models import Order, OrderIncident
 from apps.orders.services import transition_status
 from apps.promotions.services import redeem_coupon
 
@@ -38,12 +39,18 @@ def reservation_valid(order: Order) -> bool:
 def create_wompi_attempt(
     order: Order, *, key: UUID | None = None, retry: bool = False
 ) -> PaymentAttempt:
+    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
+    if order.fulfillment_status == "cancelled":
+        raise CheckoutError(
+            "payment_not_retryable",
+            status=409,
+            errors={"payment": ["El pedido está cancelado; no se puede iniciar otro pago."]},
+        )
     if not is_configured():
         raise CheckoutError(
             "payment_unavailable",
             errors={"payment_channel": ["Wompi no está disponible: revisa su configuración."]},
         )
-    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
     if key:
         existing = PaymentAttempt.objects.filter(idempotency_key=key).first()
         if existing:
@@ -76,7 +83,8 @@ def create_wompi_attempt(
 
 def checkout_data(order: Order, *, include_customer: bool = False) -> dict[str, Any] | None:
     if (
-        order.payment_channel != "wompi"
+        order.fulfillment_status == "cancelled"
+        or order.payment_channel != "wompi"
         or order.payment_status != "pending"
         or not reservation_valid(order)
         or not is_configured()
@@ -112,7 +120,8 @@ def payment_data(order: Order, *, include_customer: bool = False) -> dict[str, A
             if last
             else None,
             "can_retry": bool(
-                order.payment_channel == "wompi"
+                order.fulfillment_status != "cancelled"
+                and order.payment_channel == "wompi"
                 and order.payment_status == "pending"
                 and last
                 and last.status in {"DECLINED", "ERROR", "VOIDED"}
@@ -171,27 +180,31 @@ def _approve(
     actor: User | None = None,
     request: HttpRequest | None = None,
 ) -> None:
-    try:
-        with transaction.atomic():
-            _sell(order, manual=attempt.channel == "manual")
-    except PieceNotAvailable:
-        if attempt.channel == "manual":
-            raise CheckoutError(
-                "piece_unavailable",
-                status=409,
-                errors={
-                    "proof": ["La pieza ya no está disponible; revisa el pago antes de confirmar."]
-                },
-            ) from None
-        order.needs_attention = True
-        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
+    if order.fulfillment_status == "cancelled":
+        open_incident(order, OrderIncident.Kind.CANCELLED_PAYMENT)
+    else:
+        try:
+            with transaction.atomic():
+                _sell(order, manual=attempt.channel == "manual")
+        except PieceNotAvailable:
+            if attempt.channel == "manual":
+                raise CheckoutError(
+                    "piece_unavailable",
+                    status=409,
+                    errors={
+                        "proof": [
+                            "La pieza ya no está disponible; revisa el pago antes de confirmar."
+                        ]
+                    },
+                ) from None
+            open_incident(order, OrderIncident.Kind.NO_PIECE)
     transition_status(order, "payment_status", "approved", request=request)
     order.payment_status = "approved"
     order.paid_at = timezone.now()
-    order.save(update_fields=["paid_at", "needs_attention"])
+    order.save(update_fields=["paid_at"])
     redeem_coupon(order)
     record("payments.approved", obj=order, actor=actor, request=request)
-    transaction.on_commit(lambda: events.order_paid(order.pk), robust=True)
+    events.order_paid(order.pk)
 
 
 @transaction.atomic
@@ -226,9 +239,14 @@ def apply_transaction(
         .filter(provider_transaction_id=tx.id)
         .exists()
     ):
-        order.needs_attention = True
-        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
-        order.save(update_fields=["needs_attention"])
+        kind = (
+            OrderIncident.Kind.AMOUNT_MISMATCH
+            if tx.amount_in_cents != attempt.amount_cents
+            or tx.currency != attempt.currency
+            or tx.currency != "COP"
+            else OrderIncident.Kind.SUSPICIOUS
+        )
+        open_incident(order, kind)
         record("payments.mismatch", obj=attempt)
         outcome = "mismatch"
     elif PaymentEvent.objects.filter(
@@ -238,9 +256,7 @@ def apply_transaction(
     elif tx.status == "APPROVED" and (
         order.payment_status in {"approved", "voided"} or attempt.status == "VOIDED"
     ):
-        order.needs_attention = True
-        transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
-        order.save(update_fields=["needs_attention"])
+        open_incident(order, OrderIncident.Kind.SUSPICIOUS)
         outcome = "mismatch"
     elif (tx.status not in {"APPROVED", "VOIDED"} and attempt.status != "PENDING") or (
         tx.status == "VOIDED" and attempt.status not in {"APPROVED", "PENDING"}
@@ -257,9 +273,13 @@ def apply_transaction(
             _approve(attempt, order)
         elif tx.status == "VOIDED" and order.payment_status == "approved":
             transition_status(order, "payment_status", "voided")
-            order.needs_attention = True
-            transaction.on_commit(lambda: events.order_needs_attention(order.pk), robust=True)
-            order.save(update_fields=["needs_attention"])
+            open_incident(
+                order,
+                OrderIncident.Kind.VOIDED_SHIPPED
+                if order.fulfillment_status in {"shipped", "delivered", "returned"}
+                else OrderIncident.Kind.SUSPICIOUS,
+                detail="Pago anulado después de la aprobación.",
+            )
         if tx.status != "APPROVED":
             record(f"payments.{tx.status.lower()}", obj=attempt)
     record_event(tx, outcome=outcome, source=source, checksum_valid=True, attempt=attempt)
@@ -273,6 +293,12 @@ def confirm_manual_payment(
     if not actor.has_perm("payments.confirm_manual_payment"):
         raise PermissionDenied
     order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
+    if order.fulfillment_status == "cancelled":
+        raise CheckoutError(
+            "payment_not_retryable",
+            status=409,
+            errors={"payment": ["El pedido está cancelado; no se puede confirmar el pago."]},
+        )
     if order.payment_channel != "manual" or order.payment_status not in {
         "awaiting_manual_payment",
         "expired",
@@ -335,6 +361,11 @@ def verify_received_event(receipt: PaymentEvent) -> bool:
         or canonical.amount_in_cents != event_tx.amount_in_cents
     ):
         record_event(event_tx, outcome="mismatch", source="webhook", checksum_valid=True)
+        candidate = PaymentAttempt.objects.filter(
+            reference=canonical.reference, channel="wompi"
+        ).first()
+        if candidate:
+            open_incident(candidate.order, OrderIncident.Kind.SUSPICIOUS)
         logger.warning("Wompi: evento sospechoso; recibo=%s", receipt.pk)
         return True
     apply_transaction(canonical, source="webhook", expected_id=event_tx.id)

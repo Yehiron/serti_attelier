@@ -522,6 +522,11 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
     def get_urls(self) -> list[Any]:
         return [
             path(
+                "<int:pk>/card/incidents/",
+                self.admin_site.admin_view(self.card_incident),
+                name="orders-card-incident",
+            ),
+            path(
                 "<int:pk>/card/notes/",
                 self.admin_site.admin_view(self.card_note),
                 name="orders-card-note",
@@ -697,6 +702,7 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
             raise PermissionDenied
         form = FulfillmentForm(request.POST if "apply" in request.POST else None)
         if "apply" in request.POST and form.is_valid():
+            updated, failures = 0, []
             for order in queryset:
                 try:
                     transition_status(
@@ -708,11 +714,24 @@ class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
                         carrier=form.cleaned_data["carrier"],
                         tracking_number=form.cleaned_data["tracking_number"],
                         tracking_url=form.cleaned_data["tracking_url"],
+                        notify=form.cleaned_data["notify"],
+                        expected_status=request.POST.get(f"expected_{order.pk}", ""),
                     )
+                    updated += 1
                 except (DomainError, ValidationError) as exc:
-                    form.add_error(None, f"{order}: {exc}")
-            if not form.errors:
-                return HttpResponseRedirect(request.get_full_path())
+                    text = " ".join(exc.messages) if isinstance(exc, ValidationError) else str(exc)
+                    failures.append(f"{order.number} ({text})")
+            summary = (
+                "1 pedido actualizado." if updated == 1 else f"{updated} pedidos actualizados."
+            )
+            if failures:
+                summary += (
+                    " 1 no se pudo: "
+                    if len(failures) == 1
+                    else f" {len(failures)} no se pudieron: "
+                ) + "; ".join(failures)
+            self.message_user(request, summary, messages.WARNING if failures else messages.SUCCESS)
+            return HttpResponseRedirect(request.get_full_path())
         return TemplateResponse(
             request,
             "admin/orders/fulfillment.html",

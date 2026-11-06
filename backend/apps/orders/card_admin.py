@@ -3,7 +3,6 @@
 from copy import copy
 
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
 from django.db.models import Prefetch
 from django.http import Http404, HttpResponseNotAllowed
 from django.template.response import TemplateResponse
@@ -33,6 +32,8 @@ class OrderCardAdminMixin:
             .prefetch_related(
                 "items__piece__images",
                 "notes__author",
+                "incidents__created_by",
+                "incidents__resolved_by",
                 Prefetch(
                     "status_changes",
                     queryset=OrderStatusChange.objects.select_related("actor").order_by("at", "pk"),
@@ -64,6 +65,15 @@ class OrderCardAdminMixin:
                 }
             )
         allowed = FULFILLMENT_TRANSITIONS.get(order.fulfillment_status, ())
+        can_cancel = request.user.has_perm("orders.cancel_order")
+        incidents = [
+            {
+                "incident": incident,
+                "can_resolve": incident.status == "open"
+                and request.user.has_perm(incident.resolution_permission),
+            }
+            for incident in order.incidents.all()
+        ]
         return {
             **self.admin_site.each_context(request),
             "title": f"Pedido {order.number}",
@@ -78,6 +88,9 @@ class OrderCardAdminMixin:
             and order.payment_status == "awaiting_manual_payment"
             else "",
             "order": order,
+            "incidents": incidents,
+            "can_open_incident": request.user.has_perm("orders.add_orderincident"),
+            "incident_url": reverse("admin:orders-card-incident", args=[order.pk]),
             "date": format_bogota_datetime(order.created_at, "es"),
             "whatsapp_url": self.whatsapp_url(order),
             "language": self.language(order),
@@ -89,7 +102,7 @@ class OrderCardAdminMixin:
             if certificate_available(order)
             else "",
             "can_transition": self.has_change_permission(request, order)
-            and self.has_fulfillment_permission(request),
+            and (self.has_fulfillment_permission(request) or can_cancel),
             "can_notes": request.user.has_perm("orders.view_ordernote"),
             "states": [
                 {
@@ -98,7 +111,7 @@ class OrderCardAdminMixin:
                     "disabled": key == "preparing" and order.payment_status != "approved",
                 }
                 for key, label in Order._meta.get_field("fulfillment_status").choices
-                if key in allowed
+                if key in allowed and (key != "cancelled" or can_cancel)
             ],
             "pieces": [
                 {
@@ -119,7 +132,7 @@ class OrderCardAdminMixin:
             ],
             "total": self.total_cop(order),
             "history": history,
-            "form": CardFulfillmentForm(order=order),
+            "form": CardFulfillmentForm(order=order, can_cancel=can_cancel),
             **extra,
         }
 
@@ -186,24 +199,42 @@ class OrderCardAdminMixin:
         if request.method != "POST":
             return HttpResponseNotAllowed(["POST"])
         order = self.card_order(request, pk)
-        if not self.has_change_permission(request, order) or not self.has_fulfillment_permission(
-            request
-        ):
+        permission = (
+            "orders.cancel_order"
+            if request.POST.get("target") == "cancelled"
+            else "orders.change_fulfillment"
+        )
+        if not self.has_change_permission(request, order) or not request.user.has_perm(permission):
             raise PermissionDenied
-        form = CardFulfillmentForm(request.POST, order=order)
+        if request.POST.get("expected_status") != order.fulfillment_status:
+            return TemplateResponse(
+                request,
+                "admin/orders/card.html"
+                if request.headers.get("X-Order-Card")
+                else "admin/orders/card_page.html",
+                self.card_context(request, order, incident_error="El pedido cambió, recarga."),
+                status=422,
+            )
+        form = CardFulfillmentForm(
+            request.POST, order=order, can_cancel=request.user.has_perm("orders.cancel_order")
+        )
         success = ""
         if form.is_valid():
             data = form.cleaned_data
             try:
-                with transaction.atomic():
-                    locked = Order.objects.select_for_update().get(pk=order.pk)
-                    if locked.fulfillment_status != data["expected_status"]:
-                        raise ValidationError(
-                            "El estado cambió mientras revisabas el pedido. "
-                            "Cierra y vuelve a abrirlo."
-                        )
+                if data["target"] == "cancelled":
+                    from .services import cancel_order
+
+                    cancel_order(
+                        order,
+                        actor=request.user,
+                        reason=data["note"],
+                        notify=data["notify"],
+                        expected_status=data["expected_status"],
+                    )
+                else:
                     transition_status(
-                        locked,
+                        order,
                         "fulfillment_status",
                         data["target"],
                         request=request,
@@ -212,6 +243,7 @@ class OrderCardAdminMixin:
                         tracking_number=data["tracking_number"],
                         tracking_url=data["tracking_url"],
                         notify=data["notify"],
+                        expected_status=data["expected_status"],
                     )
                 notified = (
                     data["notify"]
@@ -242,6 +274,55 @@ class OrderCardAdminMixin:
         )
         response = TemplateResponse(request, template, context, status=200 if success else 422)
         if success:
+            response["X-Order-Updated"] = "1"
+        return response
+
+    def card_incident(self, request, pk):
+        if request.method != "POST":
+            return HttpResponseNotAllowed(["POST"])
+        from django.shortcuts import get_object_or_404
+
+        from .incidents import open_manual_incident, resolve_incident
+
+        order = self.card_order(request, pk)
+        if not self.has_change_permission(request, order):
+            raise PermissionDenied
+        error = ""
+        try:
+            if request.POST.get("incident_id"):
+                incident = get_object_or_404(order.incidents, pk=request.POST["incident_id"])
+                if request.POST.get("confirm") != "yes":
+                    raise ValidationError("Confirma que deseas resolver esta incidencia.")
+                resolve_incident(
+                    incident,
+                    actor=request.user,
+                    note=request.POST.get("note", ""),
+                    notify=request.POST.get("notify") == "on",
+                )
+            else:
+                open_manual_incident(
+                    order,
+                    actor=request.user,
+                    detail=request.POST.get("detail", ""),
+                    blocking=request.POST.get("blocking") == "on",
+                )
+        except ValidationError as exc:
+            error = " ".join(exc.messages)
+        order = self.card_order(request, pk)
+        response = TemplateResponse(
+            request,
+            "admin/orders/card.html"
+            if request.headers.get("X-Order-Card")
+            else "admin/orders/card_page.html",
+            self.card_context(
+                request,
+                order,
+                incident_error=error,
+                success="" if error else "Incidencia actualizada.",
+            ),
+            status=422 if error else 200,
+        )
+        if not error:
             response["X-Order-Updated"] = "1"
         return response
 

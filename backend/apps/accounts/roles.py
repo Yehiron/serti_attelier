@@ -92,3 +92,13 @@ for role in (PROPIETARIO, OPERACIONES):
     ROLE_PERMISSIONS[role].update(
         {"orders.export_orders", "orders.add_ordernote", "orders.view_ordernote"}
     )
+
+ROLE_PERMISSIONS[PROPIETARIO].update({"orders.cancel_order", "orders.resolve_payment_incident"})
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {
+            "orders.add_orderincident",
+            "orders.view_orderincident",
+            "orders.resolve_operational_incident",
+        }
+    )

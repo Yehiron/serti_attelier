@@ -27,7 +27,8 @@ def test_manipulated_event(order: Any, client: Any, field: Any, value: Any) -> N
     with patch("apps.payments.wompi.WompiClient.get_transaction", return_value=canonical):
         assert client.post(URL, body, format="json").status_code == 200
     order.refresh_from_db()
-    assert order.payment_status == "pending" and not order.needs_attention
+    assert order.payment_status == "pending" and order.needs_attention
+    assert order.incidents.get().kind == "suspicious"
     assert order.items.get().piece.sale_state != "sold"
     assert PaymentEvent.objects.filter(outcome="mismatch").exists()
 

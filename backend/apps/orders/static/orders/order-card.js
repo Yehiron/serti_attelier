@@ -120,7 +120,7 @@
     }
   });
   document.addEventListener('submit', async event => {
-    const form = event.target.closest('[data-status-form], [data-note-form]'); if (!form) return;
+    const form = event.target.closest('[data-status-form], [data-note-form], [data-incident-form]'); if (!form) return;
     event.preventDefault(); if (form.dataset.sending) return;
     form.dataset.sending = '1';
     const data = new FormData(form), submit = form.querySelector('[type=submit]');

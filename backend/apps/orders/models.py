@@ -112,6 +112,9 @@ class Order(models.Model):
         verbose_name_plural = _("pedidos")
         permissions = [
             ("change_fulfillment", "Puede cambiar el estado operativo"),
+            ("cancel_order", "Puede cancelar pedidos"),
+            ("resolve_payment_incident", "Puede resolver incidencias de pago"),
+            ("resolve_operational_incident", "Puede resolver incidencias operativas"),
             ("export_orders", "Puede exportar pedidos"),
         ]
         constraints = [
@@ -235,3 +238,67 @@ class OrderNote(ImmutableModel):
 
     def __str__(self) -> str:
         return str(self.pk)
+
+
+class OrderIncident(models.Model):
+    class Kind(models.TextChoices):
+        AMOUNT_MISMATCH = "amount_mismatch", _("Importe o moneda no coincide")
+        NO_PIECE = "no_piece", _("Pago recibido sin pieza disponible")
+        CANCELLED_PAYMENT = "cancelled_payment", _("Pago recibido en pedido cancelado")
+        REFUND_PENDING = "refund_pending", _("Devolución de dinero pendiente")
+        VOIDED_SHIPPED = "voided_shipped", _("Pago anulado tras el envío")
+        SUSPICIOUS = "suspicious", _("Evento de pago sospechoso")
+        OTHER = "other", _("Otra")
+
+    order = models.ForeignKey(
+        Order, on_delete=models.PROTECT, related_name="incidents", verbose_name=_("Pedido")
+    )
+    kind = models.CharField(_("Tipo"), max_length=30, choices=Kind)
+    status = models.CharField(
+        _("Estado"),
+        max_length=8,
+        choices=[("open", _("Abierta")), ("resolved", _("Resuelta"))],
+        default="open",
+    )
+    blocking = models.BooleanField(_("Bloquea la preparación y el envío"), default=True)
+    detail = models.TextField(_("Detalle"), blank=True, max_length=2000)
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="order_incidents_created",
+        verbose_name=_("Creada por"),
+    )
+    created_at = models.DateTimeField(_("Creada el"), auto_now_add=True)
+    resolved_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="order_incidents_resolved",
+        verbose_name=_("Resuelta por"),
+    )
+    resolved_at = models.DateTimeField(_("Resuelta el"), null=True)
+    resolution_note = models.TextField(_("Nota de resolución"), blank=True, max_length=2000)
+
+    class Meta:
+        verbose_name = _("incidencia del pedido")
+        verbose_name_plural = _("incidencias de pedidos")
+        ordering = ["created_at", "pk"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order", "kind"],
+                condition=models.Q(status="open"),
+                name="one_open_order_incident_kind",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.order_id}: {self.get_kind_display()}"
+
+    @property
+    def resolution_permission(self):
+        return (
+            "orders.resolve_operational_incident"
+            if self.kind == self.Kind.OTHER
+            else "orders.resolve_payment_incident"
+        )
