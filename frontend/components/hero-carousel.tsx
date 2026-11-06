@@ -46,19 +46,16 @@ export function HeroCarousel({ slides, labels, children }: { slides: HeroSlide[]
   const mode = useSyncExternalStore(subscribeViewport, viewport, () => null);
   const reduced = useSyncExternalStore(subscribeMotion, reducedMotion, () => true);
   const tabHidden = useSyncExternalStore(subscribeVisibility, hidden, () => true);
-  const [paused, setPaused] = useState(false);
   const [hovered, setHovered] = useState(false);
   const [focused, setFocused] = useState(false);
   const desktop = heroImages(slides, false), mobile = heroImages(slides, true);
-  const multiple = (mode === 'mobile' ? mobile : desktop).length > 1;
   const poster = desktop[0] ?? mobile[0];
   return <section className="hero hero-carousel" role="region" aria-roledescription={labels.role} aria-label={labels.label} onMouseEnter={() => setHovered(true)} onMouseLeave={() => setHovered(false)} onFocusCapture={() => setFocused(true)} onBlurCapture={event => { if (!event.currentTarget.contains(event.relatedTarget)) setFocused(false); }}>
     {/* Server-rendered first slide: one <picture> so the browser fetches only the right image and the
         hero has its photo before hydration (LCP); the sequences take over once the viewport is known. */}
     {mode === null && poster && <picture>{mobile[0] && <source media="(max-width: 760px)" srcSet={mobile[0].srcset || mobile[0].src} sizes="100vw" width={mobile[0].width} height={mobile[0].height} />}<img className="hero-image hero-slide is-current" src={poster.src} srcSet={poster.srcset || undefined} sizes="100vw" width={poster.width} height={poster.height} alt={poster.alt} fetchPriority="high" /></picture>}
-    <Sequence images={desktop} mode="desktop" active={mode === 'desktop'} stopped={paused || hovered || focused || reduced || tabHidden} labels={labels} />
-    <Sequence images={mobile} mode="mobile" active={mode === 'mobile'} stopped={paused || hovered || focused || reduced || tabHidden} labels={labels} />
+    <Sequence images={desktop} mode="desktop" active={mode === 'desktop'} stopped={hovered || focused || reduced || tabHidden} labels={labels} />
+    <Sequence images={mobile} mode="mobile" active={mode === 'mobile'} stopped={hovered || focused || reduced || tabHidden} labels={labels} />
     {children}
-    {multiple && <button className="hero-play" type="button" aria-label={paused ? labels.play : labels.pause} aria-pressed={paused} onClick={() => setPaused(value => !value)}><svg viewBox="0 0 16 16" aria-hidden="true">{paused ? <path d="M5 3.5v9l7-4.5z" /> : <path d="M5 3.5v9M11 3.5v9" />}</svg></button>}
   </section>;
 }
