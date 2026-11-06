@@ -22,7 +22,9 @@ logger = logging.getLogger(__name__)
 
 
 def is_configured() -> bool:
-    return bool(settings.WOMPI_PUBLIC_KEY and settings.WOMPI_INTEGRITY_SECRET)
+    from .configuration import configuration_errors
+
+    return not configuration_errors(settings)
 
 
 def integrity_signature(

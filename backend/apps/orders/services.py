@@ -84,6 +84,14 @@ def compute_quote(
         email_hash=email_hash,
         now=timezone.now(),
     )
+    from dataclasses import replace
+
+    from apps.payments.wompi import is_configured
+
+    if not is_configured():
+        result = replace(
+            result, payment_channels=tuple(c for c in result.payment_channels if c != "wompi")
+        )
     return result, coupon
 
 

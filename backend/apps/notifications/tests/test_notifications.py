@@ -218,7 +218,10 @@ def test_double_webhook_one_set(
     order: Order, client: APIClient, django_capture_on_commit_callbacks: Any
 ) -> None:
     body = event(tx_for(order))
-    with django_capture_on_commit_callbacks(execute=True):
+    with (
+        django_capture_on_commit_callbacks(execute=True),
+        patch("apps.payments.wompi.WompiClient.get_transaction", return_value=tx_for(order)),
+    ):
         assert client.post(URL, body, format="json").status_code == 200
         assert client.post(URL, body, format="json").status_code == 200
     assert order.deliveries.filter(event="order_paid").count() == 3

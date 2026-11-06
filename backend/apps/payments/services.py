@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from dataclasses import asdict
 from datetime import timedelta
 from typing import Any
@@ -26,6 +27,8 @@ from apps.promotions.services import redeem_coupon
 from .models import PaymentAttempt, PaymentEvent
 from .wompi import WompiTransaction, checkout_fields, is_configured
 
+logger = logging.getLogger(__name__)
+
 
 def reservation_valid(order: Order) -> bool:
     return bool(order.reservation_expires_at and order.reservation_expires_at > timezone.now())
@@ -35,7 +38,12 @@ def reservation_valid(order: Order) -> bool:
 def create_wompi_attempt(
     order: Order, *, key: UUID | None = None, retry: bool = False
 ) -> PaymentAttempt:
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    if not is_configured():
+        raise CheckoutError(
+            "payment_unavailable",
+            errors={"payment_channel": ["Wompi no está disponible: revisa su configuración."]},
+        )
+    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
     if key:
         existing = PaymentAttempt.objects.filter(idempotency_key=key).first()
         if existing:
@@ -92,7 +100,9 @@ def payment_data(order: Order, *, include_customer: bool = False) -> dict[str, A
         "payment_unavailable": order.payment_channel == "wompi" and not is_configured(),
         "payment": {
             "status": last.status.lower()
-            if last and last.status in {"DECLINED", "ERROR"} and order.payment_status == "pending"
+            if last
+            and last.status in {"DECLINED", "ERROR", "VOIDED"}
+            and order.payment_status == "pending"
             else order.payment_status,
             "last_attempt": {
                 "reference": last.reference,
@@ -105,7 +115,7 @@ def payment_data(order: Order, *, include_customer: bool = False) -> dict[str, A
                 order.payment_channel == "wompi"
                 and order.payment_status == "pending"
                 and last
-                and last.status in {"DECLINED", "ERROR"}
+                and last.status in {"DECLINED", "ERROR", "VOIDED"}
                 and reservation_valid(order)
             ),
         },
@@ -120,8 +130,8 @@ def record_event(
     checksum_valid: bool,
     provider_event: str = "transaction.updated",
     attempt: PaymentAttempt | None = None,
-) -> None:
-    PaymentEvent.objects.create(
+) -> PaymentEvent:
+    return PaymentEvent.objects.create(
         attempt=attempt,
         order=attempt.order if attempt else None,
         provider_event=provider_event[:100],
@@ -185,18 +195,32 @@ def _approve(
 
 
 @transaction.atomic
-def apply_transaction(tx: WompiTransaction, *, source: str) -> str:
+def apply_transaction(
+    tx: WompiTransaction,
+    *,
+    source: str,
+    expected_reference: str | None = None,
+    expected_id: str | None = None,
+) -> str:
+    """Solo para respuestas canónicas de Wompi; nunca para cuerpos de eventos."""
+    if (expected_reference is not None and tx.reference != expected_reference) or (
+        expected_id is not None and tx.id != expected_id
+    ):
+        record_event(tx, outcome="mismatch", source=source, checksum_valid=True)
+        return "mismatch"
     # Lock the order before the attempt, serializing different attempts as well.
     candidate = PaymentAttempt.objects.filter(reference=tx.reference, channel="wompi").first()
     if candidate is None:
+        logger.warning("Wompi: transacción canónica sin intento; origen=%s", source)
         record_event(tx, outcome="unknown_reference", source=source, checksum_valid=True)
         return "unknown_reference"
-    order = Order.objects.select_for_update().get(pk=candidate.order_id)
-    attempt = PaymentAttempt.objects.select_for_update().get(pk=candidate.pk)
+    order = Order.objects.select_for_update(of=("self",)).get(pk=candidate.order_id)
+    attempt = PaymentAttempt.objects.select_for_update(of=("self",)).get(pk=candidate.pk)
     outcome = "applied"
     if (
         tx.amount_in_cents != attempt.amount_cents
         or tx.currency != "COP"
+        or tx.currency != attempt.currency
         or (attempt.provider_transaction_id and attempt.provider_transaction_id != tx.id)
         or PaymentAttempt.objects.exclude(pk=attempt.pk)
         .filter(provider_transaction_id=tx.id)
@@ -248,7 +272,7 @@ def confirm_manual_payment(
 ) -> PaymentAttempt:
     if not actor.has_perm("payments.confirm_manual_payment"):
         raise PermissionDenied
-    order = Order.objects.select_for_update().get(pk=order.pk)
+    order = Order.objects.select_for_update(of=("self",)).get(pk=order.pk)
     if order.payment_channel != "manual" or order.payment_status not in {
         "awaiting_manual_payment",
         "expired",
@@ -290,3 +314,28 @@ def confirm_manual_payment(
     attempt.manual_proof = clean_proof
     attempt.save()
     return attempt
+
+
+def verify_received_event(receipt: PaymentEvent) -> bool:
+    """False indica API no disponible. El recibo conserva solo campos permitidos."""
+    from .wompi import WompiClient
+
+    event_tx = WompiTransaction.parse(receipt.payload)
+    if event_tx is None:
+        return True
+    try:
+        canonical = WompiClient().get_transaction(event_tx.id)
+    except (OSError, TimeoutError):
+        canonical = None
+    if canonical is None:
+        return False
+    if (
+        canonical.id != event_tx.id
+        or canonical.reference != event_tx.reference
+        or canonical.amount_in_cents != event_tx.amount_in_cents
+    ):
+        record_event(event_tx, outcome="mismatch", source="webhook", checksum_valid=True)
+        logger.warning("Wompi: evento sospechoso; recibo=%s", receipt.pk)
+        return True
+    apply_transaction(canonical, source="webhook", expected_id=event_tx.id)
+    return True

@@ -11,6 +11,14 @@ from config.settings import base
 
 def test_sentry_optional_and_private(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(base, "COUPON_EMAIL_PEPPER", "test")
+    # Isolate from a developer .env with partial Wompi keys (validated in its own test).
+    for name in (
+        "WOMPI_PUBLIC_KEY",
+        "WOMPI_PRIVATE_KEY",
+        "WOMPI_INTEGRITY_SECRET",
+        "WOMPI_EVENTS_SECRET",
+    ):
+        monkeypatch.setattr(base, name, "")
     # base has already loaded its environment; prod reads Sentry at import time.
     with patch("sentry_sdk.init") as init:
         monkeypatch.setenv("SENTRY_DSN", "")

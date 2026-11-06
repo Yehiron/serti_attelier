@@ -3,9 +3,11 @@ from urllib.parse import urlsplit
 
 from django.core.exceptions import ImproperlyConfigured
 
+from apps.payments.configuration import KEY_PREFIXES, configuration_errors
+
 from .base import *  # noqa: F403
 from .base import LOGGING as BASE_LOGGING
-from .base import PUBLIC_SITE_URL, WOMPI_API_URL, WOMPI_PUBLIC_KEY, env
+from .base import PUBLIC_SITE_URL, env
 
 DEBUG = False
 
@@ -30,11 +32,10 @@ X_FRAME_OPTIONS = "DENY"
 if not COUPON_EMAIL_PEPPER:  # noqa: F405
     raise ImproperlyConfigured("COUPON_EMAIL_PEPPER is required in production")
 
-if WOMPI_PUBLIC_KEY and (
-    (WOMPI_PUBLIC_KEY.startswith("pub_test_") and "production.wompi.co" in WOMPI_API_URL)
-    or (WOMPI_PUBLIC_KEY.startswith("pub_prod_") and "sandbox.wompi.co" in WOMPI_API_URL)
-):
-    raise ImproperlyConfigured("Wompi public key does not match WOMPI_API_URL environment")
+if any(globals().get(name) for name in KEY_PREFIXES):
+    _wompi_errors = configuration_errors(globals())
+    if _wompi_errors:
+        raise ImproperlyConfigured(" ".join(_wompi_errors))
 
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 EMAIL_HOST = env("EMAIL_HOST", default="")

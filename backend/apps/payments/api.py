@@ -18,7 +18,13 @@ from apps.orders.response_serializers import OrderDetailSerializer, WompiCheckou
 from apps.orders.selectors import order_detail
 
 from .protection import rate_allowed, store_invalid
-from .services import apply_transaction, checkout_data, create_wompi_attempt, record_event
+from .services import (
+    apply_transaction,
+    checkout_data,
+    create_wompi_attempt,
+    record_event,
+    verify_received_event,
+)
 from .wompi import WompiClient, WompiTransaction, verify_event
 
 
@@ -79,10 +85,11 @@ class PaymentSyncView(BrowserView):
         tx = WompiClient().get_transaction(transaction_id)
         if (
             tx is None
+            or tx.id != transaction_id
             or not order.payment_attempts.filter(reference=tx.reference, channel="wompi").exists()
         ):
             raise CheckoutError("transaction_not_found", status=404)
-        apply_transaction(tx, source="sync")
+        apply_transaction(tx, source="sync", expected_id=transaction_id)
         return Response(order_detail(public_token))
 
 
@@ -120,5 +127,20 @@ def wompi_events(request: HttpRequest) -> JsonResponse:
             provider_event=event if isinstance(event, str) else "",
         )
     else:
-        apply_transaction(tx, source="webhook")
+        # Persist before lookup/enqueue: a broker failure must produce a retryable response.
+        try:
+            receipt = record_event(
+                tx,
+                outcome="ignored_event",
+                source="webhook",
+                checksum_valid=True,
+                provider_event="transaction.updated.received",
+            )
+            if not verify_received_event(receipt):
+                from .tasks import verify_wompi_event
+
+                verify_wompi_event.delay(receipt.pk)
+        except Exception:
+            # Never acknowledge a receipt that could not be persisted or queued.
+            return JsonResponse({}, status=503)
     return JsonResponse({})

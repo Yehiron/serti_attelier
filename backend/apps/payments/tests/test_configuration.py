@@ -1,40 +1,46 @@
-from __future__ import annotations
-
 import runpy
 from typing import Any
 
 import pytest
 from django.core.exceptions import ImproperlyConfigured
+from django.test import override_settings
 
+from apps.payments.checks import wompi_configuration
+from apps.payments.configuration import KEY_PREFIXES
+from apps.payments.wompi import is_configured
 from config.settings import base
 
-
-@pytest.mark.parametrize(
-    "key,api",
-    [
-        ("pub_test_x", "https://production.wompi.co/v1"),
-        ("pub_prod_x", "https://sandbox.wompi.co/v1"),
-    ],
+COMPLETE = {name: prefixes[0] + "fake" for name, prefixes in KEY_PREFIXES.items()}
+COMPLETE["WOMPI_API_URL"] = "https://sandbox.wompi.co/v1"
+BAD = (
+    [(name, "") for name in COMPLETE]
+    + [(name, prefixes[1] + "fake") for name, prefixes in KEY_PREFIXES.items()]
+    + [("WOMPI_API_URL", "https://unofficial.example/v1")]
 )
-def test_production_key_mismatch(monkeypatch: Any, key: str, api: str) -> None:
-    monkeypatch.setattr(base, "WOMPI_PUBLIC_KEY", key)
-    monkeypatch.setattr(base, "WOMPI_API_URL", api)
+
+
+@pytest.mark.parametrize("name,value", BAD)
+def test_incomplete_or_mixed(name: Any, value: Any, monkeypatch: Any) -> None:
+    config = {**COMPLETE, name: value}
+    with override_settings(**config, DEBUG=True):
+        assert not is_configured()
+        assert any(name in warning.msg for warning in wompi_configuration(None))
+    for key, val in config.items():
+        monkeypatch.setattr(base, key, val)
     monkeypatch.setattr(base, "COUPON_EMAIL_PEPPER", "test")
-    with pytest.raises(ImproperlyConfigured, match="Wompi public key"):
+    with pytest.raises(ImproperlyConfigured, match=name):
         runpy.run_module("config.settings.prod")
 
 
-@pytest.mark.parametrize(
-    "key,api",
-    [
-        ("", "https://sandbox.wompi.co/v1"),
-        ("pub_test_x", "https://sandbox.wompi.co/v1"),
-        ("pub_prod_x", "https://production.wompi.co/v1"),
-    ],
-)
-def test_production_valid_configuration(monkeypatch: Any, key: str, api: str) -> None:
-    monkeypatch.setattr(base, "WOMPI_PUBLIC_KEY", key)
-    monkeypatch.setattr(base, "WOMPI_API_URL", api)
+@pytest.mark.parametrize("mode", [0, 1, None])
+def test_production_valid_configuration(monkeypatch: Any, mode: Any) -> None:
+    for name, prefixes in KEY_PREFIXES.items():
+        monkeypatch.setattr(base, name, "" if mode is None else prefixes[mode] + "fake")
+    monkeypatch.setattr(
+        base,
+        "WOMPI_API_URL",
+        "https://production.wompi.co/v1" if mode == 1 else COMPLETE["WOMPI_API_URL"],
+    )
     monkeypatch.setattr(base, "COUPON_EMAIL_PEPPER", "test")
     assert runpy.run_module("config.settings.prod")["DEBUG"] is False
 

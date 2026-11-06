@@ -118,7 +118,7 @@ def test_dynamic_properties(order: Order) -> None:
     assert not verify_event(body)
 
 
-@override_settings(WOMPI_PUBLIC_KEY="pub_test_x", WOMPI_INTEGRITY_SECRET="secret")
+@override_settings(WOMPI_PUBLIC_KEY="pub_test_x", WOMPI_INTEGRITY_SECRET="test_integrity_secret")
 def test_checkout_and_reload(order: Order, client: APIClient) -> None:
     first = order.payment_attempts.get()
     assert create_wompi_attempt(order) == first
@@ -156,6 +156,7 @@ def test_approved_duplicate_coupon_hook(
     body = event(tx_for(order))
     with (
         patch("apps.orders.events.order_paid") as hook,
+        patch("apps.payments.wompi.WompiClient.get_transaction", return_value=tx_for(order)),
         django_capture_on_commit_callbacks(execute=True),
     ):
         assert client.post(URL, body, format="json").status_code == 200
@@ -165,7 +166,12 @@ def test_approved_duplicate_coupon_hook(
     assert order.payment_status == "approved" and order.paid_at
     assert order.items.get().piece.sale_state == "sold"
     assert CouponRedemption.objects.filter(order=order).count() == 1
-    assert list(PaymentEvent.objects.values_list("outcome", flat=True)) == ["applied", "duplicate"]
+    assert list(PaymentEvent.objects.values_list("outcome", flat=True)) == [
+        "ignored_event",
+        "applied",
+        "ignored_event",
+        "duplicate",
+    ]
     assert "secret@example.com" not in str(
         list(PaymentEvent.objects.values_list("payload", flat=True))
     )
@@ -178,7 +184,11 @@ def test_rejected_unknown_ignored(order: Order, client: APIClient) -> None:
     assert client.post(URL, body, format="json").status_code == 200
     assert PaymentEvent.objects.get().outcome == "rejected_checksum"
     unknown = event(replace(tx_for(order), reference="missing"))
-    assert client.post(URL, unknown, format="json").status_code == 200
+    with patch(
+        "apps.payments.wompi.WompiClient.get_transaction",
+        return_value=replace(tx_for(order), reference="missing"),
+    ):
+        assert client.post(URL, unknown, format="json").status_code == 200
     assert PaymentEvent.objects.latest("pk").outcome == "unknown_reference"
     body = event(tx_for(order))
     body["event"] = "other"
@@ -197,7 +207,7 @@ def test_mismatch(order: Order, field: str, value: Any) -> None:
     assert order.needs_attention and order.payment_status == "pending"
 
 
-@pytest.mark.parametrize("status", ["DECLINED", "ERROR"])
+@pytest.mark.parametrize("status", ["DECLINED", "ERROR", "VOIDED"])
 def test_retry(order: Order, client: APIClient, status: str) -> None:
     apply_transaction(tx_for(order, status), source="webhook")
     url = f"/api/v1/orders/{order.public_token}/payment-attempts"
@@ -430,12 +440,16 @@ def test_simulator_disabled() -> None:
 
 @override_settings(DEBUG=True, WOMPI_EVENTS_SECRET="dev")
 def test_simulator(order: Order) -> None:
-    call_command(
-        "simulate_wompi_event",
-        reference=order.payment_attempts.get().reference,
-        status="APPROVED",
-        in_process=True,
-    )
+    with patch(
+        "apps.payments.wompi.WompiClient.get_transaction",
+        return_value=replace(tx_for(order), id=f"dev-{order.payment_attempts.get().reference}"),
+    ):
+        call_command(
+            "simulate_wompi_event",
+            reference=order.payment_attempts.get().reference,
+            status="APPROVED",
+            in_process=True,
+        )
     order.refresh_from_db()
     assert order.payment_status == "approved"
 
@@ -452,7 +466,7 @@ def test_pending_method_and_stale_status(order: Order) -> None:
     assert AuditLog.objects.filter(action="payments.approved").count() == 1
 
 
-@override_settings(WOMPI_PUBLIC_KEY="pub_test_x", WOMPI_INTEGRITY_SECRET="secret")
+@override_settings(WOMPI_PUBLIC_KEY="pub_test_x", WOMPI_INTEGRITY_SECRET="test_integrity_secret")
 def test_expired_checkout_and_retry(order: Order, client: APIClient) -> None:
     apply_transaction(tx_for(order, "DECLINED"), source="webhook")
     url = f"/api/v1/orders/{order.public_token}"
@@ -527,7 +541,8 @@ def test_client_request_contract(order: Order) -> None:
 def test_webhook_no_csrf_and_no_session(order: Order) -> None:
     client = APIClient(enforce_csrf_checks=True)
     client.cookies["sessionid"] = "untrusted"
-    assert client.post(URL, event(tx_for(order)), format="json").status_code == 200
+    with patch("apps.payments.wompi.WompiClient.get_transaction", return_value=tx_for(order)):
+        assert client.post(URL, event(tx_for(order)), format="json").status_code == 200
 
 
 def test_event_is_append_only(order: Order) -> None:

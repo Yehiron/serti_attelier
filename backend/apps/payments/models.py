@@ -60,6 +60,12 @@ class PaymentAttempt(models.Model):
     manual_confirmed_at = models.DateTimeField(
         verbose_name=_("Pago manual confirmado el"), null=True
     )
+    last_reconciled_at = models.DateTimeField(
+        verbose_name=_("Última conciliación"), null=True, blank=True, db_index=True
+    )
+    reconcile_failures = models.PositiveIntegerField(
+        verbose_name=_("Fallos de conciliación"), default=0
+    )
     created_at = models.DateTimeField(verbose_name=_("Creado el"), auto_now_add=True)
     updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True)
 

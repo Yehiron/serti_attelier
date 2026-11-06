@@ -15,12 +15,14 @@ PUBLIC_READ_RATE = "100000/min"
 COUPON_EMAIL_PEPPER = "test-coupon-pepper"
 
 # Deterministic payments: tests never inherit Wompi values from a developer's .env.
-# Tests that need Wompi configured use override_settings.
-WOMPI_PUBLIC_KEY = ""
-WOMPI_PRIVATE_KEY = ""
-WOMPI_INTEGRITY_SECRET = ""
-WOMPI_EVENTS_SECRET = ""
+# Credenciales ficticias completas; los tests de indisponibilidad usan override_settings.
+WOMPI_PUBLIC_KEY = "pub_test_fake"
+WOMPI_PRIVATE_KEY = "prv_test_fake"
+WOMPI_INTEGRITY_SECRET = "test_integrity_fake"  # noqa: S105
+WOMPI_EVENTS_SECRET = "test_events_fake"  # noqa: S105
 
 WHATSAPP_PROVIDER = "log"
 SERTI_ORDERS_EMAIL = ""
 WHATSAPP_ORDERS_RECIPIENT = ""
+
+WOMPI_API_URL = "https://sandbox.wompi.co/v1"

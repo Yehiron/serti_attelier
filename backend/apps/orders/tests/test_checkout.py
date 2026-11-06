@@ -3,6 +3,7 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
+from django.test import override_settings
 from django.utils import timezone
 from rest_framework.response import Response
 from rest_framework.test import APIClient
@@ -164,13 +165,22 @@ def test_per_email_counting(
         assert response.status_code == 201
 
 
+@pytest.mark.parametrize("configured", [False, True])
 def test_detail_queries(
-    client: APIClient, piece: Piece, payload: dict[str, Any], django_assert_max_num_queries: Any
+    client: APIClient,
+    piece: Piece,
+    payload: dict[str, Any],
+    django_assert_max_num_queries: Any,
+    configured: bool,
 ) -> None:
     add(client, piece)
     submit(client, payload)
     token = Order.objects.get().public_token
-    with django_assert_max_num_queries(3):
+    # El checkout configurado consulta además el intento para construir sus campos.
+    with (
+        override_settings(WOMPI_PUBLIC_KEY="pub_test_fake" if configured else ""),
+        django_assert_max_num_queries(4 if configured else 3),
+    ):
         assert client.get(f"/api/v1/orders/{token}").status_code == 200
 
 

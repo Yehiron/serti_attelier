@@ -15,24 +15,11 @@ from apps.cms.models import HomePublication, PageRevision
 from apps.cms.selectors import published_pages
 from apps.core import health
 from apps.core.models import SiteSettings
+from apps.payments.configuration import configuration_errors
 
 
 def wompi_coherent() -> bool:
-    mode = {
-        "https://production.wompi.co/v1": "prod",
-        "https://sandbox.wompi.co/v1": "test",
-    }.get(settings.WOMPI_API_URL.rstrip("/"))
-    if mode is None:
-        return False
-    return all(
-        value.startswith(prefix) and len(value) > len(prefix)
-        for value, prefix in (
-            (settings.WOMPI_PUBLIC_KEY, f"pub_{mode}_"),
-            (settings.WOMPI_PRIVATE_KEY, f"prv_{mode}_"),
-            (settings.WOMPI_INTEGRITY_SECRET, f"{mode}_integrity_"),
-            (settings.WOMPI_EVENTS_SECRET, f"{mode}_events_"),
-        )
-    )
+    return not configuration_errors(settings)
 
 
 class Command(BaseCommand):
