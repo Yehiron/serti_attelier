@@ -1,18 +1,5 @@
-{% load i18n %}
-{# Native multiple file input stretched over a drop zone: clicking or dropping both work without JS libraries. #}
-<div class="mb-4" x-data="{ count: 0, over: false }">
-  <label for="id_new_photos"
-         class="relative flex flex-col items-center justify-center gap-1 rounded-default border border-dashed px-4 py-6 text-center cursor-pointer"
-         :class="over ? 'border-primary-600 bg-primary-50 dark:bg-white/[.04]' : 'border-base-300 dark:border-base-700'"
-         style="border-width:2px">
-    <span class="material-symbols-outlined text-primary-600" aria-hidden="true">add_photo_alternate</span>
-    <strong class="text-important">{% translate "Agregar varias fotos" %}</strong>
-    <span class="text-subtle" x-show="count === 0">{% translate "Arrastra aquí las fotos o haz clic para elegirlas. Se agregan al guardar, después de las actuales." %}</span>
-    <span class="text-primary-600 font-semibold" x-show="count > 0" x-cloak
-          x-text="count === 1 ? '{% translate "1 foto lista para agregar. Pulsa Guardar." %}' : count + ' {% translate "fotos listas para agregar. Pulsa Guardar." %}'"></span>
-    <input id="id_new_photos" type="file" name="new_photos" multiple accept="image/*"
-           class="absolute inset-0 opacity-0 cursor-pointer"
-           @change="count = $event.target.files.length"
-           @dragenter="over = true" @dragleave="over = false" @drop="over = false">
-  </label>
+<div class="ca-upload">
+  <label for="id_new_photos"><span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span><strong>Agregar fotos</strong><span>Elige varias fotos. Se agregan al guardar.</span><small>JPG, PNG, WebP, AVIF o HEIC · hasta 25 MB cada una</small></label>
+  <input id="id_new_photos" type="file" name="new_photos" multiple accept=".jpg,.jpeg,.png,.webp,.avif,.heic,.heif,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif">
+  <p data-upload-count aria-live="polite"></p><div class="ca-photo-grid" data-local-previews></div>
 </div>

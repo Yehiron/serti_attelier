@@ -1,0 +1,33 @@
+{% extends "admin/change_form.html" %}{% load static admin_modify %}
+{% block nav-global-side %}{% endblock %}
+{% block content %}
+<div id="content-main" class="ca-editor" x-data="{ activeTab: 'general' }">
+  <header class="ca-list-head"><div><h1>{% if add %}Nueva pieza{% else %}{{ original.name_es }}{% endif %}</h1><p>{% if add %}Empieza con el nombre, el precio y tus fotos.{% else %}{{ original.sku }} · Cuida cada detalle antes de publicar.{% endif %}</p></div></header>
+  <form method="post" enctype="multipart/form-data" id="piece_form" novalidate data-catalog-form>{% csrf_token %}
+    {% if is_popup %}<input type="hidden" name="{{ is_popup_var }}" value="1">{% endif %}
+    {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+    {% if errors %}<div class="ca-error" role="alert">Revisa los campos señalados. {{ adminform.form.non_field_errors }}{% if request.FILES %}<p>Vuelve a elegir las fotos nuevas: el navegador no permite conservarlas tras un error.</p>{% endif %}</div>{% endif %}
+    <div class="ca-layout">
+      <aside class="ca-sidebar">
+        <section class="ca-panel"><h2>Estado y publicación</h2><div class="ca-actions">{{ catalog_editorial_badge }} {{ catalog_sale_badge }}</div>
+          <h3>Lista para publicar</h3>
+          <ul class="ca-checklist" data-publication-checklist>{% for check in publication_checklist %}<li {% if check.photo %}data-check-photo{% else %}data-missing-key="{{ check.missing_key }}"{% endif %} data-ready="{{ check.ready|yesno:'true,false' }}"><span data-check-symbol aria-hidden="true">{% if check.ready %}✓{% elif check.pending %}…{% else %}✗{% endif %}</span> {{ check.label }} <small data-check-note>{% if check.pending %}Procesando…{% elif not check.ready %}Falta{% else %}Lista{% endif %}</small></li>{% endfor %}</ul>
+          {% include "admin/catalog/piece_status.html" %}
+          {% if can_publish %}<p id="ca-publish-reason" data-publish-reason>{% if publication_missing %}Completa lo que falta y guarda los cambios para publicar.{% else %}Todo listo para publicar.{% endif %}</p>{% endif %}
+        </section>
+        {% for fieldset in adminform %}{% if fieldset.name == 'Precio y disponibilidad' %}<section class="ca-panel">{% include 'admin/includes/fieldset.html' %}</section>{% endif %}{% endfor %}
+        {% if has_change_permission or has_add_permission %}<div class="ca-panel ca-save"><button class="ca-button ca-primary" type="submit" name="_continue" value="1">{% if add or original.status == 'draft' %}Guardar borrador{% else %}Guardar cambios{% endif %}</button>{% if can_publish %}<button class="ca-button" type="submit" name="catalog_piece_save_publish" value="1" data-publish-button aria-describedby="ca-publish-reason" {% if not publication_ready %}disabled{% endif %}>Publicar</button>{% endif %}<span data-save-feedback aria-live="polite"></span></div>{% endif %}
+      </aside>
+      <main class="ca-main">
+        {% for fieldset in adminform %}{% if 'collapse' not in fieldset.classes and fieldset.name != 'Precio y disponibilidad' %}<section class="ca-panel">{% include 'admin/includes/fieldset.html' %}</section>{% endif %}{% endfor %}
+        {% for inline_admin_formset in inline_admin_formsets %}{% if inline_admin_formset.opts.verbose_name_plural == 'Fotos' %}{% include inline_admin_formset.opts.template %}{% endif %}{% endfor %}
+        {% for fieldset in adminform %}{% if 'collapse' in fieldset.classes %}<section class="ca-panel ca-secondary">{% include 'admin/includes/fieldset.html' %}</section>{% endif %}{% endfor %}
+        {% for inline_admin_formset in inline_admin_formsets %}{% if inline_admin_formset.opts.verbose_name_plural != 'Fotos' %}<details class="ca-panel" {% if inline_admin_formset.formset.errors %}open{% endif %}><summary>{{ inline_admin_formset.opts.verbose_name_plural }}</summary>{% include inline_admin_formset.opts.template %}</details>{% endif %}{% endfor %}
+      </main>
+    </div>
+    <script id="django-admin-form-add-constants" src="{% static 'admin/js/change_form.js' %}"{% if add %} data-model-name="piece"{% endif %} async></script>
+    {% prepopulated_fields_js %}
+  </form>
+</div>
+{% endblock %}
+{% block submit_buttons_bottom %}{% endblock %}

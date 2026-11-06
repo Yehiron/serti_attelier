@@ -6,12 +6,22 @@ from typing import TYPE_CHECKING, Any
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
 from django.utils.translation import gettext_lazy as _
-from unfold.widgets import UnfoldAdminIntegerFieldWidget
+from unfold.widgets import (
+    UnfoldAdminIntegerFieldWidget,
+    UnfoldAdminSelectWidget,
+    UnfoldAdminTextInputWidget,
+)
 
 from apps.core.admin_presentation import HELP
 
 from .images import validated_image
-from .models import Piece, PieceImage, PieceVideo
+from .models import Category, Piece, PieceImage, PieceVideo
+from .validators import ATTRIBUTE_FIELDS
+
+
+class CategoryChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj: Category) -> str:
+        return f"{obj.parent.name} → {obj.name}" if obj.parent_id else str(obj.name)
 
 
 class PesosField(forms.IntegerField):
@@ -41,6 +51,107 @@ else:
 
 
 class PieceForm(BasePieceForm):
+    sku = forms.CharField(
+        label=_("Referencia (SKU)"),
+        max_length=40,
+        required=False,
+        help_text=_("Déjalo vacío y lo generamos (p. ej. SRT-ANI-0042). Puedes cambiarlo."),
+        widget=forms.TextInput(attrs={"placeholder": "SRT-ANI-0042"}),
+    )
+    category = CategoryChoiceField(
+        queryset=Category.objects.select_related("parent"), required=False, label=_("Categoría")
+    )
+    metal = forms.CharField(label=_("Metal"), required=False, max_length=100)
+    metal_purity = forms.CharField(
+        label=_("Pureza"),
+        required=False,
+        max_length=40,
+        widget=forms.TextInput(attrs={"placeholder": "18k"}),
+    )
+    ring_size = forms.CharField(label=_("Talla de anillo"), required=False, max_length=40)
+    length_mm = forms.FloatField(
+        label=_("Largo (mm)"), required=False, min_value=0.01, max_value=10000
+    )
+    dimensions_mm = forms.CharField(
+        label=_("Dimensiones (mm)"),
+        required=False,
+        max_length=100,
+        widget=forms.TextInput(attrs={"placeholder": "12 x 8"}),
+    )
+    weight_g = forms.FloatField(
+        label=_("Peso (g)"), required=False, min_value=0.001, max_value=10000
+    )
+    carats = forms.FloatField(
+        label=_("Quilates (ct)"), required=False, min_value=0.001, max_value=10000
+    )
+
+    def __init__(self, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        for key in (*ATTRIBUTE_FIELDS, "sku"):
+            if key in self.fields:
+                field = self.fields[key]
+                attrs = {**field.widget.attrs, "class": "w-full"}
+                unit = {
+                    "length_mm": "mm",
+                    "dimensions_mm": "mm",
+                    "weight_g": "g",
+                    "carats": "ct",
+                }.get(key)
+                if unit:
+                    attrs["suffix"] = unit
+                field.widget = UnfoldAdminTextInputWidget(attrs=attrs)
+                if isinstance(field, forms.FloatField):
+                    field.widget.input_type = "number"
+                    field.widget.attrs.update(step="any", inputmode="decimal")
+        if "category" in self.fields:
+            self.fields["category"].widget = UnfoldAdminSelectWidget()
+            self.fields["category"].widget.choices = self.fields["category"].choices
+        self._original_attributes = dict(self.instance.attributes or {})
+        for key in ATTRIBUTE_FIELDS:
+            self.initial[key] = self._original_attributes.get(key)
+        if self.instance.pk and "sku" in self.fields:
+            self.fields["sku"].required = True
+            self.fields["sku"].help_text = "Puedes cambiar la referencia de esta pieza."
+        for key in ("name_es", "category", "short_description_es", "price_cents", "slug_es"):
+            if key in self.fields:
+                self.fields[key].help_text = (
+                    str(self.fields[key].help_text or "") + " Necesario para publicar."
+                )
+
+    def clean_ring_size(self) -> Any:
+        value = self.cleaned_data.get("ring_size", "")
+        if value:
+            try:
+                number = float(value)
+            except ValueError:
+                return value
+            if not 0 < number <= 100:
+                raise forms.ValidationError("Escribe una talla mayor que cero y hasta 100.")
+        return value
+
+    def _get_validation_exclusions(self) -> set[str]:
+        excluded = super()._get_validation_exclusions()
+        if not self.instance.pk and not self.cleaned_data.get("sku"):
+            excluded.add("sku")
+        return excluded
+
+    def clean(self) -> dict[str, Any]:
+        cleaned = super().clean() or {}
+        attributes = dict(self._original_attributes)
+        for key in ATTRIBUTE_FIELDS:
+            if key not in self.fields or key in self.errors:
+                continue
+            value = cleaned.get(key)
+            if value in (None, ""):
+                attributes.pop(key, None)
+            else:
+                # Keep historical numeric ring sizes as numbers when unchanged.
+                if key == "ring_size" and str(self._original_attributes.get(key)) == value:
+                    value = self._original_attributes[key]
+                attributes[key] = value
+        self.instance.attributes = attributes
+        return cleaned
+
     related = forms.ModelMultipleChoiceField(
         queryset=Piece.objects.all(),
         required=False,
@@ -52,7 +163,7 @@ class PieceForm(BasePieceForm):
 
     class Meta:
         model = Piece
-        exclude = ("status", "sale_state", "published_at", "sold_at")
+        exclude = ("status", "sale_state", "published_at", "sold_at", "attributes")
 
 
 class ValidatedImageForm(BaseImageForm):

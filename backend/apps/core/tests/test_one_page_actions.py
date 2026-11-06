@@ -282,7 +282,8 @@ def test_piece_action_visibility(state: str) -> None:
     assert ("/detail_hide/" in html) == (state == "published")
     assert ("/detail_archive/" in html) == (state != "archived")
     html = browser.get(reverse("admin:catalog_piece_changelist")).content.decode()
-    assert (f"/{piece.pk}/detail_publish/" in html) == (state in ("draft", "hidden"))
+    assert (f"/{piece.pk}/detail_publish/" in html) == (state == "draft")
+    assert (f"/{piece.pk}/detail_unhide/" in html) == (state == "hidden")
 
 
 def test_role_service_rejects_missing_privileges() -> None:

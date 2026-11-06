@@ -1,13 +1,15 @@
 from __future__ import annotations
 
+import unicodedata
 from datetime import datetime
 from typing import Any
 from uuid import uuid4
+from zlib import crc32
 
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
-from django.db import models, transaction
+from django.db import IntegrityError, connection, models, transaction
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -102,6 +104,27 @@ def snapshot(piece: Piece) -> dict[str, object]:
     }
 
 
+def next_piece_sku(piece: Piece) -> str:
+    category = piece.category
+    if category and category.parent_id:
+        category = category.parent
+    name = category.name_es if category else "GEN"
+    letters = "".join(c for c in unicodedata.normalize("NFKD", name) if c.isascii() and c.isalpha())
+    prefix = f"SRT-{(letters.upper()[:3] or 'GEN')}-"
+    if connection.vendor == "postgresql":
+        # Transaction-level lock also works when this prefix has no pieces yet.
+        with connection.cursor() as cursor:
+            cursor.execute(
+                "SELECT pg_advisory_xact_lock(%s, %s)", [7319, crc32(prefix.encode()) % 2147483647]
+            )
+    numbers = [
+        int(sku[len(prefix) :])
+        for sku in Piece.objects.filter(sku__startswith=prefix).values_list("sku", flat=True)
+        if sku[len(prefix) :].isdigit()
+    ]
+    return f"{prefix}{max(numbers, default=0) + 1:04d}"
+
+
 @transaction.atomic
 def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None) -> Piece:
     old = (
@@ -125,8 +148,40 @@ def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None
         piece.status != Piece.Status.DRAFT or piece.sale_state != Piece.SaleState.AVAILABLE
     ):
         raise ValidationError(_("Las piezas nuevas deben ser borradores disponibles."))
-    piece.full_clean()
-    piece.save()
+    automatic_sku = old is None and not piece.sku
+    # Historical unknown keys survive edits, but cannot be introduced or altered here.
+    from .validators import ATTRIBUTE_FIELDS, validate_attributes
+
+    attributes = piece.attributes
+    if not isinstance(attributes, dict):
+        validate_attributes(attributes)
+    unknown = {k: v for k, v in attributes.items() if k not in ATTRIBUTE_FIELDS}
+    previous_unknown = {
+        k: v for k, v in (old.attributes if old else {}).items() if k not in ATTRIBUTE_FIELDS
+    }
+    if unknown != previous_unknown:
+        raise ValidationError({"attributes": "Los atributos contienen claves no permitidas."})
+    validate_attributes({k: v for k, v in attributes.items() if k in ATTRIBUTE_FIELDS})
+    for attempt in range(5):
+        if automatic_sku:
+            piece.sku = next_piece_sku(piece)
+        try:
+            piece.full_clean(exclude=["attributes"])
+            with transaction.atomic():
+                piece.save()
+            break
+        except ValidationError as exc:
+            if not (
+                automatic_sku and attempt < 4 and set(getattr(exc, "error_dict", {})) == {"sku"}
+            ):
+                raise
+        except IntegrityError:
+            if (
+                not automatic_sku
+                or attempt == 4
+                or not Piece.objects.filter(sku=piece.sku).exists()
+            ):
+                raise
     diff = compute_diff(snapshot(old) if old else {}, snapshot(piece))
     if diff:
         record("catalog.piece_updated", actor=actor, obj=piece, diff=diff, request=request)
@@ -144,6 +199,8 @@ def publication_missing(piece: Piece) -> list[str]:
     ]:
         if not getattr(piece, field):
             missing.append(label)
+    if not piece.pk:
+        return [*missing, "imagen procesada", "imagen principal procesada"]
     primary_pending = piece.images.filter(
         is_primary=True, processing_status=PieceImage.ProcessingStatus.PENDING
     ).exists()

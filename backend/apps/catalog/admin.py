@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
+from copy import copy
 from typing import Any, ClassVar
 
 from django.contrib import admin, messages
@@ -8,22 +9,27 @@ from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.db.models import QuerySet
+from django.db.models import Count, Prefetch, QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
 from django.utils.decorators import method_decorator
-from django.utils.html import format_html, strip_tags
+from django.utils.html import format_html, format_html_join, strip_tags
 from django.utils.translation import gettext_lazy as _
 from django.views.decorators.http import require_GET, require_POST
-from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
+from modeltranslation.admin import (
+    TabbedTranslationAdmin,
+    TranslationAdmin,
+    TranslationTabularInline,
+)
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop
+from apps.core.selectors import piece_url
 from apps.inventory.services import set_preorder
 
 from . import services
@@ -70,9 +76,10 @@ admin.site.register(Material, TranslatedAdmin)
 class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     ordering_field = "position"
     hide_ordering_field = True
-    tab = True
+    tab = False
     verbose_name = _("Foto")
     verbose_name_plural = _("Fotos")
+    template = "admin/catalog/photo_grid.html"
     template_before = "admin/catalog/new_photos.html"
     model = PieceImage
     form: Any = PieceImageForm
@@ -135,7 +142,7 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
 
 
 class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.
-    tab = True
+    tab = False
     verbose_name = _("Video")
     verbose_name_plural = _("Video")
     model = PieceVideo
@@ -158,7 +165,7 @@ class PieceVideoInline(TranslationTabularInline[PieceVideo, Piece], TabularInlin
 class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is untyped.
     ordering_field = "position"
     hide_ordering_field = True
-    tab = True
+    tab = False
     verbose_name = _("Colección")
     verbose_name_plural = _("Colecciones")
     model = CollectionPiece
@@ -184,19 +191,24 @@ class CatalogHealthFilter(admin.SimpleListFilter):
 
 
 @admin.register(Piece)
-class PieceAdmin(TranslatedAdmin):
+class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
+    prepopulated_fields = {"slug": ("name",)}
     ordering_field = None
     hide_ordering_field = False
     form = PieceForm
+    list_per_page = 25
+    change_list_template = "admin/catalog/piece/change_list.html"
+    change_form_template = "admin/catalog/piece/change_form.html"
+    search_help_text = "Buscar por nombre o referencia"
     list_display = (
         "thumbnail",
-        "sku",
-        "name",
-        "category",
+        "piece_name",
+        "category_path",
         "formatted_price",
-        "sale_state",
-        "status",
+        "editorial_badge",
+        "sale_badge",
     )
+    list_display_links = ("piece_name",)
     list_filter = (
         "status",
         "sale_state",
@@ -231,6 +243,20 @@ class PieceAdmin(TranslatedAdmin):
             },
         ),
         (
+            _("Detalles de la pieza"),
+            {
+                "fields": (
+                    "metal",
+                    "metal_purity",
+                    "ring_size",
+                    "length_mm",
+                    "dimensions_mm",
+                    "weight_g",
+                    "carats",
+                )
+            },
+        ),
+        (
             _("Precio y disponibilidad"),
             {
                 "fields": ("price_cents", "sale_price_cents", "status", "sale_state"),
@@ -256,7 +282,6 @@ class PieceAdmin(TranslatedAdmin):
                 "fields": (
                     "slug",
                     "piece_number",
-                    "attributes",
                     "published_at",
                     "sold_at",
                     "position",
@@ -276,12 +301,177 @@ class PieceAdmin(TranslatedAdmin):
         "detail_archive",
         "detail_duplicate",
     )
-    actions_row = ("detail_publish",)
-    actions_submit_line = ("save_publish",)
+    actions_submit_line = ()
     change_form_before_template = "admin/catalog/piece_status.html"
 
     class Media:
-        js = ("catalog/photo-status.js",)
+        css = {"all": ("catalog/catalog-admin.css",)}
+        js = ("catalog/photo-status.js", "catalog/catalog-admin.js")
+
+    def get_list_display(self, request: HttpRequest) -> Any:
+        @admin.display(description="Acciones")
+        def row_actions(obj: Piece) -> str:
+            links = [
+                (reverse("admin:catalog_piece_change", args=[obj.pk]), "Editar", "edit", False)
+            ]
+            if obj.status == Piece.Status.PUBLISHED:
+                links.append((piece_url(obj, "es"), "Ver en la tienda", "open_in_new", True))
+            if self.has_commercial_permission(request, obj):
+                operations = []
+                if self.has_duplicate_permission(request):
+                    operations.append(("duplicate", "Duplicar", "content_copy"))
+                if Piece.Status.PUBLISHED in services.EDITORIAL_TRANSITIONS[obj.status]:
+                    operations.append(
+                        ("unhide" if obj.status == "hidden" else "publish", "Publicar", "publish")
+                    )
+                if Piece.Status.HIDDEN in services.EDITORIAL_TRANSITIONS[obj.status]:
+                    operations.append(("hide", "Ocultar", "visibility_off"))
+                for operation, label, icon in operations:
+                    links.append(
+                        (
+                            reverse(f"admin:catalog_piece_detail_{operation}", args=[obj.pk]),
+                            label,
+                            icon,
+                            False,
+                        )
+                    )
+            return format_html(
+                '<div class="ca-actions">{}</div>',
+                format_html_join(
+                    "",
+                    '<a class="ca-icon" href="{}" aria-label="{}" title="{}" {}>'
+                    '<span class="material-symbols-outlined" aria-hidden="true">{}</span></a>',
+                    (
+                        (
+                            url,
+                            label,
+                            label,
+                            format_html('target="{}" rel="noopener"', "_blank") if external else "",
+                            icon,
+                        )
+                        for url, label, icon, external in links
+                    ),
+                ),
+            )
+
+        return (*self.list_display, row_actions)
+
+    @admin.display(description="Nombre", ordering="name_es")
+    def piece_name(self, obj: Piece) -> str:
+        return format_html(
+            '<strong>{}</strong><small class="ca-sku">{}</small>', obj.name_es, obj.sku
+        )
+
+    @admin.display(description="Categoría", ordering="category__name_es")
+    def category_path(self, obj: Piece) -> str:
+        category = obj.category
+        if not category:
+            return "—"
+        return (
+            f"{category.parent.name} → {category.name}"
+            if category.parent_id
+            else str(category.name)
+        )
+
+    @admin.display(description="Estado editorial", ordering="status")
+    def editorial_badge(self, obj: Piece) -> str:
+        return format_html(
+            '<span class="ca-badge" data-state="{}">{}</span>', obj.status, obj.get_status_display()
+        )
+
+    @admin.display(description="Estado de venta", ordering="sale_state")
+    def sale_badge(self, obj: Piece) -> str:
+        return format_html(
+            '<span class="ca-badge" data-state="{}">{}</span>',
+            obj.sale_state,
+            obj.get_sale_state_display(),
+        )
+
+    def changelist_view(self, request: HttpRequest, extra_context: Any = None) -> HttpResponse:
+        response = super().changelist_view(request, extra_context)
+        if hasattr(response, "context_data") and "cl" in response.context_data:
+            cl = response.context_data["cl"]
+            count_list = copy(cl)
+            count_list.filter_params = {
+                k: v for k, v in cl.filter_params.items() if not k.startswith("status__")
+            }
+            counts = dict(
+                count_list.get_queryset(request)
+                .order_by()
+                .values("status")
+                .annotate(total=Count("pk", distinct=True))
+                .values_list("status", "total")
+            )
+            tabs = []
+            for value, label in [
+                ("", "Todas"),
+                ("draft", "Borradores"),
+                ("published", "Publicadas"),
+                ("hidden", "Ocultas"),
+                ("archived", "Archivadas"),
+            ]:
+                query = request.GET.copy()
+                query.pop("p", None)
+                query.pop("status__exact", None)
+                if value:
+                    query["status__exact"] = value
+                tabs.append(
+                    {
+                        "label": label,
+                        "count": counts.get(value, 0) if value else sum(counts.values()),
+                        "active": request.GET.get("status__exact", "") == value,
+                        "url": "?" + query.urlencode(),
+                    }
+                )
+            response.context_data.update(
+                piece_tabs=tabs, catalog_has_pieces=Piece.objects.exists(), title="Piezas"
+            )
+        return response
+
+    def render_change_form(
+        self,
+        request: HttpRequest,
+        context: Any,
+        add: bool = False,
+        change: bool = False,
+        form_url: str = "",
+        obj: Any = None,
+    ) -> Any:
+        piece = context["adminform"].form.instance
+        missing = services.publication_missing(piece)
+        checks = [
+            ("Nombre", "nombre en español"),
+            ("Categoría", "categoría"),
+            ("Descripción corta", "descripción corta en español"),
+            ("Precio", "precio"),
+            ("Dirección en la web", "slug en español"),
+        ]
+        checklist = [
+            {"label": label, "missing_key": key, "ready": key not in missing}
+            for label, key in checks
+        ]
+        photo_missing = any("imagen" in key or "foto" in key for key in missing)
+        checklist.append(
+            {
+                "label": "Foto principal",
+                "photo": True,
+                "ready": not photo_missing,
+                "pending": any("procesando" in key for key in missing),
+            }
+        )
+        can_publish = (
+            self.has_commercial_permission(request, obj)
+            and Piece.Status.PUBLISHED in services.EDITORIAL_TRANSITIONS[piece.status]
+        )
+        context.update(
+            publication_checklist=checklist,
+            publication_missing=missing,
+            can_publish=can_publish,
+            publication_ready=not missing,
+            catalog_editorial_badge=self.editorial_badge(piece),
+            catalog_sale_badge=self.sale_badge(piece),
+        )
+        return super().render_change_form(request, context, add, change, form_url, obj)
 
     def get_urls(self) -> Any:
         return [
@@ -646,7 +836,16 @@ class PieceAdmin(TranslatedAdmin):
         return self.copy_response(request, services.duplicate_piece(queryset.get(), request.user))
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Piece]:
-        return Piece.objects.select_related("category").prefetch_related("images")
+        queryset = Piece.objects.select_related("category__parent")
+        if request.resolver_match and request.resolver_match.url_name == "catalog_piece_changelist":
+            return queryset.prefetch_related(
+                Prefetch(
+                    "images",
+                    queryset=PieceImage.objects.filter(is_primary=True),
+                    to_attr="list_primary_images",
+                )
+            )
+        return queryset.prefetch_related("images")
 
     def get_readonly_fields(
         self, request: HttpRequest, obj: Piece | None = None
@@ -663,6 +862,21 @@ class PieceAdmin(TranslatedAdmin):
             else (title, options)
             for title, options in super().get_fieldsets(request, obj)
         ]
+        english = []
+        translated = []
+        for title, options in fieldsets:
+            fields = []
+            for field in options["fields"]:
+                if isinstance(field, str) and field.endswith("_en"):
+                    english.append(field)
+                else:
+                    fields.append(field)
+            translated.append((title, {**options, "fields": fields}))
+        if english:
+            translated.insert(
+                4, (_("Inglés (opcional)"), {"classes": ["collapse"], "fields": english})
+            )
+        fieldsets = translated
         if request.user.has_perm("catalog.change_piece_price"):
             return fieldsets
         replacements = {"price_cents": "regular_price_cop", "sale_price_cents": "sale_price_cop"}
@@ -757,13 +971,22 @@ class PieceAdmin(TranslatedAdmin):
         image = next(
             (
                 image
-                for image in obj.images.all()
+                for image in (
+                    obj.list_primary_images
+                    if hasattr(obj, "list_primary_images")
+                    else obj.images.all()
+                )
                 if image.is_primary and image.processing_status == "ready"
             ),
             None,
         )
         return (
-            format_html('<img src="{}" width="64" alt="">', thumbnail_url(image)) if image else "—"
+            format_html(
+                '<img class="ca-thumb" src="{}" width="48" height="48" loading="lazy" alt="">',
+                thumbnail_url(image),
+            )
+            if image
+            else "—"
         )
 
     @admin.display(description=_("Precio COP"))

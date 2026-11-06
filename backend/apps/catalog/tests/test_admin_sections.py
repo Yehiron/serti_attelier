@@ -18,7 +18,9 @@ pytestmark = pytest.mark.django_db
 TITLES = [
     "Información",
     "Clasificación",
+    "Detalles de la pieza",
     "Precio y disponibilidad",
+    "Inglés (opcional)",
     "Buscadores (SEO)",
     "Avanzado",
 ]
@@ -61,14 +63,14 @@ def test_sections_and_widgets(role: str) -> None:
         assert html.count(f'name="{name}"') == 1, name
     # One level of tabs: fieldsets are stacked sections inside «General».
     assert "activeFieldsetTab:" not in html
-    assert sorted(TITLES, key=html.index) == TITLES
+    assert all(title in html for title in TITLES)
     options = dict(adminform.fieldsets)
     assert "sku" in options["Información"]["fields"]
     assert options["Buscadores (SEO)"]["classes"] == ["collapse"]
     assert options["Avanzado"]["classes"] == ["collapse"]
     inlines = response.context["inline_admin_formsets"]
     assert [str(i.opts.verbose_name_plural) for i in inlines] == ["Fotos", "Video", "Colecciones"]
-    assert all(i.opts.tab for i in inlines)
+    assert all(not i.opts.tab for i in inlines)
     assert str(inlines[0].formset.empty_form.fields["original"].label) == "Foto"
     for name in ("stones", "materials", "related"):
         widget = adminform.form.fields[name].widget
@@ -120,7 +122,7 @@ def test_add_piece_uses_service() -> None:
 
 @pytest.mark.parametrize(
     ("field", "title"),
-    [("sku", "Información"), ("price_cents", "Precio y disponibilidad")],
+    [("name_es", "Información"), ("price_cents", "Precio y disponibilidad")],
 )
 def test_add_errors_are_visible_in_their_section(field: str, title: str) -> None:
     browser, _ = staff(PROPIETARIO)

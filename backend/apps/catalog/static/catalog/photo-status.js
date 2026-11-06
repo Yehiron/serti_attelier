@@ -59,6 +59,7 @@
         const data = await response.json();
         if (stopped) return;
         data.photos.forEach(render);
+        document.dispatchEvent(new CustomEvent("catalog:photo-status", {detail: data}));
         const pending = data.photos.some(p => p.status === "pending");
         if (wasPending && data.photos.some(p => p.is_primary && p.status === "ready")) {
           monitor.textContent = data.ready_to_publish ? "Las fotos están listas. Ya puedes publicar." : "Las fotos están listas.";

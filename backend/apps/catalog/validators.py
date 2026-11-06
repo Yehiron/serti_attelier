@@ -1,6 +1,16 @@
 from django.core.exceptions import ValidationError
 from django.utils.translation import gettext_lazy as _
 
+ATTRIBUTE_FIELDS = (
+    "metal",
+    "metal_purity",
+    "ring_size",
+    "length_mm",
+    "dimensions_mm",
+    "weight_g",
+    "carats",
+)
+
 
 def validate_attributes(value: object) -> None:
     schema: dict[str, tuple[type, ...]] = {

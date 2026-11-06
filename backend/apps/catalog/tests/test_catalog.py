@@ -234,7 +234,8 @@ def test_admin_renders_translations_and_pesos(
     html = response.content.decode()
     assert 'name="name_es"' in html and 'name="name_en"' in html
     assert 'name="price_cents" value="1000"' in html
-    assert "tabbed_translation_fields.js" in html
+    assert "tabbed_translation_fields.js" not in html
+    assert "Inglés (opcional)" in html
     assert 'name="sale_state"' not in html
     assert 'name="status"' not in html
 

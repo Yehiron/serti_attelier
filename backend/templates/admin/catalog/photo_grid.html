@@ -1,0 +1,22 @@
+<section class="ca-panel" id="{{ inline_admin_formset.formset.prefix }}-group" data-photo-grid>
+  <h2>Fotos</h2><p>Elige una principal y, si quieres, otra para mostrar al pasar el mouse.</p>
+  {{ inline_admin_formset.formset.management_form }}
+  {{ inline_admin_formset.formset.non_form_errors }}
+  <div class="ca-photo-grid">
+  {% for photo_form in inline_admin_formset %}{% if photo_form.original %}
+    <article class="ca-photo-card" data-photo-card>
+      {{ photo_form.form.non_field_errors }}
+      {% for hidden in photo_form.form.hidden_fields %}{{ hidden }}{{ hidden.errors }}{% endfor %}
+      {% for fieldset in photo_form %}{% for line in fieldset %}{% for field in line %}
+        <div class="ca-photo-field ca-photo-{{ field.field.name }} {% if field.field.name == 'position' or field.field.name == 'is_primary' or field.field.name == 'is_hover' %}ca-photo-internal{% endif %}">
+        {% if field.is_readonly %}{{ field.contents }}{% else %}{{ field.errors }}<label for="{{ field.field.id_for_label }}">{{ field.field.label }}{% if field.field.field.required %} *{% endif %}</label>{{ field.field }}{% endif %}
+        </div>
+      {% endfor %}{% endfor %}{% endfor %}
+      <div class="ca-photo-choices" data-photo-choices></div>
+      {% if inline_admin_formset.has_change_permission %}<div class="ca-actions"><button class="ca-icon" type="button" data-photo-move="-1" aria-label="Mover antes" title="Mover antes"><span class="material-symbols-outlined" aria-hidden="true">arrow_back</span></button><button class="ca-icon" type="button" data-photo-move="1" aria-label="Mover después" title="Mover después"><span class="material-symbols-outlined" aria-hidden="true">arrow_forward</span></button>
+      {% if inline_admin_formset.formset.can_delete and inline_admin_formset.has_delete_permission %}<label class="ca-icon ca-delete" for="{{ photo_form.form.DELETE.id_for_label }}" aria-label="Eliminar foto" title="Eliminar foto"><span class="material-symbols-outlined" aria-hidden="true">delete</span>{{ photo_form.form.DELETE }}</label>{% endif %}</div>{% endif %}
+    </article>
+  {% endif %}{% endfor %}
+  </div>
+  {% if inline_admin_formset.has_add_permission %}{% include 'admin/catalog/new_photos.html' %}{% endif %}
+</section>
