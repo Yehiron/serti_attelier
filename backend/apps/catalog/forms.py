@@ -198,12 +198,22 @@ class ValidatedImageForm(BaseImageForm):
 
 
 class CategoryForm(ValidatedImageForm):
+    def visibility_help(self):
+        return (
+            "Las categorías activas aparecen en Joyería aunque no tengan piezas ni foto. "
+            "Las principales también aparecen en Comprar por categoría si esa sección "
+            "está publicada. Recarga la tienda para ver los cambios. "
+            "Las piezas recién publicadas pueden tardar unos minutos en aparecer."
+        )
+
     class Meta:
         model = Category
         fields = "__all__"
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        if "is_active" in self.fields:
+            self.fields["is_active"].help_text = self.visibility_help()
         if "parent" in self.fields:
             self.fields["parent"].queryset = Category.objects.filter(parent=None).exclude(
                 pk=self.instance.pk

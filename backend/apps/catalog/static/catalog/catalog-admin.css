@@ -53,3 +53,7 @@
 [data-replacement-note]{min-height:3em;line-height:1.5}
 /* The whole dashed zone is the label; the native file control stays focusable but out of sight. */
 .ca-upload{position:relative}.ca-upload>label{margin-bottom:0}.ca-upload>input[type=file]{position:absolute;width:1px;height:1px;min-height:0;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+.ca-danger{color:#b33a40}.dark .ca-danger{color:#f39398}.ca-danger[aria-disabled="true"]{opacity:.65;cursor:not-allowed}
+
+.field-active_badge .ca-badge{white-space:normal;max-width:24ch}

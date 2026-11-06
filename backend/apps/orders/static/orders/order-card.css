@@ -481,3 +481,6 @@ tr:has([data-order-card]) {
 @media(prefers-reduced-motion:reduce){[data-metric-value],[data-tab-count]{transition:none}}
 .oc-metric strong{min-height:2.8em;line-height:1.4}
 .oc-metric small{min-height:3em;line-height:1.5}
+
+/* Selection is optional; hidden cells must not reserve mobile card space. */
+.selection-ready:not(.selection-active) .model-order #result_list .action-checkbox{display:none!important}

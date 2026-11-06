@@ -514,7 +514,7 @@ class OrderCardAdminMixin:
 
     def center_queryset(self, request):
         # Reuse admin filters/search/permissions, without pagination/count queries.
-        from django.contrib.admin.views.main import ChangeList
+        from apps.core.admin_selection import SelectionChangeList as ChangeList
 
         class MetricsChangeList(ChangeList):
             def get_results(self, request):

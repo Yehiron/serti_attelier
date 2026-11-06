@@ -59,13 +59,24 @@ export const previewToken = cache(async () => {
 });
 async function cmsRead<T>(path: string, locale: Locale) {
   const token = await previewToken();
-  return token ? request<T>(path, locale, '', token) : cachedRead<T>(path, locale, '', 'cms');
+  // The home response resolves category cards live. There is no save-time cache
+  // invalidation from Django, so sharing this response would hide recent categories.
+  if (token) return request<T>(path, locale, '', token);
+  if (path === 'cms/home') {
+    await connection();
+    return request<T>(path, locale);
+  }
+  return cachedRead<T>(path, locale, '', 'cms');
 }
-export const getHome = (locale: Locale) => cmsRead<Home>('cms/home', locale);
+export const getHome = cache((locale: Locale) => cmsRead<Home>('cms/home', locale));
 // Published reads for sitemap generation never touch request cookies.
 export const getPublishedPage = (locale: Locale, slug: string) => cachedRead<CmsPage>(`cms/pages/${encodeURIComponent(slug)}`, locale, '', 'cms');
 export const getPage = (locale: Locale, slug: string, byKind = false) => cmsRead<CmsPage>(`cms/pages/${byKind ? 'kind/' : ''}${encodeURIComponent(slug)}`, locale);
-export const getTaxonomy = (locale: Locale) => cachedRead<Taxonomy>('catalog/taxonomy', locale, '', 'catalog');
+// Deduplicate within a render, without retaining an outdated menu across requests.
+export const getTaxonomy = cache(async (locale: Locale) => {
+  await connection();
+  return request<Taxonomy>('catalog/taxonomy', locale);
+});
 export const getCatalog = (locale: Locale, query = '') => cachedRead<Catalog>('catalog/pieces', locale, query, 'catalog');
 export const getPiece = (locale: Locale, slug: string) => cachedRead<PieceDetail>(`catalog/pieces/${encodeURIComponent(slug)}`, locale, '', `piece:${slug}`);
 export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms');

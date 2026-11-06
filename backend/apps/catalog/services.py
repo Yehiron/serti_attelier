@@ -70,11 +70,23 @@ def deletion_reasons(piece: Piece) -> list[str]:
         reasons.append("no es borrador")
     if piece.sale_state in (Piece.SaleState.SOLD, Piece.SaleState.RESERVED):
         reasons.append("está vendida o reservada")
-    if piece.reservations.exists():
+    if (
+        piece.deletion_reservations
+        if hasattr(piece, "deletion_reservations")
+        else piece.reservations.exists()
+    ):
         reasons.append("tiene reservas")
-    if piece.status_changes.exists():
+    if (
+        piece.deletion_status_changes
+        if hasattr(piece, "deletion_status_changes")
+        else piece.status_changes.exists()
+    ):
         reasons.append("tiene historial de inventario")
-    if piece.orderitem_set.exists():
+    if (
+        piece.deletion_orderitem_set
+        if hasattr(piece, "deletion_orderitem_set")
+        else piece.orderitem_set.exists()
+    ):
         reasons.append("tiene pedidos")
     return reasons
 
@@ -311,6 +323,12 @@ def save_taxonomy(
         obj.cover_renditions, obj.cover_width, obj.cover_height = {}, 0, 0
     if isinstance(obj, Category):
         from django.utils.text import slugify
+
+        if old is None:
+            last = Category.objects.filter(parent_id=obj.parent_id).aggregate(
+                last=models.Max("position")
+            )["last"]
+            obj.position = last + 1 if last is not None else 0
 
         duplicate = Category.objects.filter(
             parent_id=obj.parent_id, name_es__iexact=obj.name_es.strip()
@@ -558,6 +576,30 @@ def save_collection_piece(
     record_collections(piece, before, actor=actor, request=request, extra_diff=extra_diff)
 
 
+def taxonomy_deletion_reason(obj) -> str:
+    if isinstance(obj, Category):
+        if (
+            obj.deletion_child_count
+            if hasattr(obj, "deletion_child_count")
+            else obj.children.exists()
+        ):
+            return "Tiene subcategorías"
+        count = (
+            obj.deletion_piece_count if hasattr(obj, "deletion_piece_count") else obj.pieces.count()
+        )
+        if count:
+            return (
+                "Tiene 1 pieza: muévela antes de eliminarla"
+                if count == 1
+                else f"Tiene {count} piezas: muévelas antes de eliminarla"
+            )
+    if isinstance(obj, (Stone, Collection)) and (
+        obj.deletion_piece_count if hasattr(obj, "deletion_piece_count") else obj.pieces.exists()
+    ):
+        return "Tiene piezas: retíralas antes de eliminarla"
+    return ""
+
+
 @transaction.atomic
 def delete_catalog_object(
     obj: Taxonomy | CollectionPiece | PieceVideo,
@@ -565,6 +607,10 @@ def delete_catalog_object(
     actor: Actor = None,
     request: HttpRequest | None = None,
 ) -> None:
+    if isinstance(obj, (Category, Stone, Collection, Material)):
+        locked = type(obj).objects.select_for_update(of=("self",)).get(pk=obj.pk)
+        if reason := taxonomy_deletion_reason(locked):
+            raise ValidationError(reason)
     if isinstance(obj, CollectionPiece):
         piece = Piece.objects.select_for_update(of=("self",)).get(pk=obj.piece_id)
         before = collection_names(piece)

@@ -18,6 +18,7 @@ from unfold.utils import display_for_label
 
 from apps.accounts.models import User
 from apps.core.admin_presentation import thumbnail_url
+from apps.core.admin_selection import OptionalSelectionMixin
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop, format_bogota_date
 
@@ -193,7 +194,11 @@ class NoteInline(TabularInline):  # type: ignore[misc]
 
 
 @admin.register(Order)
-class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
+class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
+    class Media:
+        css = {"all": ("core/selection.css",)}
+        js = ("core/selection.js",)
+
     list_display = (
         "number",
         "order_date",

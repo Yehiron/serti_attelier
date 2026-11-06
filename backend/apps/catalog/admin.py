@@ -11,7 +11,17 @@ from django.contrib.admin.actions import delete_selected
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
-from django.db.models import Case, Count, IntegerField, Max, Prefetch, Q, QuerySet, When
+from django.db.models import (
+    Case,
+    Count,
+    Exists,
+    IntegerField,
+    OuterRef,
+    Prefetch,
+    Q,
+    QuerySet,
+    When,
+)
 from django.db.models.functions import Coalesce
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
 from django.shortcuts import get_object_or_404
@@ -30,6 +40,7 @@ from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
+from apps.core.admin_selection import OptionalSelectionMixin
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop
 from apps.core.selectors import piece_url
@@ -59,6 +70,26 @@ from .models import (
 from .selectors import missing_english_translation
 
 
+def deletion_icon(obj, reason, label):
+    if reason:
+        return format_html(
+            '<span class="ca-icon ca-danger" role="link" tabindex="0" aria-disabled="true" '
+            'aria-label="{}" title="{}" aria-description="{}">'
+            '<span class="material-symbols-outlined" '
+            'aria-hidden="true">delete</span></span>',
+            label,
+            "No se puede eliminar: " + reason + (". Archívala." if isinstance(obj, Piece) else ""),
+            reason,
+        )
+    return format_html(
+        '<a class="ca-icon ca-danger" href="{}" aria-label="{}" title="{}">'
+        '<span class="material-symbols-outlined" aria-hidden="true">delete</span></a>',
+        reverse(f"admin:catalog_{obj._meta.model_name}_delete", args=[obj.pk]),
+        label,
+        label,
+    )
+
+
 class TranslatedAdmin(
     CatalogAuditHistoryMixin, ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin
 ):  # type: ignore[misc]  # Unfold is untyped.
@@ -69,6 +100,43 @@ class TranslatedAdmin(
     ordering_field: str | None = "position"
     hide_ordering_field = True
     readonly_fields: ClassVar[tuple[str, ...]] = ("image_preview", "image_status")
+
+    class Media:
+        css = {"all": ("catalog/catalog-admin.css",)}
+
+    def get_actions(self, request):
+        return super().get_actions(request) if self.model is Material else {}
+
+    delete_confirmation_template = "admin/catalog/delete_confirmation.html"
+
+    def get_queryset(self, request):
+        qs = super().get_queryset(request)
+        if self.model in (Stone, Collection):
+            qs = qs.annotate(deletion_piece_count=Count("pieces", distinct=True))
+        return qs
+
+    def get_list_display(self, request):
+        fields = super().get_list_display(request)
+        if isinstance(self, CategoryAdmin) or self.model is Material:
+            return fields
+        return (*fields, self.delete_action(request))
+
+    def delete_action(self, request):
+        @admin.display(description="Eliminar")
+        def delete_icon(obj):
+            if not self.has_delete_permission(request):
+                return ""
+            reason = services.taxonomy_deletion_reason(obj)
+            return deletion_icon(obj, reason, "Eliminar " + str(obj._meta.verbose_name))
+
+        return delete_icon
+
+    def get_deleted_objects(self, objs, request):
+        deleted, counts, perms, protected = super().get_deleted_objects(objs, request)
+        protected.extend(
+            reason for obj in objs if (reason := services.taxonomy_deletion_reason(obj))
+        )
+        return deleted, counts, perms, protected
 
     def save_model(self, request: HttpRequest, obj: Any, form: Any, change: bool) -> None:
         services.save_taxonomy(obj, actor=request.user, request=request)
@@ -100,6 +168,19 @@ class CategoryAdmin(TranslatedAdmin):
     class Media:
         css = {"all": ("catalog/catalog-admin.css",)}
 
+    def get_list_display(self, request):
+        @admin.display(description="Acciones")
+        def actions(obj):
+            return format_html(
+                '<div class="ca-actions">{}{}</div>',
+                self.category_actions(obj),
+                self.delete_action(request)(obj),
+            )
+
+        return tuple(
+            actions if field == "category_actions" else field for field in self.list_display
+        )
+
     def get_ordering(self, request):
         return (
             Coalesce("parent__position", "position"),
@@ -115,7 +196,11 @@ class CategoryAdmin(TranslatedAdmin):
             .get_queryset(request)
             .select_related("parent")
             .annotate(
-                published_total=Count("pieces", filter=Q(pieces__status=Piece.Status.PUBLISHED)),
+                published_total=Count(
+                    "pieces", filter=Q(pieces__status=Piece.Status.PUBLISHED), distinct=True
+                ),
+                deletion_piece_count=Count("pieces", distinct=True),
+                deletion_child_count=Count("children", distinct=True),
                 root_position=Coalesce("parent__position", "position"),
                 root_id=Coalesce("parent_id", "pk"),
                 hierarchy_level=Case(
@@ -150,7 +235,14 @@ class CategoryAdmin(TranslatedAdmin):
     @admin.display(description="Activa")
     def active_badge(self, obj):
         return format_html(
-            '<span class="ca-badge">{}</span>', "Activa" if obj.is_active else "Inactiva"
+            '<span class="ca-badge">{}</span>',
+            (
+                "Visible en la tienda · sin piezas publicadas"
+                if not obj.published_total
+                else "Visible en la tienda"
+            )
+            if obj.is_active
+            else "No visible en la tienda: inactiva",
         )
 
     @admin.display(description="Acciones")
@@ -192,10 +284,6 @@ class CategoryAdmin(TranslatedAdmin):
             obj = Category(name_es=form.cleaned_data["name"], parent=form.cleaned_data["parent"])
             try:
                 with transaction.atomic():
-                    last_position = Category.objects.filter(parent=obj.parent).aggregate(
-                        last=Max("position")
-                    )["last"]
-                    obj.position = (last_position + 1) if last_position is not None else 0
                     services.save_taxonomy(obj, actor=request.user, request=request)
             except ValidationError as exc:
                 for field, errors in (
@@ -339,7 +427,11 @@ class CatalogHealthFilter(admin.SimpleListFilter):
 
 @admin.register(Piece)
 class PieceAdmin(
-    CatalogAuditHistoryMixin, ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin
+    OptionalSelectionMixin,
+    CatalogAuditHistoryMixin,
+    ClientPresentationMixin,
+    TranslationAdmin[Piece],
+    ModelAdmin,
 ):
     prepopulated_fields = {"slug": ("name",)}
     ordering_field = None
@@ -451,12 +543,13 @@ class PieceAdmin(
         "detail_archive",
         "detail_duplicate",
     )
+    delete_confirmation_template = "admin/catalog/delete_confirmation.html"
     actions_submit_line = ()
     change_form_before_template = "admin/catalog/piece_status.html"
 
     class Media:
-        css = {"all": ("catalog/catalog-admin.css",)}
-        js = ("catalog/photo-status.js", "catalog/catalog-admin.js")
+        css = {"all": ("catalog/catalog-admin.css", "core/selection.css")}
+        js = ("catalog/photo-status.js", "catalog/catalog-admin.js", "core/selection.js")
 
     def get_list_display(self, request: HttpRequest) -> Any:
         @admin.display(description="Acciones")
@@ -485,8 +578,9 @@ class PieceAdmin(
                             False,
                         )
                     )
+            # Destructive action last, away from "Editar", to avoid accidental clicks.
             return format_html(
-                '<div class="ca-actions">{}</div>',
+                '<div class="ca-actions">{}{}</div>',
                 format_html_join(
                     "",
                     '<a class="ca-icon" href="{}" aria-label="{}" title="{}" {}>'
@@ -502,6 +596,9 @@ class PieceAdmin(
                         for url, label, icon, external in links
                     ),
                 ),
+                deletion_icon(obj, ", ".join(services.deletion_reasons(obj)), "Eliminar pieza")
+                if self.has_delete_permission(request)
+                else "",
             )
 
         return (*self.list_display, row_actions)
@@ -1026,7 +1123,17 @@ class PieceAdmin(
     def get_queryset(self, request: HttpRequest) -> QuerySet[Piece]:
         queryset = Piece.objects.select_related("category__parent")
         if request.resolver_match and request.resolver_match.url_name == "catalog_piece_changelist":
-            return queryset.prefetch_related(
+            return queryset.annotate(
+                deletion_reservations=Exists(
+                    Piece.objects.filter(pk=OuterRef("pk"), reservations__isnull=False)
+                ),
+                deletion_status_changes=Exists(
+                    Piece.objects.filter(pk=OuterRef("pk"), status_changes__isnull=False)
+                ),
+                deletion_orderitem_set=Exists(
+                    Piece.objects.filter(pk=OuterRef("pk"), orderitem__isnull=False)
+                ),
+            ).prefetch_related(
                 Prefetch(
                     "images",
                     queryset=PieceImage.objects.filter(is_primary=True),

@@ -632,10 +632,10 @@ button:disabled { cursor: wait; }
 @media (prefers-reduced-motion: reduce) { .category-card > img, .category-card > span, .category-card::before { transition: none; } }
 
 /* Quick search: a compact white card with the floral monogram as a faint watermark. */
-.search-dialog { margin: 110px auto auto; padding: 0; width: min(560px,calc(100% - 40px)); max-height: calc(100dvh - 140px); border: 0; background: #fff; color: var(--color-wine); white-space: normal; overflow-y: auto; box-shadow: 0 30px 80px #33041440; }
+.search-dialog { margin: 110px auto auto; padding: 0; width: min(560px,calc(100% - 40px)); max-height: calc(100dvh - 140px); border: 0; background: #fff; color: var(--color-wine); white-space: normal; overflow: hidden; box-shadow: 0 30px 80px #33041440; }
 .search-dialog::backdrop { background: #33041466; backdrop-filter: blur(4px); }
-.search-dialog-inner { position: relative; isolation: isolate; padding: 26px 30px 30px; }
-.search-dialog-inner::after { content: ''; position: absolute; z-index: -1; right: -40px; bottom: -30px; width: 240px; aspect-ratio: 240 / 206; background: var(--color-wine); opacity: .05; pointer-events: none; mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; -webkit-mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; }
+.search-dialog-inner { display: flex; flex-direction: column; max-height: inherit; min-height: 0; box-sizing: border-box; overflow: hidden; position: relative; isolation: isolate; padding: 26px 30px 30px; }
+.search-dialog-inner::after { content: ''; position: absolute; z-index: -1; right: 0; bottom: 0; width: 240px; aspect-ratio: 240 / 206; background: var(--color-wine); opacity: .05; pointer-events: none; mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; -webkit-mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; }
 .search-dialog .drawer-heading { align-items: center; }
 .search-dialog .drawer-heading h2 { font-family: var(--font-sans); font-size: calc(11px * var(--text-scale)); letter-spacing: .18em; text-transform: uppercase; font-weight: 400; }
 .search-dialog .drawer-heading button { min-width: 40px; min-height: 40px; font-size: calc(1.5rem * var(--text-scale)); line-height: 1; }
@@ -667,3 +667,12 @@ button:disabled { cursor: wait; }
 .payment-methods svg { width: 48px; height: 30px; border-radius: 4px; box-shadow: 0 2px 8px #0000002e; }
 .floating-whatsapp { bottom: calc(24px + env(safe-area-inset-bottom)); }
 @media(max-width:760px) { .floating-whatsapp { right: 18px; } }
+
+/* Reserve the viewport gutter while a modal locks the page. */
+html { scrollbar-gutter: stable; }
+.search-shortcuts, .search-suggestions { min-height: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
+.search-dialog-inner > :not(.search-shortcuts):not(.search-suggestions) { flex-shrink: 0; }
+.search-dialog .drawer-heading button, .search-dialog .search-bar .button, .search-shortcuts a { min-height: 44px; }
+.search-dialog[open] { animation: search-enter 180ms ease-out; }
+@keyframes search-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
+@media(prefers-reduced-motion:reduce) { .search-dialog[open] { animation: none; } }
