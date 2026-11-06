@@ -109,6 +109,11 @@ def convert_reservation(reservation_id: int, *, reason: str) -> None:
 @transaction.atomic
 def set_preorder(piece: Piece, value: bool, actor: User | AnonymousUser | None) -> None:
     piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    from apps.catalog.services import require_commercial_permission
+
+    require_commercial_permission(actor)
+    if piece.status == Piece.Status.ARCHIVED:
+        raise ValidationError(_("Una pieza archivada no puede cambiar su preventa."))
     target = Piece.SaleState.PREORDER if value else Piece.SaleState.AVAILABLE
     if piece.sale_state not in (Piece.SaleState.AVAILABLE, Piece.SaleState.PREORDER):
         raise PieceNotAvailable(state=piece.sale_state)

@@ -41,9 +41,12 @@ for role in (PROPIETARIO, OPERACIONES, CONTENIDO):
         f"catalog.{action}_{model}" for model in CATALOG_MODELS for action in actions
     )
     ROLE_PERMISSIONS[role].update({"core.view_department", "core.view_municipality"})
+ROLE_PERMISSIONS[CONTENIDO].discard("catalog.add_piece")
+
 for role in (PROPIETARIO, OPERACIONES):
     ROLE_PERMISSIONS[role].update(
         {
+            "catalog.publish_piece",
             "catalog.change_piece_price",
             "inventory.view_piecereservation",
             "inventory.view_piecestatuschange",

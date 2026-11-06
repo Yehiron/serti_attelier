@@ -88,7 +88,8 @@ def test_piece_detail(
         response = browser.post(url)
     called.assert_called_once()
     assert response.status_code == 302
-    assert response["Location"] == reverse("admin:catalog_piece_change", args=[piece.pk])
+    target_piece = Piece.objects.exclude(pk=piece.pk).get() if operation == "duplicate" else piece
+    assert response["Location"] == reverse("admin:catalog_piece_change", args=[target_piece.pk])
     piece.refresh_from_db()
     assert piece.status == expected
     if operation.startswith("preorder"):

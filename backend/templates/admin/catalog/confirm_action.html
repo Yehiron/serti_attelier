@@ -1,7 +1,7 @@
 {% extends "admin/client_form_page.html" %}
 {% load i18n %}
 {% block page_title %}{{ title }}: {{ original }}{% endblock %}
-{% block page_subtitle %}{% translate "¿Confirmas esta acción?" %}{% endblock %}
+{% block page_subtitle %}{{ title }} «{{ original.name_es }}»: {{ consequence }}{% endblock %}
 {% block page_body %}
 <form method="post">{% csrf_token %}
 {% translate "Confirmar" as submit_label %}

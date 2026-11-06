@@ -81,7 +81,7 @@ def test_navigation_and_index(role: str, areas: set[str]) -> None:
     if role != "developer":
         assert "Herramientas técnicas" not in html
     if role == CONTENIDO:
-        assert "Agregar pieza" in html and "Publicar inicio" in html
+        assert "Agregar pieza" not in html and "Publicar inicio" in html
         assert "Pedidos pendientes de pago" not in html
 
 
@@ -263,7 +263,7 @@ def test_content_sees_readonly_pesos() -> None:
     html = response.content.decode()
     assert "$1.250.000" in html and "centavos" not in html
     assert 'name="price_cents"' not in html
-    assert browser.get(reverse("admin:catalog_piece_add")).status_code == 200
+    assert browser.get(reverse("admin:catalog_piece_add")).status_code == 403
 
 
 @pytest.mark.parametrize("model", ["category", "homesection"])

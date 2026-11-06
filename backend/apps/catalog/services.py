@@ -40,6 +40,56 @@ Actor = User | AnonymousUser | None
 Taxonomy = Category | Collection | Stone | Material
 
 
+# Archived pieces are terminal, including for superusers.
+EDITORIAL_TRANSITIONS = {
+    Piece.Status.DRAFT: frozenset({Piece.Status.PUBLISHED, Piece.Status.ARCHIVED}),
+    Piece.Status.PUBLISHED: frozenset({Piece.Status.HIDDEN, Piece.Status.ARCHIVED}),
+    Piece.Status.HIDDEN: frozenset({Piece.Status.PUBLISHED, Piece.Status.ARCHIVED}),
+    Piece.Status.ARCHIVED: frozenset(),
+}
+
+
+def validate_editorial_transition(source: str, target: str) -> None:
+    if target not in EDITORIAL_TRANSITIONS.get(source, ()):
+        raise ValidationError(_("No se permite ese cambio de estado de publicación."))
+
+
+def require_commercial_permission(actor: Actor) -> None:
+    if actor is not None and not (
+        actor.has_perm("catalog.publish_piece") and actor.has_perm("catalog.change_piece")
+    ):
+        raise PermissionDenied(_("No tienes permiso para tomar decisiones comerciales."))
+
+
+def deletion_reasons(piece: Piece) -> list[str]:
+    reasons = []
+    if piece.status != Piece.Status.DRAFT:
+        reasons.append("no es borrador")
+    if piece.sale_state in (Piece.SaleState.SOLD, Piece.SaleState.RESERVED):
+        reasons.append("está vendida o reservada")
+    if piece.reservations.exists():
+        reasons.append("tiene reservas")
+    if piece.status_changes.exists():
+        reasons.append("tiene historial de inventario")
+    if piece.orderitem_set.exists():
+        reasons.append("tiene pedidos")
+    return reasons
+
+
+@transaction.atomic
+def delete_pieces(queryset: models.QuerySet[Piece]) -> None:
+    pieces = list(queryset.order_by("pk").select_for_update(of=("self",)))
+    failures = [
+        f"{piece.sku} ({', '.join(reasons)})"
+        for piece in pieces
+        if (reasons := deletion_reasons(piece))
+    ]
+    if failures:
+        raise ValidationError("No se borró ninguna pieza: " + "; ".join(failures))
+    for piece in pieces:
+        piece.delete()
+
+
 def snapshot(piece: Piece) -> dict[str, object]:
     return {
         field.name: (
@@ -90,16 +140,24 @@ def publication_missing(piece: Piece) -> list[str]:
     ]:
         if not getattr(piece, field):
             missing.append(label)
-    if not piece.images.filter(processing_status="ready").exists():
-        missing.append("imagen procesada")
-    if not piece.images.filter(is_primary=True, processing_status="ready").exists():
-        missing.append("imagen principal procesada")
+    primary_pending = piece.images.filter(
+        is_primary=True, processing_status=PieceImage.ProcessingStatus.PENDING
+    ).exists()
+    if primary_pending:
+        missing.append("la foto principal aún se está procesando")
+    else:
+        if not piece.images.filter(processing_status="ready").exists():
+            missing.append("imagen procesada")
+        if not piece.images.filter(is_primary=True, processing_status="ready").exists():
+            missing.append("imagen principal procesada")
     return missing
 
 
 @transaction.atomic
 def publish_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Piece:
     piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    require_commercial_permission(actor)
+    validate_editorial_transition(piece.status, Piece.Status.PUBLISHED)
     missing = publication_missing(piece)
     if missing:
         raise PublicationError(str(_("Falta: ")) + ", ".join(missing))
@@ -116,13 +174,15 @@ def publish_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None
 def hide_pieces(
     queryset: models.QuerySet[Piece], actor: Actor, request: HttpRequest | None = None
 ) -> None:
-    for piece in queryset.select_for_update():
+    for piece in queryset.select_for_update(of=("self",)):
         _set_status(piece, Piece.Status.HIDDEN, "catalog.piece_hidden", actor, request)
 
 
 def _set_status(
     piece: Piece, status: str, action: str, actor: Actor, request: HttpRequest | None
 ) -> None:
+    require_commercial_permission(actor)
+    validate_editorial_transition(piece.status, status)
     old = snapshot(piece)
     piece.status = status
     piece.save(update_fields=["status"])
@@ -138,13 +198,16 @@ def archive_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None
 
 @transaction.atomic
 def unhide(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Piece:
+    piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    require_commercial_permission(actor)
+    if piece.status != Piece.Status.HIDDEN:
+        raise ValidationError(_("Solo se pueden volver a publicar piezas ocultas."))
     return publish_piece(piece, actor, request)
 
 
 @transaction.atomic
 def delete_piece(piece: Piece) -> None:
-    piece = Piece.objects.select_for_update().get(pk=piece.pk)
-    piece.delete()
+    delete_pieces(Piece.objects.filter(pk=piece.pk))
 
 
 @transaction.atomic
@@ -155,7 +218,7 @@ def save_taxonomy(obj: Taxonomy) -> None:
         and not getattr(obj.cover_image, "_committed", True)
     ):
         image = validated_image(obj.cover_image)
-        # Stone and category covers fill tall home cards and a wide page banner (both object-fit: cover),
+        # Stone/category covers fill tall cards and a wide banner (object-fit: cover),
         # so they keep the photo's own shape; other covers stay 16:9.
         clean = cap_master(image if isinstance(obj, (Stone, Category)) else crop_to_ratio(image))
         obj.cover_width, obj.cover_height = clean.size
@@ -220,6 +283,7 @@ def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
         or not actor.has_perm("catalog.change_piece")
     ):
         raise PermissionDenied
+    require_commercial_permission(actor)
     source = Piece.objects.select_for_update().get(pk=piece.pk)
     # Serialize copies of the same source; bounded identifiers retain room for suffixes.
     index = 1

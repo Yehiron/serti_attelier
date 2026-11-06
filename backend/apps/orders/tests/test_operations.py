@@ -206,7 +206,8 @@ def test_content_permissions(order: Order, piece: Piece) -> None:
         add_order_note(order, "Hello", request=request)
     with pytest.raises(PermissionDenied):
         transition_status(order, "fulfillment_status", "preparing", request=request)
-    assert duplicate_piece(piece, user).status == "draft"
+    with pytest.raises(PermissionDenied):
+        duplicate_piece(piece, user)
 
 
 def test_duplicate(piece: Piece, operator: User) -> None:
@@ -631,3 +632,24 @@ def test_order_detail_permissions(order: Order) -> None:
     assert (
         browser.get(reverse("admin:orders_order_detail_manual", args=[order.pk])).status_code == 403
     )
+
+
+def test_catalog_delete_prevalidates_order_history(order: Order, piece: Piece) -> None:
+    from apps.catalog.services import delete_pieces
+    from apps.orders.models import OrderItem
+
+    Piece.objects.filter(pk=piece.pk).update(status=Piece.Status.DRAFT)
+    other = Piece.objects.create(
+        sku="BORRADOR", slug_es="borrador", name_es="Otra", price_cents=10000
+    )
+    OrderItem.objects.create(
+        order=order,
+        piece=piece,
+        sku=piece.sku,
+        name_es=piece.name_es,
+        name_en=piece.name_en,
+        unit_price_cents=piece.price_cents,
+    )
+    with pytest.raises(ValidationError, match="tiene pedidos"):
+        delete_pieces(Piece.objects.filter(pk__in=[piece.pk, other.pk]))
+    assert Piece.objects.filter(pk__in=[piece.pk, other.pk]).count() == 2

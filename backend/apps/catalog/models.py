@@ -208,7 +208,10 @@ class Piece(NamedModel):
         verbose_name = _("pieza")
         verbose_name_plural = _("piezas")
         abstract = False
-        permissions = [("change_piece_price", "Puede cambiar precios de piezas")]
+        permissions = [
+            ("change_piece_price", "Puede cambiar precios de piezas"),
+            ("publish_piece", "Puede publicar y retirar piezas"),
+        ]
         constraints = [
             *NamedModel.Meta.constraints,
             models.CheckConstraint(
