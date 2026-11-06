@@ -29,6 +29,7 @@ API_SCHEMA_PUBLIC = env.bool("API_SCHEMA_PUBLIC", default=False)
 INSTALLED_APPS = [
     "modeltranslation",
     "unfold",
+    "unfold.contrib.filters",
     "config.admin_apps.ClientAdminConfig",
     "django.contrib.auth",
     "django.contrib.contenttypes",

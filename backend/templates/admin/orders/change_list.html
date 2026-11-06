@@ -1,0 +1,13 @@
+{% extends "admin/change_list.html" %}{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'orders/order-card.css' %}">{% endblock %}
+{% block extrahead %}{{ block.super }}<script src="{% static 'orders/order-card.js' %}" defer></script>{% endblock %}
+{% block date_hierarchy %}<nav class="oc-tabs" aria-label="Estado de los pedidos">{% for tab in order_tabs %}<a href="{{ tab.url }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }} <span>{{ tab.count }}</span></a>{% endfor %}</nav>{% endblock %}
+{% block content %}{{ block.super }}
+<div class="oc-drawer-root" data-drawer-root hidden>
+  <div class="oc-backdrop" data-close-card></div>
+  <div class="oc-drawer" role="dialog" aria-modal="true" aria-labelledby="order-card-title" tabindex="-1">
+    <button type="button" class="oc-close oc-button" data-close-card aria-label="Cerrar pedido">×</button>
+    <div data-card-body aria-live="polite"></div>
+  </div>
+</div>{% endblock %}
+{% block pagination %}<div class="oc-pagination"><span>{{ cl.result_count }} pedidos{% if cl.result_count != cl.full_result_count %} de {{ cl.full_result_count }} en total{% endif %} · Página {{ page_number }} de {{ page_total }}</span><nav aria-label="Páginas de pedidos">{% if previous_url %}<a class="oc-button" href="{{ previous_url }}">Anterior</a>{% endif %}{% if next_url %}<a class="oc-button" href="{{ next_url }}">Siguiente</a>{% endif %}</nav></div>{{ block.super }}{% endblock %}

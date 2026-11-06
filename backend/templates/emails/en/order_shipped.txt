@@ -5,3 +5,6 @@ Carrier: {{ order.carrier }}
 Delivery: {{ order.customer_name }}, {{ address }}
 View your order: {{ order_url }}
 Store your piece separately in a dry place and avoid contact with perfumes, creams and chemicals.
+
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}

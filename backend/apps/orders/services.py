@@ -251,6 +251,7 @@ def transition_status(
     carrier: str | None = None,
     tracking_number: str = "",
     tracking_url: str = "",
+    notify: bool = True,
 ) -> None:
     if field == "fulfillment_status" and (
         request is None or not request.user.has_perm("orders.change_fulfillment")
@@ -287,10 +288,26 @@ def transition_status(
         updates.append("delivered_at")
     setattr(order, field, target)
     order.save(update_fields=updates)
-    if field == "fulfillment_status" and target == "shipped":
+    event = (
+        {
+            "preparing": "order_preparing",
+            "shipped": "order_shipped",
+            "delivered": "order_delivered",
+            "cancelled": "order_cancelled",
+        }.get(target)
+        if field == "fulfillment_status"
+        else None
+    )
+    notified = bool(event and notify and order.customer_email.strip())
+    if notified:
         from apps.notifications.services import enqueue
 
-        transaction.on_commit(partial(enqueue, order, "order_shipped"), robust=True)
+        transaction.on_commit(partial(enqueue, order, event), robust=True)
+    if field == "fulfillment_status":
+        notification_note = (
+            "Correo al cliente encolado." if notified else "Sin notificar al cliente."
+        )
+        note = f"{note.strip()}\n{notification_note}".strip()
     OrderStatusChange.objects.create(
         order=order,
         field=field,
@@ -304,7 +321,7 @@ def transition_status(
         obj=order,
         actor=request.user if request else None,
         request=request,
-        diff={field: [previous, target]},
+        diff={field: [previous, target], "customer_notification_queued": [False, notified]},
     )
 
 

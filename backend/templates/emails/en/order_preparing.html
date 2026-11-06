@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block heading %}We are preparing your piece{% endblock %}
+{% block content %}
+<p>Your payment is approved and we are carefully preparing your piece.</p><p>{{ order.number }}</p>
+{% include "emails/_items.html" with piece_label="SKU" %}
+{% include "emails/_button.html" with url=order_url label="View your order" %}
+{% endblock %}

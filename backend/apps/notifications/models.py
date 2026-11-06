@@ -4,6 +4,9 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 EVENTS = (
+    "order_preparing",
+    "order_delivered",
+    "order_cancelled",
     "order_shipped",
     "order_paid",
     "manual_payment_instructions",

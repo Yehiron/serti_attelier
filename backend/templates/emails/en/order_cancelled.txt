@@ -1,0 +1,5 @@
+Your order was cancelled · {{ order.number }}
+Your order was cancelled. Please contact us with any questions about your order or payment.
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}
+{{ order_url }}

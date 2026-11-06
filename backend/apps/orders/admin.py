@@ -8,9 +8,11 @@ from django.db.models import QuerySet
 from django.http import Http404, HttpRequest, HttpResponse, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import path, reverse
+from django.utils import timezone
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 from unfold.admin import ModelAdmin, TabularInline
+from unfold.contrib.filters.admin import ChoicesDropdownFilter
 from unfold.decorators import action, display
 from unfold.utils import display_for_label
 
@@ -19,7 +21,9 @@ from apps.core.admin_presentation import thumbnail_url
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop, format_bogota_date
 
+from .card_admin import OrderCardAdminMixin
 from .exports import export_orders
+from .filters import OrderDateFilter, OrderTotalFilter
 from .forms import FulfillmentForm
 from .models import Order, OrderItem, OrderNote, OrderStatusChange
 from .services import add_order_note, transition_status
@@ -189,19 +193,33 @@ class NoteInline(TabularInline):  # type: ignore[misc]
 
 
 @admin.register(Order)
-class OrderAdmin(ModelAdmin):  # type: ignore[misc]
+class OrderAdmin(OrderCardAdminMixin, ModelAdmin):  # type: ignore[misc]
     list_display = (
         "number",
         "order_date",
         "client_name",
-        "client_phone",
         "total_cop",
         "payment_badge",
         "fulfillment_badge",
         "certificate_requested",
         "attention_badge",
+        "view_order",
     )
-    list_filter = ("payment_status", "fulfillment_status", "created_at", "needs_attention")
+    change_list_template = "admin/orders/change_list.html"
+    list_per_page = 20
+    list_filter_submit = True
+    list_display_links = ("number",)
+    ordering = ("-created_at", "-pk")
+    search_help_text = "Buscar por número, cliente, correo, teléfono o referencia"
+    list_filter = (
+        ("fulfillment_status", ChoicesDropdownFilter),
+        ("payment_status", ChoicesDropdownFilter),
+        ("created_at", OrderDateFilter),
+        ("total_cents", OrderTotalFilter),
+        "wants_certificate",
+        "needs_attention",
+        HasCouponFilter,
+    )
     search_fields = ("number", "customer_name", "customer_email", "customer_phone", "items__sku")
     date_hierarchy = "created_at"
     inlines = (ItemInline, NoteInline, HistoryInline)
@@ -212,7 +230,7 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
         "detail_certificate",
         "detail_whatsapp",
     )
-    actions_row = ("detail_fulfillment",)
+    actions_row = ()
     readonly_fields = (
         "carrier",
         "tracking_number",
@@ -357,11 +375,24 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
 
     @admin.display(description=_("Fecha"), ordering="created_at")
     def order_date(self, obj: Order) -> Any:
-        return obj.created_at
+        from apps.core.formatting import BOGOTA
+
+        local = timezone.localtime(obj.created_at, BOGOTA)
+        return format_html(
+            '<span style="white-space:nowrap">{}</span><br>'
+            '<small style="white-space:nowrap;opacity:.7">{}</small>',
+            local.strftime("%d/%m/%Y"),
+            local.strftime("%I:%M %p").lstrip("0").lower(),
+        )
 
     @admin.display(description=_("Cliente"), ordering="customer_name")
     def client_name(self, obj: Order) -> str:
-        return obj.customer_name
+        # Name and phone share one column so the row keeps room for "Ver pedido".
+        return format_html(
+            '{}<br><small style="white-space:nowrap;opacity:.7">{}</small>',
+            obj.customer_name,
+            obj.customer_phone,
+        )
 
     @admin.display(description=_("Teléfono"))
     def client_phone(self, obj: Order) -> str:
@@ -478,8 +509,29 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
             )
         return cast(HttpResponse, super().change_view(request, object_id, form_url, extra_context))
 
+    @admin.display(description="Pedido")
+    def view_order(self, obj):
+        return format_html(
+            '<a class="oc-button" style="white-space:nowrap" data-order-card="{}" href="{}">'
+            '<span class="material-symbols-outlined" aria-hidden="true">visibility</span>'
+            " Ver pedido</a>",
+            self.card_url(obj),
+            reverse("admin:orders_order_change", args=[obj.pk]),
+        )
+
     def get_urls(self) -> list[Any]:
         return [
+            path(
+                "<int:pk>/card/notes/",
+                self.admin_site.admin_view(self.card_note),
+                name="orders-card-note",
+            ),
+            path("<int:pk>/card/", self.admin_site.admin_view(self.card_page), name="orders-card"),
+            path(
+                "<int:pk>/card/status/",
+                self.admin_site.admin_view(self.card_status),
+                name="orders-card-status",
+            ),
             path(
                 "<int:pk>/certificate/",
                 self.admin_site.admin_view(self.certificate_page),
@@ -639,7 +691,9 @@ class OrderAdmin(ModelAdmin):  # type: ignore[misc]
 
     @admin.action(description=_("Cambiar estado de entrega"), permissions=["fulfillment"])
     def fulfillment(self, request: HttpRequest, queryset: QuerySet[Order]) -> HttpResponse:
-        if not self.has_fulfillment_permission(request):
+        if not self.has_fulfillment_permission(request) or not self.has_change_permission(request):
+            raise PermissionDenied
+        if any(not self.has_change_permission(request, order) for order in queryset):
             raise PermissionDenied
         form = FulfillmentForm(request.POST if "apply" in request.POST else None)
         if "apply" in request.POST and form.is_valid():

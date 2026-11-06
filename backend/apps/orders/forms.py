@@ -47,3 +47,38 @@ class FulfillmentForm(forms.Form):
         if self.cleaned_data.get("target") == "shipped" and not value:
             raise forms.ValidationError(_("Indica la transportadora antes de enviar."))
         return value
+
+
+class CardStateSelect(UnfoldAdminSelectWidget):
+    disable_preparing = False
+
+    def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
+        option = super().create_option(name, value, label, selected, index, subindex, attrs)
+        if str(value) == "preparing" and self.disable_preparing:
+            option["attrs"]["disabled"] = True
+        return option
+
+
+class CardFulfillmentForm(FulfillmentForm):
+    notify = forms.BooleanField(
+        label="Enviar notificación al cliente por correo", required=False, initial=True
+    )
+    expected_status = forms.CharField(max_length=12, widget=forms.HiddenInput)
+
+    def __init__(self, *args, order, **kwargs):
+        from .transitions import FULFILLMENT_TRANSITIONS
+
+        super().__init__(*args, **kwargs)
+        allowed = FULFILLMENT_TRANSITIONS.get(order.fulfillment_status, ())
+        # Swap the widget first: assigning choices also copies them onto the current widget.
+        self.fields["target"].widget = CardStateSelect()
+        self.fields["target"].choices = [
+            (key, label)
+            for key, label in Order._meta.get_field("fulfillment_status").choices
+            if key in allowed
+        ]
+        self.fields["target"].widget.disable_preparing = order.payment_status != "approved"
+        self.fields["expected_status"].initial = order.fulfillment_status
+        if not order.customer_email.strip():
+            self.fields["notify"].disabled = True
+            self.fields["notify"].initial = False

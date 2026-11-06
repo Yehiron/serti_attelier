@@ -124,12 +124,18 @@ def render_email(delivery: NotificationDelivery, order: Order) -> EmailContent:
         titles = {
             "es": {
                 "order_shipped": "Tu pieza va en camino",
+                "order_preparing": "Estamos preparando tu pieza",
+                "order_delivered": "Tu pieza fue entregada",
+                "order_cancelled": "Tu pedido fue cancelado",
                 "order_paid": "Confirmación de compra",
                 "manual_payment_instructions": "Instrucciones de pago",
                 "reservation_expired": "Tu reserva venció",
             },
             "en": {
                 "order_shipped": "Your piece is on its way",
+                "order_preparing": "We are preparing your piece",
+                "order_delivered": "Your piece was delivered",
+                "order_cancelled": "Your order was cancelled",
                 "order_paid": "Purchase confirmation",
                 "manual_payment_instructions": "Payment instructions",
                 "reservation_expired": "Your reservation expired",

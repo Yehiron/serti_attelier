@@ -1,0 +1,5 @@
+Tu pedido fue cancelado · {{ order.number }}
+Tu pedido fue cancelado. Si tienes preguntas sobre tu pedido o tu pago, contáctanos.
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}
+{{ order_url }}

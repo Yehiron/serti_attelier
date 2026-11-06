@@ -5,3 +5,6 @@ Transportadora: {{ order.carrier }}
 Entrega: {{ order.customer_name }}, {{ address }}
 Ver tu pedido: {{ order_url }}
 Guárdala por separado en un lugar seco y evita el contacto con perfumes, cremas y químicos.
+
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}

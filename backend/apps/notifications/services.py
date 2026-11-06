@@ -21,6 +21,9 @@ from .rendering import render_email, whatsapp_parameters
 logger = logging.getLogger(__name__)
 BACKOFF_SECONDS = (60, 300, 900, 3600)
 EVENT_TARGETS = {
+    "order_preparing": (("email", "customer"),),
+    "order_delivered": (("email", "customer"),),
+    "order_cancelled": (("email", "customer"),),
     "order_shipped": (("email", "customer"),),
     "order_paid": (("email", "customer"), ("email", "serti"), ("whatsapp", "serti")),
     "manual_payment_instructions": (("email", "customer"), ("email", "serti")),

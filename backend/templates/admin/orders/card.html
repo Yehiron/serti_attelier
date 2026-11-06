@@ -1,0 +1,82 @@
+<article class="order-card" data-card-content data-order-number="{{ order.number }}" data-status="{{ order.get_fulfillment_status_display }}" data-card-url="{{ card_url }}">
+  <header class="oc-header">
+    <p class="oc-eyebrow">SERTI · PEDIDO</p>
+    <h2 id="order-card-title" tabindex="-1">{{ order.number }}</h2>
+    <p class="oc-muted">{{ date }}</p>
+    <div class="oc-badges"><span>{{ order.get_payment_status_display }}</span><span>{{ order.get_fulfillment_status_display }}</span></div>
+    {% if order.needs_attention %}<p class="oc-notice">Requiere atención: revisa el pago y la disponibilidad.</p>{% endif %}
+  </header>
+  {% if success %}<p class="oc-notice" role="status" data-update-success>{{ success }}</p>{% endif %}
+
+  <div class="oc-columns"><div class="oc-main">
+  <section><h3>Cliente</h3><p><strong>{{ order.customer_name }}</strong></p>
+    <p><a href="mailto:{{ order.customer_email }}">{{ order.customer_email|default:"Sin correo" }}</a></p>
+    <p><a href="tel:{{ order.customer_phone }}">{{ order.customer_phone }}</a></p><p class="oc-muted">{{ language }}</p>
+  </section>
+  <section><h3>Entrega</h3><p>Estado: {{ order.get_fulfillment_status_display }}</p><p>{{ order.shipping_address_line }}</p>
+    {% if order.shipping_address_extra %}<p>{{ order.shipping_address_extra }}</p>{% endif %}
+    <p>{{ destination }} · Colombia</p>
+    {% if order.shipping_notes %}<p class="oc-preserve">{{ order.shipping_notes }}</p>{% endif %}
+    <p>Transportadora: <strong>{{ order.carrier|default:"Sin transportadora" }}</strong></p><p>Guía: {{ order.tracking_number|default:"Sin número de guía" }}</p>
+    {% if order.tracking_url %}<a href="{{ order.tracking_url }}" target="_blank" rel="noopener">Seguir envío</a>{% endif %}
+  </section>
+  <section><h3>Piezas</h3><ul class="oc-pieces">
+    {% for piece in pieces %}<li>
+      {% if piece.image %}<img src="{{ piece.image }}" width="64" height="72" alt="{{ piece.name }}">{% endif %}
+      <div><strong><a href="{{ piece.url }}">{{ piece.name }}</a></strong><p class="oc-muted">Referencia {{ piece.sku }}</p><p>{{ piece.price }}</p><p class="oc-muted">Descuento: {{ piece.discount }}</p></div>
+    </li>{% empty %}<li>No hay piezas registradas.</li>{% endfor %}
+  </ul></section>
+  <section><h3>Resumen del pedido</h3><dl class="oc-totals">
+    {% for label, amount in totals %}<div><dt>{{ label }}</dt><dd>{{ amount }}</dd></div>{% endfor %}
+    {% if order.coupon %}<div><dt>Cupón</dt><dd>{{ order.coupon.code }}</dd></div>{% endif %}
+    <div class="oc-total"><dt>TOTAL · COP</dt><dd>{{ total }}</dd></div>
+  </dl></section>
+  </div><div class="oc-side">
+  {% if not print_mode %}<nav class="oc-actions oc-no-print" aria-label="Acciones del pedido">
+    {% if can_transition and states %}<a class="oc-button" href="#order-state">Cambiar estado</a>{% endif %}
+    <a class="oc-button" href="{{ card_url }}?print=1" target="_blank" rel="noopener">Descargar PDF</a>
+    <a class="oc-button" href="{{ change_url }}">Abrir en página completa</a>
+    {% if manual_url %}<a class="oc-button" href="{{ manual_url }}">Confirmar pago manual</a>{% endif %}
+    <a class="oc-button" href="{{ whatsapp_url }}" target="_blank" rel="noopener">WhatsApp</a>
+    {% if certificate_url %}<a class="oc-button" href="{{ certificate_url }}" target="_blank" rel="noopener">Imprimir certificado</a>{% endif %}
+  </nav>{% endif %}
+  <section><h3>Pago</h3><p>{{ order.get_payment_channel_display }} · {{ order.get_payment_status_display }}</p>{% if certificate_url %}<p><a href="{{ certificate_url }}">Abrir certificado para imprimir</a></p>{% endif %}</section>
+  {% if can_transition %}<section id="order-state" class="oc-no-print"><h3>Estado del pedido</h3>
+    <p>Estado actual: <strong>{{ order.get_fulfillment_status_display }}</strong></p>
+    <div data-state-choices {% if confirming %}hidden{% endif %} class="oc-actions">
+    {% for state in states %}<button type="button" class="oc-button" data-choose-state="{{ state.value }}" data-state-label="{{ state.label }}" {% if state.disabled %}disabled aria-describedby="payment-required"{% endif %}>{{ state.label }}</button>{% empty %}<p>No hay cambios disponibles.</p>{% endfor %}
+    </div>
+    {% if order.payment_status != 'approved' %}<p id="payment-required" class="oc-muted">Para preparar el pedido, primero debe aprobarse el pago.</p>{% endif %}
+    <form action="{{ status_url }}" method="post" class="oc-confirm" data-status-form {% if not confirming %}hidden{% endif %}>
+      {% csrf_token %}{{ form.expected_status }}
+      <h4 data-confirm-question>¿Cambiar el pedido {{ order.number }} de «{{ order.get_fulfillment_status_display }}»?</h4>
+      <p>{{ order.customer_name }} · {{ total }}</p>
+      {% if form.errors %}<div role="alert" class="oc-notice">{{ form.errors }}</div>{% endif %}
+      <label>Nuevo estado {{ form.target }}</label>
+      <div data-shipping-fields>
+        <label>Transportadora (obligatoria al enviar) {{ form.carrier }}</label>
+        <label>Número de guía {{ form.tracking_number }}</label>
+        <label>Enlace de seguimiento {{ form.tracking_url }}</label>
+      </div>
+      <label>Nota interna (opcional) {{ form.note }}</label>
+      <label class="oc-checkbox">{{ form.notify }} <span>Enviar notificación al cliente por correo ({{ order.customer_email|default:"sin correo" }})</span></label>
+      {% if not order.customer_email %}<p class="oc-muted">Este pedido no tiene correo; el cambio se guardará sin notificar.</p>{% endif %}
+      <p class="oc-muted" data-return-notice hidden>Las devoluciones se guardan sin enviar correo al cliente.</p>
+      <div class="oc-actions"><button class="oc-button oc-primary" type="submit">Sí, cambiar estado</button><button class="oc-button" type="button" data-cancel-state>Cancelar</button></div>
+    </form>
+    <noscript><p>Selecciona el nuevo estado y confirma el cambio.</p><style>[data-status-form][hidden]{display:block!important}[data-state-choices]{display:none}</style></noscript>
+  </section>{% endif %}
+  <section><h3>Historial de estados</h3><ol class="oc-timeline">
+    {% for change in history %}<li><p class="oc-muted">{{ change.date }}</p><p>{{ change.field }}: <strong>{{ change.previous }} → {{ change.next }}</strong> · {{ change.actor }}</p>{% if change.note %}<p class="oc-preserve">{{ change.note }}</p>{% endif %}</li>{% empty %}<li>Aún no hay cambios de estado.</li>{% endfor %}
+  </ol></section>
+  {% if can_notes or can_add_note %}<section><h3>Notas internas</h3>
+    {% if can_notes %}{% for note in order.notes.all %}<p class="oc-preserve">{{ note.text }}</p><p class="oc-muted">{{ note.author }} · {{ note.created_at }}</p>{% empty %}<p class="oc-muted">Sin notas internas.</p>{% endfor %}{% endif %}
+    {% if can_add_note and not print_mode %}<form action="{{ note_url }}" method="post" class="oc-confirm oc-no-print" data-note-form>
+      {% csrf_token %}
+      {% if note_error %}<p class="oc-notice" role="alert">{{ note_error }}</p>{% endif %}
+      <label for="order-note">Agregar nota interna</label><textarea id="order-note" name="text" required maxlength="2000" rows="3">{{ note_text }}</textarea>
+      <button type="submit" class="oc-button oc-primary">Agregar nota</button>
+    </form>{% endif %}
+  </section>{% endif %}
+  </div></div>
+</article>

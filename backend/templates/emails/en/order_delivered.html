@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block heading %}Your piece was delivered{% endblock %}
+{% block content %}
+<p>Your order was delivered. Thank you for choosing a unique SERTI piece.</p><p>{{ order.number }}</p>
+{% include "emails/_items.html" with piece_label="SKU" %}
+{% include "emails/_button.html" with url=order_url label="View your order" %}
+{% endblock %}

@@ -1,0 +1,5 @@
+Your piece was delivered · {{ order.number }}
+Your order was delivered. Thank you for choosing a unique SERTI piece.
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}
+{{ order_url }}

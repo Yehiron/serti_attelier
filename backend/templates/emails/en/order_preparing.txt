@@ -1,0 +1,5 @@
+We are preparing your piece · {{ order.number }}
+Your payment is approved and we are carefully preparing your piece.
+{% for item in items %}{{ item.name }} · {{ item.sku }} · {{ item.price }}
+{% endfor %}
+{{ order_url }}

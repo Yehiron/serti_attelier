@@ -126,7 +126,7 @@ def test_shipping(
         )
     order.refresh_from_db()
     assert order.carrier == "Carrier" and order.shipped_at and not order.delivered_at
-    assert order.status_changes.get().note == "Empacado"
+    assert order.status_changes.get().note == "Empacado\nCorreo al cliente encolado."
     delivery = NotificationDelivery.objects.get()
     content = render_email(delivery, order)
     for body in (content.text, content.html):
@@ -362,7 +362,7 @@ def test_admin_search_and_form(
     assert response.status_code == 302
     order.refresh_from_db()
     assert order.fulfillment_status == "cancelled"
-    assert order.status_changes.get().note == "Cancelación"
+    assert order.status_changes.get().note == "Cancelación\nCorreo al cliente encolado."
     change = browser.get(reverse("admin:orders_order_change", args=[order.pk]))
     assert change.status_code == 200
 
@@ -370,32 +370,11 @@ def test_admin_search_and_form(
 def test_notes_admin_append_only(order: Order, operator: User) -> None:
     browser = Client()
     browser.force_login(operator)
-    url = reverse("admin:orders_order_change", args=[order.pk])
-
-    def post_notes(new_text: str, tamper: bool = False) -> Any:
-        page = browser.get(url)
-        data: dict[str, Any] = {"_save": "Guardar"}
-        for inline in page.context["inline_admin_formsets"]:
-            formset = inline.formset
-            prefix = formset.prefix
-            for key, value in formset.management_form.initial.items():
-                data[f"{prefix}-{key}"] = value
-            for form in formset.forms:
-                for field in form.hidden_fields():
-                    if field.value() is not None:
-                        data[field.html_name] = field.value()
-            if formset.model is OrderNote:
-                total = formset.initial_form_count()
-                data[f"{prefix}-TOTAL_FORMS"] = total + 1
-                data[f"{prefix}-{total}-text"] = new_text
-                if tamper:
-                    data[f"{prefix}-0-text"] = "Tampered"
-        return browser.post(url, data)
-
-    response = post_notes("Primera nota")
-    assert response.status_code == 302
-    response = post_notes("Segunda nota", tamper=True)
-    assert response.status_code == 302
+    url = reverse("admin:orders-card-note", args=[order.pk])
+    assert browser.post(url, {"text": "Primera nota"}).status_code == 200
+    assert (
+        browser.post(url, {"text": "Segunda nota", "notes-0-text": "Tampered"}).status_code == 200
+    )
     assert list(order.notes.values_list("text", flat=True)) == ["Primera nota", "Segunda nota"]
     assert AuditLog.objects.filter(action="orders.note_added").count() == 2
 
@@ -628,11 +607,17 @@ def test_order_detail_actions(order: Order) -> None:
     assert response["Location"] == "https://wa.me/573001234567"
     order.payment_status = "awaiting_manual_payment"
     order.save()
-    assert "detail_manual" in browser.get(change_url).content.decode()
+    assert (
+        reverse("admin:orders-confirm-manual", args=[order.pk])
+        in browser.get(change_url).content.decode()
+    )
     order.payment_status = "approved"
     order.wants_certificate = True
     order.save()
-    assert "detail_certificate" in browser.get(change_url).content.decode()
+    assert (
+        reverse("admin:orders-certificate", args=[order.pk])
+        in browser.get(change_url).content.decode()
+    )
 
 
 def test_order_detail_permissions(order: Order) -> None:

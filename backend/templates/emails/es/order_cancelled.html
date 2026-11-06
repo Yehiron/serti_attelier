@@ -1,0 +1,7 @@
+{% extends "emails/base.html" %}
+{% block heading %}Tu pedido fue cancelado{% endblock %}
+{% block content %}
+<p>Tu pedido fue cancelado. Si tienes preguntas sobre tu pedido o tu pago, contáctanos.</p><p>{{ order.number }}</p>
+{% include "emails/_items.html" with piece_label="SKU" %}
+{% include "emails/_button.html" with url=order_url label="Ver tu pedido" %}
+{% endblock %}
