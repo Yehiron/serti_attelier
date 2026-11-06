@@ -9,11 +9,14 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import QuerySet
-from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
+from django.http import HttpRequest, HttpResponse, HttpResponseRedirect, JsonResponse
+from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
-from django.urls import reverse
-from django.utils.html import format_html
+from django.urls import path, reverse
+from django.utils.decorators import method_decorator
+from django.utils.html import format_html, strip_tags
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.http import require_GET, require_POST
 from modeltranslation.admin import TabbedTranslationAdmin, TranslationTabularInline
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
@@ -85,7 +88,6 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
         "image_status",
     )
     readonly_fields = ("preview", "image_status")
-    image_status = ClientPresentationMixin.image_status
     ordering = ("position",)
 
     @admin.display(description=_("Vista previa"))
@@ -96,7 +98,9 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
             if paths
             else (obj.original.url if obj.original else None)
         )
-        return (
+        if not obj.pk and not src:
+            return "—"
+        preview = (
             format_html(
                 '<img src="{}" alt="{}" style="width:64px;height:80px;object-fit:contain">',
                 src,
@@ -104,6 +108,29 @@ class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInlin
             )
             if src
             else "—"
+        )
+        return format_html('<span data-photo-preview="{}">{}</span>', obj.pk or "", preview)
+
+    @admin.display(description=_("Estado"))
+    def image_status(self, obj: PieceImage) -> str:
+        retry = (
+            format_html(
+                '<button type="submit" formmethod="post" formaction="{}" formnovalidate '
+                'data-photo-retry="{}">Reintentar</button>',
+                reverse("admin:catalog_piece_photo_retry", args=[obj.piece_id, obj.pk]),
+                obj.pk,
+            )
+            if obj.pk and obj.processing_status == "failed"
+            else ""
+        )
+        return format_html(
+            '<span data-photo-id="{}" data-photo-status="{}" aria-live="polite">{}{}</span>',
+            obj.pk or "",
+            obj.processing_status,
+            _("No se pudo procesar")
+            if obj.processing_status == "failed"
+            else ClientPresentationMixin.image_status(self, obj),
+            retry,
         )
 
 
@@ -252,6 +279,68 @@ class PieceAdmin(TranslatedAdmin):
     actions_row = ("detail_publish",)
     actions_submit_line = ("save_publish",)
     change_form_before_template = "admin/catalog/piece_status.html"
+
+    class Media:
+        js = ("catalog/photo-status.js",)
+
+    def get_urls(self) -> Any:
+        return [
+            path(
+                "<path:object_id>/photos/status/",
+                self.admin_site.admin_view(self.photo_status),
+                name="catalog_piece_photo_status",
+            ),
+            path(
+                "<path:object_id>/photos/<int:image_id>/retry/",
+                self.admin_site.admin_view(self.photo_retry),
+                name="catalog_piece_photo_retry",
+            ),
+            *super().get_urls(),
+        ]
+
+    def photo_piece(self, request: HttpRequest, object_id: str, *, change: bool = False) -> Piece:
+        piece = get_object_or_404(self.get_queryset(request), pk=object_id)
+        allowed = (
+            self.has_change_permission(request, piece)
+            if change
+            else (
+                request.user.has_perm("catalog.view_piece")
+                and self.has_view_permission(request, piece)
+            )
+        )
+        if not allowed:
+            raise PermissionDenied
+        return piece
+
+    @method_decorator(require_GET)
+    def photo_status(self, request: HttpRequest, object_id: str) -> JsonResponse:
+        piece = self.photo_piece(request, object_id)
+        photos = []
+        for image in piece.images.all():
+            paths = image.renditions.get("webp", {}) if image.processing_status == "ready" else {}
+            photos.append(
+                {
+                    "id": image.pk,
+                    "status": image.processing_status,
+                    "thumb_url": default_storage.url(paths[min(paths, key=int)]) if paths else None,
+                    "is_primary": image.is_primary,
+                    "is_hover": image.is_hover,
+                    "message": strip_tags(
+                        str(ClientPresentationMixin.image_status(self, image))
+                    ).strip(),
+                }
+            )
+        missing = services.publication_missing(piece)
+        return JsonResponse({"photos": photos, "ready_to_publish": not missing, "missing": missing})
+
+    @method_decorator(require_POST)
+    def photo_retry(self, request: HttpRequest, object_id: str, image_id: int) -> HttpResponse:
+        piece = self.photo_piece(request, object_id, change=True)
+        services.retry_piece_image(piece, image_id)
+        if request.headers.get("Accept") == "application/json":
+            return JsonResponse({"status": "pending"})
+        self.message_user(request, "Se solicitó volver a procesar la foto.")
+        return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[piece.pk]))
 
     def has_commercial_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         # Django combines action permissions with OR: this method deliberately requires both.
@@ -617,11 +706,21 @@ class PieceAdmin(TranslatedAdmin):
         for formset in formsets:
             self.save_formset(request, form, formset, change)
         for error in services.append_piece_photos(
-            form.instance, request.FILES.getlist("new_photos")
+            form.instance, request.FILES.getlist("new_photos"), actor=request.user
         ):
             self.message_user(request, error, messages.ERROR)
 
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
+        if formset.model is PieceImage:
+            formset.save(commit=False)
+            photos = [
+                image_form.instance
+                for image_form in formset.forms
+                if image_form.cleaned_data and not image_form.cleaned_data.get("DELETE")
+            ]
+            services.apply_photo_changes(form.instance, photos, actor=request.user)
+            formset.save_m2m()
+            return
         instances = formset.save(commit=False)
         for obj in formset.deleted_objects:
             if isinstance(obj, PieceVideo):

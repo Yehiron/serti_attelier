@@ -82,6 +82,13 @@ class PieceImageForm(ValidatedImageForm):
         fields = "__all__"
         labels = {"original": _("Foto")}
 
+    def _get_validation_exclusions(self) -> set[str]:
+        # These constraints belong to the final formset state, not the old database rows.
+        excluded = super()._get_validation_exclusions()
+        if getattr(self, "_photo_final_state", False):
+            excluded |= {"position", "is_primary", "is_hover"}
+        return excluded
+
     def clean(self) -> dict[str, Any]:
         cleaned = super().clean()
         if cleaned.get("is_primary") and cleaned.get("is_hover"):
@@ -92,20 +99,21 @@ class PieceImageForm(ValidatedImageForm):
 
 
 class PieceImageFormSet(BaseImageFormSet):
+    def add_fields(self, form: Any, index: int | None) -> None:
+        super().add_fields(form, index)
+        form._photo_final_state = True
+
     def clean(self) -> None:
         if any(self.errors):
             return
+        from .services import validate_photo_state
+
         active = [
-            form.cleaned_data
+            form.instance
             for form in self.forms
             if form.cleaned_data and not form.cleaned_data.get("DELETE")
         ]
-        if sum(bool(row.get("is_hover")) for row in active) > 1:
-            raise forms.ValidationError(
-                _("Selecciona solo una imagen al pasar el cursor por pieza.")
-            )
-        if sum(bool(row.get("is_primary")) for row in active) > 1:
-            raise forms.ValidationError(_("Selecciona solo una imagen principal por pieza."))
+        validate_photo_state(self.instance, active)
         super().clean()
 
 

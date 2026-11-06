@@ -109,6 +109,9 @@ def test_inline_validation(make_piece: Callable[..., Piece], both: bool) -> None
     errors = str(formset.errors if both else formset.non_form_errors())
     assert ("no puede ser principal" if both else "solo una imagen al pasar") in errors
     data["images-0-DELETE"] = "on"
+    # The remaining photo must now be the primary (and cannot also be hover).
+    data["images-1-is_primary"] = "on"
+    data.pop("images-1-is_hover")
     files = MultiValueDict(
         {
             f"images-{i}-original": [

@@ -173,7 +173,8 @@ def test_image_forms_and_sorting() -> None:
     ).content.decode()
     assert "internal-json-marker" not in piece_html and "private-image-data" not in piece_html
     assert "Traceback /srv/private/decoder" not in piece_html
-    assert "Error: vuelve a subir la imagen" in piece_html
+    # Piece photos that failed offer a retry instead of asking to upload again.
+    assert "No se pudo procesar" in piece_html and "Reintentar" in piece_html
     hero = HomeSection.objects.create(kind="hero", title_es="Portada")
     HeroSlide.objects.create(
         section=hero,

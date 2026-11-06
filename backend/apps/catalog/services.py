@@ -104,7 +104,11 @@ def snapshot(piece: Piece) -> dict[str, object]:
 
 @transaction.atomic
 def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None) -> Piece:
-    old = Piece.objects.select_for_update().filter(pk=piece.pk).first() if piece.pk else None
+    old = (
+        Piece.objects.select_for_update(of=("self",)).filter(pk=piece.pk).first()
+        if piece.pk
+        else None
+    )
     price_changed = (
         old is None and (piece.price_cents is not None or piece.sale_price_cents is not None)
     ) or (
@@ -155,7 +159,7 @@ def publication_missing(piece: Piece) -> list[str]:
 
 @transaction.atomic
 def publish_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Piece:
-    piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     require_commercial_permission(actor)
     validate_editorial_transition(piece.status, Piece.Status.PUBLISHED)
     missing = publication_missing(piece)
@@ -192,13 +196,13 @@ def _set_status(
 
 @transaction.atomic
 def archive_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> None:
-    piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     _set_status(piece, Piece.Status.ARCHIVED, "catalog.piece_archived", actor, request)
 
 
 @transaction.atomic
 def unhide(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Piece:
-    piece = Piece.objects.select_for_update().get(pk=piece.pk)
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     require_commercial_permission(actor)
     if piece.status != Piece.Status.HIDDEN:
         raise ValidationError(_("Solo se pueden volver a publicar piezas ocultas."))
@@ -237,6 +241,7 @@ def save_piece_image(obj: PieceImage) -> None:
     from .tasks import process_piece_image
 
     changed = not getattr(obj.original, "_committed", True)
+    is_new = obj.pk is None
     if changed:
         clean = cap_master(validated_image(obj.original))
         obj.original.save(f"{uuid4().hex}.webp", encode_webp(clean), save=False)
@@ -245,8 +250,103 @@ def save_piece_image(obj: PieceImage) -> None:
         obj.error = ""
     obj.full_clean()
     obj.save()
-    if changed or obj.processing_status == PieceImage.ProcessingStatus.PENDING:
+    if changed or (is_new and obj.processing_status == PieceImage.ProcessingStatus.PENDING):
         transaction.on_commit(lambda: process_piece_image.delay(obj.pk))
+
+
+PUBLISHED_PHOTO_MESSAGE = (
+    "Esta pieza está publicada: elige como principal una foto que ya esté lista, "
+    "u oculta la pieza antes de cambiarla."
+)
+
+
+def validate_photo_state(piece: Piece, photos: list[PieceImage]) -> None:
+    primary = [photo for photo in photos if photo.is_primary]
+    if piece.status == Piece.Status.PUBLISHED and (
+        len(primary) != 1
+        or primary[0].processing_status != "ready"
+        or not getattr(primary[0].original, "_committed", True)
+    ):
+        raise ValidationError(PUBLISHED_PHOTO_MESSAGE)
+    if sum(photo.is_hover for photo in photos) > 1:
+        raise ValidationError("Selecciona solo una imagen al pasar el cursor por pieza.")
+    if photos and len(primary) != 1:
+        raise ValidationError("Selecciona exactamente una foto principal.")
+    if any(photo.is_primary and photo.is_hover for photo in photos):
+        raise ValidationError("Una imagen no puede ser principal y al pasar el cursor a la vez.")
+    positions = [photo.position for photo in photos]
+    if len(set(positions)) != len(positions):
+        raise ValidationError("Cada foto debe tener una posición diferente.")
+
+
+@transaction.atomic
+def apply_photo_changes(piece: Piece, photos: list[PieceImage], *, actor: Actor) -> None:
+    """Replace the complete inline state, with immediate PostgreSQL constraints in mind."""
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
+    if actor is not None and not actor.has_perm("catalog.change_piece"):
+        raise PermissionDenied("No tienes permiso para editar esta pieza.")
+    current = {p.pk: p for p in piece.images.select_for_update(of=("self",))}
+    ids = [p.pk for p in photos if p.pk is not None]
+    if len(set(ids)) != len(ids) or any(pk not in current for pk in ids):
+        raise ValidationError("Las fotos cambiaron. Recarga la página e inténtalo de nuevo.")
+    deleted = set(current) - set(ids)
+    if deleted and actor is not None and not actor.has_perm("catalog.delete_pieceimage"):
+        raise ValidationError("No tienes permiso para borrar fotos.")
+    # The worker may have completed since the form was loaded. Preserve its fields.
+    for photo in photos:
+        if photo.pk:
+            old = current[photo.pk]
+            for field in ("processing_status", "error", "renditions", "width", "height"):
+                setattr(photo, field, getattr(old, field))
+        photo.piece = piece
+    validate_photo_state(piece, photos)
+    ordered = sorted(photos, key=lambda p: p.position)
+
+    def state(rows: list[PieceImage]) -> dict[str, object]:
+        return {
+            "principal": next((p.pk for p in rows if p.is_primary), None),
+            "hover": next((p.pk for p in rows if p.is_hover), None),
+            "orden": [p.pk for p in sorted(rows, key=lambda p: p.position)],
+        }
+
+    before = state(list(current.values()))
+    # Find a free block above the final range, including legacy positions near int32's limit.
+    offset = len(photos)
+    for position in sorted(p.position for p in current.values()):
+        if position >= offset and position < offset + len(current):
+            offset = position + 1
+    if offset + len(current) > 2_147_483_647:
+        raise ValidationError("No se pudo ordenar las fotos. Revisa sus posiciones.")
+    piece.images.update(is_primary=False, is_hover=False)
+    for index, pk in enumerate(current):
+        piece.images.filter(pk=pk).update(position=offset + index)
+    for pk in deleted:
+        delete_piece_image(current[pk])  # Existing signals clean files after commit.
+    for index, photo in enumerate(ordered):
+        photo.position = index
+        save_piece_image(photo)
+    after = state(ordered)
+    diff = {key: [before[key], after[key]] for key in before if before[key] != after[key]}
+    if deleted:
+        diff["borradas"] = [sorted(deleted), []]
+    if diff:
+        record("catalog.photos_updated", actor=actor, obj=piece, diff=diff)
+
+
+@transaction.atomic
+def retry_piece_image(piece: Piece, image_id: int) -> None:
+    from django.shortcuts import get_object_or_404
+
+    from .tasks import process_piece_image
+
+    Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
+    image = get_object_or_404(
+        PieceImage.objects.select_for_update(of=("self",)), pk=image_id, piece_id=piece.pk
+    )
+    if image.processing_status == "failed":
+        image.processing_status, image.error = "pending", ""
+        image.save(update_fields=["processing_status", "error"])
+        transaction.on_commit(lambda: process_piece_image.delay(image.pk))
 
 
 @transaction.atomic
@@ -284,7 +384,7 @@ def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
     ):
         raise PermissionDenied
     require_commercial_permission(actor)
-    source = Piece.objects.select_for_update().get(pk=piece.pk)
+    source = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     # Serialize copies of the same source; bounded identifiers retain room for suffixes.
     index = 1
     while Piece.objects.filter(sku=f"{source.sku[:25]}-COPIA-{index}").exists():
@@ -419,10 +519,10 @@ def save_piece_video(obj: PieceVideo) -> None:
 
 
 @transaction.atomic
-def append_piece_photos(piece: Piece, uploads: list[Any]) -> list[str]:
+def append_piece_photos(piece: Piece, uploads: list[Any], *, actor: Actor = None) -> list[str]:
     """Validate each upload independently while serializing ordering and primary selection."""
-    Piece.objects.select_for_update().get(pk=piece.pk)
-    position = max(piece.images.values_list("position", flat=True), default=-1) + 1
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
+    position = piece.images.count()
     primary = not piece.images.filter(is_primary=True).exists()
     errors = []
     for upload in uploads:
@@ -437,7 +537,10 @@ def append_piece_photos(piece: Piece, uploads: list[Any]) -> list[str]:
                     alt_en=piece.name_en or piece.name_es,
                     is_primary=primary,
                 )
-                save_piece_image(image)
+                current = list(piece.images.all())
+                for index, photo in enumerate(current):
+                    photo.position = index
+                apply_photo_changes(piece, [*current, image], actor=actor)
         except ValidationError as exc:
             errors.append(f"{upload.name}: {'; '.join(exc.messages)}")
         else:
