@@ -23,6 +23,7 @@ export type StonePanel = Named & { description: string; image: Image | null; hre
 export type HeroSlide = { image: Image | null; mobile_image: Image | null };
 export type Section = { id: string | number } & (
   { kind: 'hero'; slides?: HeroSlide[]; title: string; subtitle: string; image: Image | null; cta: Cta | null } |
+  { kind: 'category_grid'; title: string; subtitle: string; categories: (Named & { href: string; count: number })[] } |
   { kind: 'statement'; title: string; body: string } |
   { kind: 'stone_panels'; title: string; subtitle: string; stones: StonePanel[] } |
   { kind: 'collection_rail'; title: string; subtitle: string; collection: Named & { href: string }; pieces: PieceCard[] } |
@@ -32,7 +33,7 @@ export type Home = { sections: Section[]; published_at: string | null; preview: 
 export type PageKind = 'terms' | 'privacy' | 'returns' | 'shipping' | 'cookies' | 'manufacturer' | 'personalize' | 'contact';
 export type CmsPage = { kind: PageKind; slug: string; title: string; body_html: string; version: number; updated_at: string; alternates: Alternates };
 export type Personalization = { services: { id: string | number; title: string; description: string; image: Image | null; whatsapp_url: string | null }[] };
-export type Settings = { legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
+export type Settings = { title_scale: number; text_scale: number; legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
 export type Problem = { code: string; title?: string; detail?: string; status?: number; skus?: string[]; errors?: Record<string, string[] | Record<string, string[]>> };
 
 export type WompiCheckout = { checkout_url: string; fields: Record<string, string> };

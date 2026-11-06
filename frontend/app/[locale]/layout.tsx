@@ -1,6 +1,6 @@
-import { Suspense } from "react";
+import { Suspense, type CSSProperties } from "react";
 import { Header, Footer, PreviewBar } from "@/components/site-shell";
-import { siteUrl } from "@/lib/api/server";
+import { siteUrl, getSettings, emptySettings } from "@/lib/api/server";
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -57,9 +57,15 @@ export default async function RootLayout({ children }: LayoutProps<"/[locale]">)
   const current = await locale();
   if (!isLocale(current)) notFound();
   const dict = await getDictionary();
+  return <Suspense fallback={<html lang={current} className={`${serif.variable} ${sans.variable}`}><body><main id="main" className="loading-shell">{dict.ui.loading}</main></body></html>}><SiteDocument current={current} dict={dict}>{children}</SiteDocument></Suspense>;
+}
+
+// Settings are request-time data: suspend the document until its typography is known.
+async function SiteDocument({ current, dict, children }: { current: "es" | "en"; dict: Awaited<ReturnType<typeof getDictionary>>; children: React.ReactNode }) {
+  const settings = await getSettings(current).catch(() => emptySettings);
 
   return (
-    <html lang={current} className={`${serif.variable} ${sans.variable}`}>
+    <html lang={current} className={`${serif.variable} ${sans.variable}`} style={{ "--title-scale": settings.title_scale ?? 1, "--text-scale": settings.text_scale ?? 1 } as CSSProperties}>
       <body>
         <a className="skip-link" href="#main">
           {dict.nav.skip}

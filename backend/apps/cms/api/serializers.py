@@ -74,6 +74,15 @@ class RailSerializer(SectionSerializer):
     pieces = PieceListSerializer(many=True)
 
 
+class HomeCategorySerializer(CollectionSerializer):
+    count = serializers.IntegerField()
+
+
+class CategoryGridSerializer(SectionSerializer):
+    subtitle = serializers.CharField()
+    categories = HomeCategorySerializer(many=True)
+
+
 class HomeSerializer(serializers.Serializer[Any]):
     sections = PolymorphicProxySerializer(
         component_name="HomeSection",
@@ -82,6 +91,7 @@ class HomeSerializer(serializers.Serializer[Any]):
             "statement": StatementSerializer,
             "stone_panels": StonesSerializer,
             "collection_rail": RailSerializer,
+            "category_grid": CategoryGridSerializer,
             "story": EditorialSerializer,
             "personalize": EditorialSerializer,
             "banner": EditorialSerializer,
@@ -148,6 +158,8 @@ class LegalPageSerializer(serializers.Serializer[Any]):
 
 
 class SiteSettingsSerializer(serializers.Serializer[Any]):
+    title_scale = serializers.FloatField()
+    text_scale = serializers.FloatField()
     whatsapp = WhatsappSerializer()
     social = SocialSerializer(many=True)
     support_email = serializers.EmailField(allow_null=True)

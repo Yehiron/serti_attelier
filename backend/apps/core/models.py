@@ -54,6 +54,29 @@ class SiteSettings(models.Model):
     id = models.PositiveSmallIntegerField(
         verbose_name=_("ID"), primary_key=True, default=1, editable=False
     )
+
+    class TypeScale(models.IntegerChoices):
+        SMALL = 90, _("Pequeño 90 %")
+        NORMAL = 100, _("Normal 100 %")
+        LARGE = 110, _("Grande 110 %")
+        EXTRA_LARGE = 120, _("Muy grande 120 %")
+
+    title_scale = models.PositiveSmallIntegerField(
+        verbose_name=_("Tamaño de los títulos"),
+        choices=TypeScale,
+        default=TypeScale.NORMAL,
+        help_text=_(
+            "Ajusta los títulos de toda la tienda, también en celular. Normal equivale al 100 %."
+        ),
+    )
+    text_scale = models.PositiveSmallIntegerField(
+        verbose_name=_("Tamaño del texto"),
+        choices=TypeScale,
+        default=TypeScale.NORMAL,
+        help_text=_(
+            "Ajusta el texto de lectura de toda la tienda. Elige Grande para facilitar su lectura."
+        ),
+    )
     whatsapp_number = models.CharField(
         verbose_name=_("Número de WhatsApp"),
         max_length=15,

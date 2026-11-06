@@ -59,6 +59,7 @@ def filter_pieces(params: dict[str, Any], locale: str, *, facets: bool = False) 
         qs = qs.filter(is_new=params["is_new"])
     if query := params.get("q"):
         fields = [
+            "sku",
             "name_es",
             "name_en",
             "category__name_es",
@@ -67,23 +68,40 @@ def filter_pieces(params: dict[str, Any], locale: str, *, facets: bool = False) 
             "stones__name_en",
             "materials__name_es",
             "materials__name_en",
+            "collections__name_es",
+            "collections__name_en",
+            "short_description_es",
+            "short_description_en",
+            "long_description_es",
+            "long_description_en",
         ]
-        condition = Q()
-        for field in fields:
-            lookup = (
-                f"{field}__unaccent__icontains"
-                if connection.vendor == "postgresql"
-                else f"{field}__icontains"
-            )
-            condition |= Q(**{lookup: query})
-        qs = qs.filter(condition)
-        if connection.vendor == "postgresql":
+        postgres = connection.vendor == "postgresql"
+        if postgres:
             from django.contrib.postgres.lookups import Unaccent
 
+        # Separate filters allow words to match different related rows (e.g. two stones).
+        for index, word in enumerate(query.split()):
+            condition = Q()
+            for field in fields:
+                lookup = f"{field}__unaccent__icontains" if postgres else f"{field}__icontains"
+                condition |= Q(**{lookup: word})
+            if postgres:
+                alias = f"word_similarity_{index}"
+                qs = qs.alias(
+                    **{
+                        alias: Greatest(
+                            TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(word))),
+                            TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(word))),
+                        )
+                    }
+                )
+                condition |= Q(**{f"{alias}__gt": 0.3})
+            qs = qs.filter(condition)
+        if postgres:
             qs = qs.annotate(
                 similarity=Greatest(
-                    TrigramSimilarity(Unaccent("name_es"), query),
-                    TrigramSimilarity(Unaccent("name_en"), query),
+                    TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(query))),
+                    TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(query))),
                 )
             )
     if not facets:

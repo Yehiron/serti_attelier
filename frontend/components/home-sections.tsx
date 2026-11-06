@@ -42,6 +42,9 @@ function CollectionSection({ section, locale, dict }: { section: SectionOf<'coll
     {!section.pieces.length && <p>{dict.ui.empty}</p>}
   </section>;
 }
+function CategoryGrid({ section, dict }: { section: SectionOf<'category_grid'>; dict: Dictionary }) {
+  return <section className="category-section"><div className="section-heading"><p className="eyebrow">{section.subtitle}</p><h2><EditorialTitle text={section.title} /></h2></div><div className="category-grid">{section.categories.map(category => <Link key={category.slug} href={category.href} className="category-card"><h3>{category.name}</h3><small>{category.count} {dict.ui.results}</small><span aria-hidden="true">↗</span></Link>)}</div></section>;
+}
 function StorySection({ section }: { section: SectionOf<'story' | 'personalize' | 'banner'> }) {
   return <section className={`editorial-section ${section.kind === 'personalize' ? 'wine' : ''}`}>
     {section.image && <Media className="editorial-photo" image={section.image} />}
@@ -52,6 +55,7 @@ function StorySection({ section }: { section: SectionOf<'story' | 'personalize' 
 export function HomeSection({ section, locale, dict, firstHero }: { section: Section; locale: Locale; dict: Dictionary; firstHero: boolean }) {
   switch (section.kind) {
     case 'hero': return <HeroSection section={section} dict={dict} first={firstHero} />;
+    case 'category_grid': return <CategoryGrid section={section} dict={dict} />;
     case 'statement': return <StatementSection section={section} dict={dict} />;
     case 'stone_panels': return <StonePanels {...section} explore={dict.ui.explore} />;
     case 'collection_rail': return <CollectionSection section={section} locale={locale} dict={dict} />;

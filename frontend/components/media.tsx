@@ -10,10 +10,9 @@ const tones: Tone[] = ['wine', 'gold'];
 export function Ornament() {
   return <span className="ornament">{tones.map(tone => <img key={tone} className={`tone-${tone}`} src={`/brand/logo/ornament-${tone}.webp`} width="560" height="209" alt="" loading="lazy" />)}</span>;
 }
-/** Header brand: the wordmark, or only the monogram on narrow screens. Lazy loading means the
-    tone hidden by CSS (and the other breakpoint's file) is never downloaded. */
+/** The full wordmark stays visible on desktop and mobile. */
 export function BrandLogo() {
-  return <span className="brand-logo">{tones.map(tone => <picture key={tone} className={`tone-${tone}`}><source media="(max-width: 760px)" srcSet={`/brand/logo/monogram-${tone}.webp`} width={140} height={121} /><img src={`/brand/logo/wordmark-${tone}.webp`} width="320" height="103" alt="SERTI Jewelry Atelier" loading="lazy" /></picture>)}</span>;
+  return <span className="brand-logo">{tones.map(tone => <picture key={tone} className={`tone-${tone}`}><img src={`/brand/logo/wordmark-${tone}.webp`} width="320" height="103" alt="SERTI Jewelry Atelier" loading="lazy" /></picture>)}</span>;
 }
 /** Menu dialog logo: lazy, so it is fetched only when the menu opens. */
 export function Wordmark() { return <img className="wordmark" src="/brand/logo/wordmark-gold.webp" width="320" height="103" alt="SERTI Jewelry Atelier" loading="lazy" />; }

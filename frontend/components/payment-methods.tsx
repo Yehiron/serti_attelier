@@ -1,0 +1,5 @@
+const methods = ['Visa', 'Mastercard', 'American Express', 'PSE', 'Nequi', 'Bancolombia', 'Daviplata'];
+/** Locally drawn, restrained wordmarks; no remote assets or payment account details. */
+export function PaymentMethods({ label }: { label: string }) {
+  return <div className="payment-methods"><p className="eyebrow">{label}</p><div>{methods.map(name => <svg key={name} role="img" aria-label={name} viewBox={name === 'Bancolombia' ? '0 0 125 28' : '0 0 100 28'}><title>{name}</title>{name === 'Mastercard' ? <><circle cx="40" cy="14" r="12" fill="currentColor" opacity=".65" /><circle cx="58" cy="14" r="12" fill="currentColor" opacity=".4" /><text x="49" y="17" textAnchor="middle" fontSize="8" fill="var(--color-wine)">mastercard</text></> : name === 'American Express' ? <g fill="currentColor" textAnchor="middle" fontSize="10" fontWeight="700"><text x="50" y="12">AMERICAN</text><text x="50" y="24">EXPRESS</text></g> : <text x="50%" y="20" textAnchor="middle" fill="currentColor" fontSize={name === 'Bancolombia' || name === 'Daviplata' ? '16' : '22'} fontWeight="600" fontStyle={name === 'Visa' ? 'italic' : undefined}>{name}</text>}</svg>)}</div></div>;
+}

@@ -7,12 +7,12 @@ from urllib.parse import urlencode
 
 from django.conf import settings
 from django.core.files.storage import default_storage
-from django.db.models import F, QuerySet, Window
+from django.db.models import Count, F, Q, QuerySet, Window
 from django.db.models.functions import RowNumber
 from django.utils.translation import override
 
 from apps.catalog.api.serializers import PieceListSerializer
-from apps.catalog.models import CollectionPiece, Piece, Stone
+from apps.catalog.models import Category, CollectionPiece, Piece, Stone
 from apps.catalog.selectors import cover_data, published_pieces
 from apps.core.routes import href
 from apps.core.selectors import get_solo
@@ -73,7 +73,7 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
             "kind": obj.kind,
             "title": localized(obj, "title", locale),
         }
-        if obj.kind in {"hero", "stone_panels", "collection_rail"}:
+        if obj.kind in {"hero", "stone_panels", "collection_rail", "category_grid"}:
             data["subtitle"] = localized(obj, "subtitle", locale)
         if obj.kind in {"statement", "story", "personalize", "banner"}:
             data["body"] = localized(obj, "body", locale)
@@ -117,6 +117,26 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
             data["stones_live"] = True
         result.append(data)
     return result
+
+
+def home_categories(locale: str) -> list[dict[str, Any]]:
+    categories = Category.objects.filter(parent__isnull=True, is_active=True).annotate(
+        direct_count=Count("pieces", filter=Q(pieces__status="published"), distinct=True),
+        child_count=Count(
+            "children__pieces",
+            filter=Q(children__is_active=True, children__pieces__status="published"),
+            distinct=True,
+        ),
+    )
+    return [
+        {
+            "name": localized(category, "name", locale),
+            "slug": localized(category, "slug", locale),
+            "href": href("category", locale, category),
+            "count": category.direct_count + category.child_count,
+        }
+        for category in categories
+    ]
 
 
 def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, Any]]:
@@ -164,8 +184,13 @@ def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, 
                     "href": href("stone", locale, stone),
                 }
             )
+    categories = (
+        home_categories(locale) if any(s["kind"] == "category_grid" for s in sections) else []
+    )
     with override(locale):
         for section in sections:
+            if section["kind"] == "category_grid":
+                section["categories"] = categories
             if section["kind"] == "collection_rail":
                 section["pieces"] = list(
                     PieceListSerializer(rails[section.pop("collection_id")], many=True).data
@@ -277,6 +302,8 @@ def site_settings(locale: str) -> dict[str, Any]:
             for network in ("instagram", "facebook", "tiktok", "pinterest")
             if getattr(config, f"{network}_url")
         ],
+        "title_scale": config.title_scale / 100,
+        "text_scale": config.text_scale / 100,
         "support_email": config.support_email or None,
         "certificate_price_cents": config.certificate_price_cents,
         "legal_versions": {

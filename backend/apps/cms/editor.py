@@ -23,7 +23,7 @@ from apps.catalog.models import Category, Collection, Piece, Stone
 from . import editor_services, services
 from .admin import HomeSectionAdmin
 from .models import HeroSlide, HomeSection
-from .selectors import draft_sections
+from .selectors import draft_sections, home_categories
 
 TAXONOMIES = {"category": Category, "stone": Stone, "collection": Collection}
 
@@ -145,6 +145,7 @@ def editor(request: HttpRequest) -> HttpResponse:
             "sections": sections,
             "groups": groups,
             "stones": taxonomy_cards(Stone, request),
+            "home_categories": home_categories("es"),
             "device": device,
             "taxonomy_tab": request.GET.get("tab") == "taxonomy",
             "can_change_home": request.user.has_perm("cms.change_homesection"),

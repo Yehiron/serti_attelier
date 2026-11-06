@@ -101,6 +101,7 @@ class HomeSection(Illustrated):
             ("stone_panels", _("Piedras")),
             ("collection_rail", _("Colección")),
             ("story", _("Historia")),
+            ("category_grid", _("Categorías")),
             ("personalize", _("Personalización")),
             ("banner", _("Banner")),
         ],

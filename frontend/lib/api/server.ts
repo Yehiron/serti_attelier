@@ -69,7 +69,7 @@ export const getPiece = (locale: Locale, slug: string) => cachedRead<PieceDetail
 export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms');
 export const getPersonalization = (locale: Locale) => cachedRead<Personalization>('cms/personalization', locale, '', 'cms');
 export const emptyTaxonomy: Taxonomy = { categories: [], collections: [], stones: [], materials: [] };
-export const emptySettings: Settings = { whatsapp: { number: null, general_url: null }, social: [], support_email: null, legal_pages: [] };
+export const emptySettings: Settings = { title_scale: 1, text_scale: 1, whatsapp: { number: null, general_url: null }, social: [], support_email: null, legal_pages: [] };
 export async function optionalPage(locale: Locale, kind: string) {
   try { return await getPage(locale, kind, true); } catch (error) { if (error instanceof ApiError && error.status === 404) return null; throw error; }
 }

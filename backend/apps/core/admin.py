@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 from django import forms
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin
@@ -66,6 +66,53 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
     ) -> Any:
         get_solo()
         return super().changelist_view(request, extra_context)
+
+    def get_fieldsets(self, request: HttpRequest, obj: Any = None) -> Any:
+        fieldsets = super().get_fieldsets(request, obj)
+        result = []
+        for label, options in fieldsets:
+            result.append(
+                (
+                    label,
+                    {
+                        **options,
+                        "fields": [
+                            field
+                            for field in options["fields"]
+                            if field not in {"title_scale", "text_scale"}
+                        ],
+                    },
+                )
+            )
+        result.insert(
+            1,
+            (
+                _("Tipografía"),
+                {
+                    "fields": ["title_scale", "text_scale"],
+                    "description": _(
+                        "Elige el tamaño de los títulos y del texto de la tienda. "
+                        "Guarda para aplicar los cambios."
+                    ),
+                },
+            ),
+        )
+        return result
+
+    def changeform_view(
+        self,
+        request: HttpRequest,
+        object_id: str | None = None,
+        form_url: str = "",
+        extra_context: dict[str, Any] | None = None,
+    ) -> Any:
+        if not get_solo().whatsapp_number:
+            self.message_user(
+                request,
+                _("Falta el número de WhatsApp: el botón flotante no se muestra"),
+                messages.WARNING,
+            )
+        return super().changeform_view(request, object_id, form_url, extra_context)
 
     def save_model(self, request: HttpRequest, obj: SiteSettings, form: Any, change: bool) -> None:
         save_site_settings(obj, actor=request.user)

@@ -86,7 +86,7 @@ def test_routes(key: str, es: str, en: str) -> None:
 
 
 @pytest.mark.parametrize(
-    "kind", ["hero", "statement", "stone_panels", "story", "personalize", "banner"]
+    "kind", ["hero", "statement", "stone_panels", "category_grid", "story", "personalize", "banner"]
 )
 def test_valid_section_kinds(kind: str) -> None:
     services.save_section(HomeSection(kind=kind, title_es="Título"))
@@ -557,6 +557,8 @@ def test_settings_without_number_or_published_pages(client: Client) -> None:
         "legal_pages": [],
         "legal_versions": {"terms": None, "privacy": None},
         "certificate_price_cents": 0,
+        "title_scale": 1.0,
+        "text_scale": 1.0,
     }
 
 
@@ -596,6 +598,7 @@ def test_schema_documents_cms_contract() -> None:
         "statement",
         "stone_panels",
         "collection_rail",
+        "category_grid",
         "story",
         "personalize",
         "banner",
