@@ -9,7 +9,7 @@ from django.core.files.storage import default_storage
 from PIL import Image
 
 from apps.catalog.images import MAX_BYTES, validated_image
-from apps.catalog.models import Category, Piece, PieceImage, Stone
+from apps.catalog.models import Category, Collection, Piece, PieceImage, Stone
 from apps.catalog.services import save_piece_image, save_taxonomy
 from apps.catalog.tasks import process_piece_image
 
@@ -120,16 +120,15 @@ def test_covers_are_validated_and_encoded() -> None:
 
 @pytest.mark.parametrize("size", [(100, 100), (1920, 1081), (900, 1600)])
 def test_covers_are_center_cropped_to_16_9(size: tuple[int, int]) -> None:
-    obj = Category(name_es="Recorte", slug_es="recorte", cover_image=image_file("JPEG", size))
+    obj = Collection(name_es="Recorte", slug_es="recorte", cover_image=image_file("JPEG", size))
     save_taxonomy(obj)
     with obj.cover_image.open("rb") as source, Image.open(source) as image:
         assert image.width * 9 == image.height * 16
 
 
-def test_stone_covers_keep_their_proportion() -> None:
-    obj = Stone(
-        name_es="Esmeralda", slug_es="esmeralda", cover_image=image_file("JPEG", (900, 1125))
-    )
+@pytest.mark.parametrize("model", [Stone, Category])
+def test_portrait_covers_keep_their_proportion(model: type[Stone] | type[Category]) -> None:
+    obj = model(name_es="Esmeralda", slug_es="esmeralda", cover_image=image_file("JPEG", (900, 1125)))
     save_taxonomy(obj)
     assert (obj.cover_width, obj.cover_height) == (900, 1125)
     assert set(obj.cover_renditions["webp"]) == {"480", "900"}

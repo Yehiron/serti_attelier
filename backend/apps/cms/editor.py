@@ -107,7 +107,7 @@ def editor(request: HttpRequest) -> HttpResponse:
         (
             "category",
             _("Categorías"),
-            _("Se ve en el menú Joyería y en la portada de cada categoría"),
+            _("La foto se ve en «Comprar por categoría» de la página de inicio. Usa una foto vertical."),
             _("Nueva categoría"),
         ),
         (

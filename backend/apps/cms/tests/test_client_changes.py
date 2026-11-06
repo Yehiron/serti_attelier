@@ -47,7 +47,7 @@ def test_category_grid_live_counts_and_localization():
     assert rendered[0]["title"] == "Shop by category"
     assert rendered[0]["subtitle"] == ""
     data = selectors.resolve_live(rendered, "en")[0]["categories"]
-    assert data == [{"name": "Rings", "slug": "rings", "href": "/en/jewelry/rings", "count": 2}]
+    assert data == [{"name": "Rings", "slug": "rings", "href": "/en/jewelry/rings", "count": 2, "image": None}]
 
 
 def test_category_conversion_preserves_publication_until_publish():

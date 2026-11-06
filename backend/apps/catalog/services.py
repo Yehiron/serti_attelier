@@ -155,9 +155,9 @@ def save_taxonomy(obj: Taxonomy) -> None:
         and not getattr(obj.cover_image, "_committed", True)
     ):
         image = validated_image(obj.cover_image)
-        # Stone covers fill tall home panels and a wide page banner (both object-fit: cover),
+        # Stone and category covers fill tall home cards and a wide page banner (both object-fit: cover),
         # so they keep the photo's own shape; other covers stay 16:9.
-        clean = cap_master(image if isinstance(obj, Stone) else crop_to_ratio(image))
+        clean = cap_master(image if isinstance(obj, (Stone, Category)) else crop_to_ratio(image))
         obj.cover_width, obj.cover_height = clean.size
         obj.cover_renditions = {
             "webp": build_renditions(clean, f"catalog/renditions/{uuid4().hex}")

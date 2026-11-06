@@ -59,6 +59,6 @@ export function HeroCarousel({ slides, labels, children }: { slides: HeroSlide[]
     <Sequence images={desktop} mode="desktop" active={mode === 'desktop'} stopped={paused || hovered || focused || reduced || tabHidden} labels={labels} />
     <Sequence images={mobile} mode="mobile" active={mode === 'mobile'} stopped={paused || hovered || focused || reduced || tabHidden} labels={labels} />
     {children}
-    {multiple && <button className="hero-play" type="button" aria-label={paused ? labels.play : labels.pause} aria-pressed={paused} onClick={() => setPaused(value => !value)}>{paused ? labels.play : labels.pause}</button>}
+    {multiple && <button className="hero-play" type="button" aria-label={paused ? labels.play : labels.pause} aria-pressed={paused} onClick={() => setPaused(value => !value)}><svg viewBox="0 0 16 16" aria-hidden="true">{paused ? <path d="M5 3.5v9l7-4.5z" /> : <path d="M5 3.5v9M11 3.5v9" />}</svg></button>}
   </section>;
 }

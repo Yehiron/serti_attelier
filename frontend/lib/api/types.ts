@@ -23,7 +23,7 @@ export type StonePanel = Named & { description: string; image: Image | null; hre
 export type HeroSlide = { image: Image | null; mobile_image: Image | null };
 export type Section = { id: string | number } & (
   { kind: 'hero'; slides?: HeroSlide[]; title: string; subtitle: string; image: Image | null; cta: Cta | null } |
-  { kind: 'category_grid'; title: string; subtitle: string; categories: (Named & { href: string; count: number })[] } |
+  { kind: 'category_grid'; title: string; subtitle: string; categories: (Named & { href: string; count: number; image: Image | null })[] } |
   { kind: 'statement'; title: string; body: string } |
   { kind: 'stone_panels'; title: string; subtitle: string; stones: StonePanel[] } |
   { kind: 'collection_rail'; title: string; subtitle: string; collection: Named & { href: string }; pieces: PieceCard[] } |

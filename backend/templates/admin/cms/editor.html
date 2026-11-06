@@ -64,7 +64,7 @@
           {% endif %}
           <div><h2>{{ section.obj.title|title_lines }}</h2><p>{{ section.obj.subtitle }}</p>{% if section.obj.kind != 'category_grid' %}<div class="ve-body">{{ section.obj.body|linebreaksbr }}</div><span>{{ section.obj.cta_label }}</span>{% endif %}</div>
           </div>
-          {% if section.obj.kind == 'category_grid' %}<div class="ve-categories">{% for category in home_categories %}<a href="{{ category.href }}"><h3>{{ category.name }}</h3><small>{{ category.count }} {% translate 'piezas' %}</small><span aria-hidden="true">↗</span></a>{% endfor %}</div>{% endif %}
+          {% if section.obj.kind == 'category_grid' %}<div class="ve-categories">{% for category in home_categories %}<a href="{{ category.href }}">{% if category.image %}<img src="{{ category.image.src }}" alt="" loading="lazy">{% endif %}<h3>{{ category.name }}</h3><small>{{ category.count }} {% translate 'piezas' %}</small><span aria-hidden="true">↗</span></a>{% endfor %}</div>{% endif %}
           {% if section.obj.kind == 'stone_panels' %}<div class="ve-stones">{% for stone in stones %}<a href="?tab=taxonomy&amp;device={{ device }}#stone-{{ stone.id }}">{% if stone.image %}<img src="{{ stone.image }}" alt="{{ stone.name }}" loading="lazy">{% endif %}<h3>{{ stone.name }}</h3></a>{% endfor %}</div>{% endif %}
           {% if section.obj.kind == 'collection_rail' %}{% if section.obj.collection.name != section.obj.title %}<h3>{{ section.obj.collection.name }}</h3>{% endif %}<div class="ve-rail">{% for piece in section.pieces %}<div>{% if piece.image %}<img src="{{ piece.image }}" alt="{{ piece.name }}" loading="lazy">{% endif %}<p>{{ piece.name }}</p></div>{% endfor %}</div>{% endif %}
         {% endif %}

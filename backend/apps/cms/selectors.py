@@ -134,6 +134,7 @@ def home_categories(locale: str) -> list[dict[str, Any]]:
             "slug": localized(category, "slug", locale),
             "href": href("category", locale, category),
             "count": category.direct_count + category.child_count,
+            "image": cover_data(category, locale),
         }
         for category in categories
     ]
