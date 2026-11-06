@@ -252,7 +252,7 @@ del { color: var(--color-olive-deep); margin-right: 6px; font-size: .85em; }
 .footer-content a:hover { text-decoration: underline; }
 .footer-bottom { display: flex; justify-content: space-between; gap: 20px; border-top: 1px solid #ead9cb40; padding-top: 24px; font-size: calc(11px * var(--text-scale)); }
 .floating-whatsapp { position: fixed; bottom: 24px; right: 24px; width: 56px; height: 56px; background: var(--color-wine); color: var(--color-cream); border: 1px solid var(--color-cream); border-radius: 50%; z-index: 35; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 18px #33041430; }
-.floating-whatsapp svg { width: 32px; height: 32px; stroke: currentColor; fill: none; stroke-width: 1.5; }
+.floating-whatsapp svg { width: 30px; height: 30px; stroke: currentColor; fill: none; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
 .page-heading { padding: 70px 0 50px; color: var(--color-wine); }
 .page-heading h1 { margin: 25px 0 28px; }
 .page-heading > p:last-child { font-size: calc(13px * var(--text-scale)); }
