@@ -11,11 +11,11 @@ from rest_framework import serializers
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from apps.orders.api import ERRORS, BrowserThrottle, BrowserView
+from apps.orders.api import ERRORS, BrowserThrottle, PrivateOrderView
 from apps.orders.exceptions import CheckoutError
 from apps.orders.models import Order
 from apps.orders.response_serializers import OrderDetailSerializer, WompiCheckoutSerializer
-from apps.orders.selectors import order_detail
+from apps.orders.selectors import order_detail, tracking_annotations, tracking_expired
 
 from .protection import rate_allowed, store_invalid
 from .services import (
@@ -29,8 +29,8 @@ from .wompi import WompiClient, WompiTransaction, verify_event
 
 
 def get_order(token: str) -> Order:
-    order = Order.objects.filter(public_token=token).first()
-    if order is None:
+    order = Order.objects.annotate(**tracking_annotations()).filter(public_token=token).first()
+    if order is None or tracking_expired(order):
         raise CheckoutError("order_not_found", status=404)
     return order
 
@@ -51,7 +51,7 @@ class SyncInputSerializer(serializers.Serializer[Any]):
     transaction_id = serializers.CharField(max_length=200)
 
 
-class PaymentAttemptsView(BrowserView):
+class PaymentAttemptsView(PrivateOrderView):
     throttle_classes = [AttemptsThrottle]
 
     @extend_schema(
@@ -71,7 +71,7 @@ class PaymentAttemptsView(BrowserView):
         return Response({"wompi": checkout_data(order)}, status=201)
 
 
-class PaymentSyncView(BrowserView):
+class PaymentSyncView(PrivateOrderView):
     throttle_classes = [SyncThrottle]
 
     @extend_schema(request=SyncInputSerializer, responses={200: OrderDetailSerializer, **ERRORS})

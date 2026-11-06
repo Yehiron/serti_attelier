@@ -26,6 +26,11 @@ export function proxy(request: NextRequest) {
         path: "/",
       });
     }
+    if (/^\/(es|en)\/(pedido|order)\//.test(pathname)) {
+      response.headers.set('Cache-Control', 'no-store, private');
+      response.headers.set('Referrer-Policy', 'no-referrer');
+      response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+    }
     return response;
   }
 
@@ -35,7 +40,13 @@ export function proxy(request: NextRequest) {
   );
   const url = request.nextUrl.clone();
   url.pathname = `/${locale}${pathname === "/" ? "" : pathname}`;
-  return NextResponse.redirect(url);
+  const response = NextResponse.redirect(url);
+  if (/^\/(pedido|order)\//.test(pathname)) {
+    response.headers.set('Cache-Control', 'no-store, private');
+    response.headers.set('Referrer-Policy', 'no-referrer');
+    response.headers.set('X-Robots-Tag', 'noindex, nofollow');
+  }
+  return response;
 }
 
 export const config = {

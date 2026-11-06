@@ -201,6 +201,41 @@ Errores: `piece_reserved`, `piece_sold`, `coupon_*`, `shipping_not_covered`, `co
 ### `GET /orders/{public_token}`
 Estado para la página de confirmación: número, piezas, totales, estados, `reservation_expires_at`, `wants_certificate` y datos de entrega **parciales** (municipio, sin dirección completa). Sin correo ni teléfono completos.
 
+#### Seguimiento público — Etapa 4 (aditivo)
+
+Se conservan todos los campos anteriores, incluido `fulfillment_status`. Se añaden:
+
+```json
+{
+  "fulfillment": {
+    "status": "shipped",
+    "carrier": "Transportadora",
+    "tracking_number": "123456",
+    "tracking_url": "https://example.com/seguimiento/123456",
+    "shipped_at": "2026-11-06T10:00:00-05:00",
+    "delivered_at": null,
+    "timeline": [
+      {"key": "received", "label_key": "received", "at": "2026-11-01T10:00:00-05:00"},
+      {"key": "paid", "label_key": "paid", "at": "2026-11-01T10:05:00-05:00"},
+      {"key": "preparing", "label_key": "preparing", "at": "2026-11-02T10:00:00-05:00"},
+      {"key": "shipped", "label_key": "shipped", "at": "2026-11-06T10:00:00-05:00"},
+      {"key": "delivered", "label_key": "delivered", "at": null}
+    ]
+  },
+  "payment_review": false
+}
+```
+
+- `status`: `unfulfilled|preparing|shipped|delivered|cancelled|returned`.
+- Transportadora y guía son cadenas vacías cuando no están configuradas. `tracking_url` se **omite** si no es una URL absoluta HTTP(S) válida. Fechas ISO o `null`; envío/entrega usan las columnas existentes y, si faltan, el último cambio del estado correspondiente.
+- `label_key` pertenece al diccionario `commerce` ES/EN. Hitos habituales: `received`, `paid`, `preparing`, `shipped`, `delivered`. Cancelado: `received`, `paid`, `cancelled`. Devuelto: secuencia habitual más `returned`. Una fecha nula no afirma que el hito haya ocurrido. No se inventan fechas intermedias de pedidos antiguos.
+- `payment_review` solo informa que existe una incidencia financiera abierta que requiere revisión del pago. No expone tipo, texto, responsables, notas ni motivos. La página muestra un mensaje genérico.
+- GET y los POST de sync/intentos responden con `Cache-Control: no-store, private` y `Referrer-Policy: no-referrer`, también en errores y 429. GET: **60/min por IP**, configurable con `THROTTLE_ORDER_PUBLIC`. Sync mantiene **10/min por IP**; intentos, **10/min por IP**. DRF usa su throttle con caché (no es un límite atómico bajo concurrencia extrema).
+- Caducidad: `ORDER_TRACKING_TTL_DAYS` (180 por defecto) desde entrega/cancelación/devolución. Entrega usa `delivered_at`, con historial como respaldo; cancelación/devolución usan historial. Si un registro antiguo no tiene ninguna fecha terminal, se usa `updated_at` de forma conservadora. Nunca pagados: 30 días desde `reservation_expires_at`; una aprobación histórica evita tratarlos como nunca pagados.
+- Token caducado e inexistente devuelven el mismo **404 `order_not_found`**, sin distinguir existencia. Esta decisión sustituye el 410 opcional para reducir información. Sync/intentos verifican vigencia antes de consultar al proveedor. No existe búsqueda pública por número.
+- Next usa `notFound()` y una vista ES/EN específica para el enlace no disponible; por el streaming de Next una respuesta ya iniciada puede conservar HTTP 200, siempre con noindex. El contrato 404 uniforme corresponde a la API.
+- Token generado con `secrets.token_urlsafe(32)`: 256 bits aleatorios, normalmente 43 caracteres, índice único. No requiere comparación en tiempo constante.
+
 ### `POST /orders/{public_token}/payment-attempts` — requiere `Idempotency-Key`
 Nuevo intento Wompi tras un rechazo o error, si la reserva sigue vigente. Devuelve un bloque `wompi` con referencia nueva. `409 payment_not_retryable` si no aplica.
 
@@ -225,6 +260,8 @@ Nuevo intento Wompi tras un rechazo o error, si la reserva sigue vigente. Devuel
 | `GET /catalog/*`, `/cms/*`, `/site/*` | 120/min por IP (cacheable en el borde) |
 | `POST /cart/items` | 30/min por IP |
 | `POST /checkout/quote` | 20/min por carrito |
-| `POST /orders`, `POST …/payment-attempts` | 5/min por carrito y 20/h por IP |
+| `POST /orders` | 5/min y 20/h por IP |
+| `GET /orders/{public_token}` | 60/min por IP (`THROTTLE_ORDER_PUBLIC`) |
+| `POST …/payment-sync`, `POST …/payment-attempts` | 10/min por IP cada uno |
 | Validación de cupón (dentro de `quote`) | 10 cupones distintos/h por carrito |
 | `POST /payments/wompi/events` | Sin límite por IP; protegido por checksum y tamaño máximo de cuerpo (64 KB) |

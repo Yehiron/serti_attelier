@@ -28,6 +28,7 @@ _PRIVATE = {
     "email",
     "phone",
     "payload",
+    "public_token",
 }
 _HEADER_TEXT = re.compile(
     r"(?i)((?:authorization|x-internal-token|x-event-checksum|cookies?)\s*[:=]\s*)[^\r\n,;]+"
@@ -35,7 +36,14 @@ _HEADER_TEXT = re.compile(
 _QUERY = re.compile(r"(https?://[^\s?#]+|/[^\s?]*)\?[^\s#]*")
 
 
+def normalize_order_path(value: str) -> str:
+    return re.sub(
+        r"(/api/v1/orders/|/(?:es/|en/)?(?:pedido|order)/)[^/\s?#\"']+", r"\1:token", value
+    )
+
+
 def redact_text(value: str) -> str:
+    value = normalize_order_path(value)
     value = _HEADER_TEXT.sub(lambda match: match[1] + REDACTED, value)
     value = _QUERY.sub(lambda match: match[1] + "?" + REDACTED, value)
     return _PATTERNS.sub(REDACTED, value)

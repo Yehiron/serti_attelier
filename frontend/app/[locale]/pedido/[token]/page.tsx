@@ -1,11 +1,12 @@
 import { OrderPayment } from '@/components/order-payment';
-import { orderViewState } from '@/lib/order-state';
+import './tracking.css';
+import { fulfillmentTimeline, orderViewState } from '@/lib/order-state';
 import Link from 'next/link';
 import { locale } from 'next/root-params';
 import { notFound } from 'next/navigation';
 import { getDictionary } from '../../dictionaries';
 import { isLocale } from '@/lib/i18n';
-import { ApiError, getOrder, getSettings } from '@/lib/api/server';
+import { ApiError, getOrder, getSettings, emptySettings } from '@/lib/api/server';
 import { formatCOP, whatsappUrl } from '@/lib/api/format';
 import { formatDeadline } from '@/lib/commerce';
 import { href } from '@/lib/routes';
@@ -22,9 +23,14 @@ export async function generateMetadata() {
 }
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const current = await locale(); if (!isLocale(current)) notFound(); const { token } = await params;
-  const order = await getOrder(current, token).catch(error => { if (error instanceof ApiError && error.status === 404) notFound(); throw error; });
-  const [dict, settings] = await Promise.all([getDictionary(), getSettings(current)]); const t = dict.commerce;
-  const view = orderViewState(order); const heading = t[view.heading]; const active = view.active;
+  const [dict, settings] = await Promise.all([getDictionary(), getSettings(current).catch(() => emptySettings)]); const t = dict.commerce;
+  const result = await getOrder(current, token).catch(error => { if (error instanceof ApiError && [404,410,429].includes(error.status)) return error.status; throw error; });
+  if (result === 404 || result === 410) notFound();
+  const contact = <>{settings.whatsapp.general_url && <a className="text-link" href={settings.whatsapp.general_url} target="_blank" rel="noopener noreferrer">WhatsApp ↗</a>}{settings.support_email && <a className="text-link" href={`mailto:${settings.support_email}`}>{t.contact} · {settings.support_email}</a>}</>;
+  if (typeof result === 'number') return <main id="main" className="commerce-page order-page"><header className="page-heading"><p className="eyebrow">SERTI · {t.order}</p><h1>{result === 429 ? t.tooManyRequests : t.linkUnavailable}</h1></header><div className="order-contact">{contact}</div></main>;
+  const order = result;
+  const view = orderViewState(order); const terminal = ['cancelled', 'returned'].includes(order.fulfillment.status); const heading = order.payment_review && !terminal ? t.paymentReview : order.fulfillment.status !== 'unfulfilled' ? t[order.fulfillment.status] : t[view.heading]; const active = view.active && !terminal && !order.payment_review;
+  const timeline = fulfillmentTimeline(order.fulfillment, view.status === 'approved');
   const whatsapp = whatsappUrl(settings.whatsapp.number, `${t.whatsappOrder} ${order.number}`);
   return <main id="main" className="commerce-page order-page">
     <PageAlternates alternates={{ es: href('order','es',token), en: href('order','en',token) }} />
@@ -34,15 +40,30 @@ export default async function Page({ params }: { params: Promise<{ token: string
     </header>
     <div className="order-layout">
       <section className="order-status">
-        <OrderPayment order={order} token={token} locale={current} t={t} />
-        {view.status === 'approved' && <p>{t.confirmationEmail}</p>}
-        {(view.status === 'approved' || view.failed) && whatsapp && <a className="text-link" href={whatsapp} target="_blank" rel="noopener noreferrer">{t.contact} · WhatsApp ↗</a>}
-        {view.status === 'awaiting_manual_payment' && <>
+        <OrderPayment order={order} token={token} locale={current} t={t} paused={terminal || order.payment_review} />
+        {order.fulfillment.status === 'cancelled' && <p>{t.cancelledHelp}</p>}
+        {order.fulfillment.status === 'returned' && <p>{t.returnedHelp}</p>}
+        <section className="order-tracking" aria-label={t.progress}>
+          <h2>{t.progress}</h2>
+          <ol className="order-timeline">{timeline.map(step => <li key={step.key} aria-current={step.current ? 'step' : undefined} data-future={step.future}>
+            <span>{t[step.label_key]}</span>
+            {step.at && <time dateTime={step.at}>{formatDeadline(step.at, current)}</time>}
+          </li>)}</ol>
+        </section>
+        <section className="order-shipment" aria-label={t.shipment}>
+          <h2>{t.shipment}</h2>
+          {order.fulfillment.carrier && <p>{t.carrier} · {order.fulfillment.carrier}</p>}
+          {order.fulfillment.tracking_number && <p>{t.trackingNumber} · {order.fulfillment.tracking_number}</p>}
+          {order.fulfillment.tracking_url && <a className="text-link" href={order.fulfillment.tracking_url} target="_blank" rel="noopener noreferrer">{t.trackShipment} ↗</a>}
+        </section>
+        <div className="order-contact">{contact}</div>
+        {!terminal && !order.payment_review && view.status === 'approved' && <p>{t.confirmationEmail}</p>}
+        {!terminal && !order.payment_review && view.status === 'awaiting_manual_payment' && <>
           <p className="whitespace-pre-line">{order.manual_instructions}</p>
           {whatsapp && <a className="text-link" href={whatsapp} target="_blank" rel="noopener noreferrer">WhatsApp · {order.number} ↗</a>}
         </>}
         {active && order.reservation_expires_at && <p>{t.deadline} <time dateTime={order.reservation_expires_at}>{formatDeadline(order.reservation_expires_at,current)} · Colombia</time></p>}
-        <OrderLive status={view.retry ? 'pending' : view.status} deadline={order.reservation_expires_at} label={t.remaining} expired={t.expired} />
+        <OrderLive status={active ? (view.retry ? 'pending' : view.status) : 'inactive'} deadline={order.reservation_expires_at} label={t.remaining} expired={t.expired} />
         {view.status === 'expired' && <Link className="button" href={href('catalog',current)}>{t.explore} ↗</Link>}
         <p>{order.wants_certificate ? t.certificateYes : t.certificateNo}</p>
         <p>{t.delivery} · {order.shipping.municipality}, {order.shipping.department}</p>

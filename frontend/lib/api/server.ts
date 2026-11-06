@@ -1,6 +1,6 @@
 import 'server-only';
 import { cacheLife, cacheTag } from 'next/cache';
-import { cookies, draftMode } from 'next/headers';
+import { cookies, draftMode, headers as requestHeaders } from 'next/headers';
 import { connection } from 'next/server';
 import { cache } from 'react';
 import type { Locale } from '../i18n';
@@ -8,12 +8,13 @@ import { readResponse, ApiError } from './problem';
 import type { Catalog, CmsPage, Home, Personalization, PieceDetail, Settings, Taxonomy } from './types';
 export { ApiError };
 export const siteUrl = process.env.PUBLIC_SITE_URL ?? 'https://serti.localhost';
-export async function request<T>(path: string, locale: Locale, query = '', preview?: string): Promise<T> {
+export async function request<T>(path: string, locale: Locale, query = '', preview?: string, orderIp?: string): Promise<T> {
   const params = new URLSearchParams(query); params.set('locale', locale);
   if (preview) params.set('preview', preview);
   // Internal calls skip Caddy: declare the scheme so Django's HTTPS redirect does not apply.
   const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
   if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
+  if (orderIp) headers['X-Forwarded-For'] = orderIp;
   try {
     const response = await fetch(`${(process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '')}/${path}?${params}`, { headers, cache: 'no-store', signal: AbortSignal.timeout(8000) });
     return await readResponse<T>(response);
@@ -77,5 +78,7 @@ export async function optionalPage(locale: Locale, kind: string) {
 // Customer order data must never enter a shared cache, including during builds.
 export async function getOrder(locale: Locale, token: string) {
   await connection();
-  return request<import('../commerce').Order>(`orders/${encodeURIComponent(token)}`, locale);
+  const incoming = await requestHeaders();
+  const ip = incoming.get('x-forwarded-for')?.split(',').at(-1)?.trim();
+  return request<import('../commerce').Order>(`orders/${encodeURIComponent(token)}`, locale, '', undefined, ip);
 }

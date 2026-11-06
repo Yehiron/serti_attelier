@@ -9,7 +9,8 @@ graceful_timeout = 30
 max_requests = 1000
 max_requests_jitter = 100
 accesslog = "-"
-# %(U)s is the path only; never use %(r)s or %(q)s.
+# Only normalized paths; never log raw requests or query strings.
+logger_class = "apps.core.access_log.PrivateOrderLogger"
 access_log_format = "%(h)s %(m)s %(U)s %(s)s %(b)s %(D)s"
 forwarded_allow_ips = os.environ.get("FORWARDED_ALLOW_IPS", "127.0.0.1,::1")
 if "*" in forwarded_allow_ips.split(","):

@@ -257,7 +257,7 @@
     "paymentUnavailable": "No payment methods are available. Please try again in a few minutes.",
     "status": "Status",
     "orderFailed": "Payment was not completed",
-    "cancelled": "The order was cancelled",
+    "cancelled": "Cancelled",
     "locationError": "We could not load delivery locations. Please try again.",
     "removeError": "We could not remove this piece. Please try again.",
     "completePayment": "Complete your payment",
@@ -268,6 +268,22 @@
     "paymentRetryHelp": "Your payment wasn’t completed. You can try again while your piece is still reserved.",
     "onlineUnavailable": "Online payment hasn’t been set up yet.",
     "confirmationEmail": "We’ve sent confirmation to your email",
-    "syncDelayed": "Confirmation is taking a little longer. We’ll update the status here."
+    "syncDelayed": "Confirmation is taking a little longer. We’ll update the status here.",
+    "received": "Order received",
+    "paid": "Payment approved",
+    "preparing": "Preparing",
+    "shipped": "Shipped",
+    "delivered": "Delivered",
+    "returned": "Returned",
+    "progress": "Your order’s progress",
+    "shipment": "Shipping",
+    "carrier": "Carrier",
+    "trackingNumber": "Tracking number",
+    "trackShipment": "Track shipment",
+    "paymentReview": "We’re reviewing your payment; we’ll contact you",
+    "cancelledHelp": "This order was cancelled. If you had already paid, we’ll contact you about your refund.",
+    "returnedHelp": "Your order was returned. Contact us if you need help.",
+    "linkUnavailable": "This link is no longer available. Contact us and we’ll be happy to help.",
+    "tooManyRequests": "You’ve checked this order several times. Please wait a moment and try again."
   }
 }

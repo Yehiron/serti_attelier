@@ -104,6 +104,22 @@ class ShippingSummarySerializer(serializers.Serializer[Any]):
     municipality = serializers.CharField()
 
 
+class PublicMilestoneSerializer(serializers.Serializer[Any]):
+    key = serializers.CharField()
+    label_key = serializers.CharField()
+    at = serializers.DateTimeField(allow_null=True)
+
+
+class FulfillmentSerializer(serializers.Serializer[Any]):
+    status = serializers.CharField()
+    carrier = serializers.CharField(allow_blank=True)
+    tracking_number = serializers.CharField(allow_blank=True)
+    tracking_url = serializers.URLField(required=False)
+    shipped_at = serializers.DateTimeField(allow_null=True)
+    delivered_at = serializers.DateTimeField(allow_null=True)
+    timeline = PublicMilestoneSerializer(many=True)
+
+
 class OrderDetailSerializer(TotalsSerializer, PaymentFieldsSerializer):
     number = serializers.CharField()
     created_at = serializers.DateTimeField()
@@ -111,6 +127,8 @@ class OrderDetailSerializer(TotalsSerializer, PaymentFieldsSerializer):
     payment_channel = serializers.CharField()
     payment_status = serializers.CharField()
     fulfillment_status = serializers.CharField()
+    fulfillment = FulfillmentSerializer()
+    payment_review = serializers.BooleanField()
     items = OrderItemSerializer(many=True)
     wants_certificate = serializers.BooleanField()
     shipping = ShippingSummarySerializer()

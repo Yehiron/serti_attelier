@@ -21,6 +21,15 @@
 	import security_headers
 	encode zstd gzip
 
+	# Capability URLs: no access logging is enabled in this site. Keep tokens private.
+	@order_link path /api/v1/orders/* /es/pedido/* /en/order/* /en/pedido/* /es/order/* /pedido/* /order/*
+	header @order_link {
+		>Cache-Control "no-store, private"
+		>Referrer-Policy "no-referrer"
+		>X-Robots-Tag "noindex, nofollow"
+	}
+
+
 	# Django static files (admin) and public uploads, straight from the volumes.
 	handle /static/* {
 		root * /srv

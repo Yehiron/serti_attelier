@@ -7,6 +7,15 @@
 (site) {
 	encode zstd gzip
 
+	# Capability URLs: no access logging is enabled in this site. Keep tokens private.
+	@order_link path /api/v1/orders/* /es/pedido/* /en/order/* /en/pedido/* /es/order/* /pedido/* /order/*
+	header @order_link {
+		>Cache-Control "no-store, private"
+		>Referrer-Policy "no-referrer"
+		>X-Robots-Tag "noindex, nofollow"
+	}
+
+
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"

@@ -40,3 +40,6 @@ export type WompiCheckout = { checkout_url: string; fields: Record<string, strin
 export type PaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error' | 'expired' | 'awaiting_manual_payment';
 export type OrderPayment = { status: PaymentStatus; last_attempt: { reference: string; status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'VOIDED' | 'ERROR'; payment_method_type: string | null } | null; can_retry: boolean };
 export type PaymentDetails = { wompi: WompiCheckout | null; payment: OrderPayment; payment_unavailable?: boolean };
+
+export type MilestoneKey = 'received' | 'paid' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
+export type Fulfillment = { status: 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'returned'; carrier: string; tracking_number: string; tracking_url?: string; shipped_at: string | null; delivered_at: string | null; timeline: { key: MilestoneKey; label_key: MilestoneKey; at: string | null }[] };

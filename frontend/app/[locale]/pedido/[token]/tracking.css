@@ -1,0 +1,15 @@
+.order-tracking, .order-shipment { border-top: 1px solid var(--color-olive); padding-top: 24px; }
+.order-tracking h2, .order-shipment h2 { margin-bottom: 20px; }
+.order-timeline { list-style: none; padding-left: 12px; margin: 0; }
+.order-timeline li { position: relative; border-left: 1px solid var(--color-olive); padding: 0 0 24px 24px; min-height: 64px; }
+.order-timeline li:last-child { border-left-color: transparent; padding-bottom: 0; }
+.order-timeline li::before { content: ''; position: absolute; width: 9px; height: 9px; background: currentColor; border-radius: 50%; left: -5px; top: 7px; }
+.order-timeline [aria-current=step] > span { font-weight: 600; }
+.order-timeline [aria-current=step]::before { outline: 1px solid currentColor; outline-offset: 4px; }
+.order-timeline [data-future=true] { opacity: .5; }
+.order-timeline time { display: block; font-size: .8em; margin-top: 6px; }
+.order-page .text-link { display: inline-flex; align-items: center; min-height: 44px; overflow-wrap: anywhere; transition: opacity 180ms ease-out; }
+.order-page .text-link:hover { opacity: .7; }
+.order-contact, .order-shipment { display: grid; justify-items: start; gap: 8px; overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: reduce) { .order-page .text-link { transition: none; } }
+.order-page .reservation-clock { min-height: 1.5em; font-variant-numeric: tabular-nums; }

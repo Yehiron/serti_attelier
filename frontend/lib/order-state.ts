@@ -14,3 +14,13 @@ export function orderViewState(order: PaymentDetails) {
     failed: ['declined', 'voided', 'error'].includes(status),
   } as const;
 }
+
+export function fulfillmentTimeline(fulfillment: import('./api/types.ts').Fulfillment, approved: boolean) {
+  const current = fulfillment.status === 'unfulfilled' ? (approved ? 'paid' : 'received') : fulfillment.status;
+  const index = fulfillment.timeline.findIndex(step => step.key === current);
+  const terminal = fulfillment.status === 'cancelled' || fulfillment.status === 'returned';
+  return fulfillment.timeline.map((step, i) => {
+    const complete = !!step.at || (!terminal && i < index) || (step.key === 'paid' && approved);
+    return { ...step, current: step.key === current, complete, future: step.key !== current && !complete };
+  });
+}

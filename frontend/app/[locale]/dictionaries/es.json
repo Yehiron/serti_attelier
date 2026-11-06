@@ -257,7 +257,7 @@
     "paymentUnavailable": "No hay medios de pago disponibles. Intenta de nuevo en unos minutos.",
     "status": "Estado",
     "orderFailed": "El pago no fue completado",
-    "cancelled": "El pedido fue cancelado",
+    "cancelled": "Cancelado",
     "locationError": "No pudimos cargar los destinos. Intenta de nuevo.",
     "removeError": "No pudimos quitar la pieza. Intenta de nuevo.",
     "completePayment": "Completa tu pago",
@@ -268,6 +268,22 @@
     "paymentRetryHelp": "Tu pago no se completó. Puedes intentarlo de nuevo mientras tu pieza siga reservada.",
     "onlineUnavailable": "El pago en línea aún no está configurado.",
     "confirmationEmail": "Te enviamos la confirmación a tu correo",
-    "syncDelayed": "La confirmación está tardando un poco. Actualizaremos el estado aquí."
+    "syncDelayed": "La confirmación está tardando un poco. Actualizaremos el estado aquí.",
+    "received": "Pedido recibido",
+    "paid": "Pago aprobado",
+    "preparing": "En preparación",
+    "shipped": "Enviado",
+    "delivered": "Entregado",
+    "returned": "Devuelto",
+    "progress": "Avance de tu pedido",
+    "shipment": "Envío",
+    "carrier": "Transportadora",
+    "trackingNumber": "Guía",
+    "trackShipment": "Rastrear envío",
+    "paymentReview": "Estamos revisando tu pago; te contactaremos",
+    "cancelledHelp": "Este pedido fue cancelado. Si ya habías pagado, te contactaremos para la devolución.",
+    "returnedHelp": "Tu pedido fue devuelto. Escríbenos si necesitas ayuda.",
+    "linkUnavailable": "Este enlace ya no está disponible. Escríbenos y con gusto te ayudamos.",
+    "tooManyRequests": "Has consultado este pedido varias veces. Espera un momento y vuelve a intentarlo."
   }
 }

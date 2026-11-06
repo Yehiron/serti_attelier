@@ -153,7 +153,21 @@ class OrdersView(BrowserView):
         return Response(created_data(order), status=201 if created else 200)
 
 
-class OrderDetailView(BrowserView):
+class OrderPublicThrottle(BrowserThrottle):
+    scope = "order_public"
+
+
+class PrivateOrderView(BrowserView):
+    def finalize_response(self, request, response, *args, **kwargs):
+        response = super().finalize_response(request, response, *args, **kwargs)
+        response["Cache-Control"] = "no-store, private"
+        response["Referrer-Policy"] = "no-referrer"
+        return response
+
+
+class OrderDetailView(PrivateOrderView):
+    throttle_classes = [OrderPublicThrottle]
+
     @extend_schema(responses={200: OrderDetailSerializer, **ERRORS})
     def get(self, request: Request, public_token: str) -> Response:
         return Response(order_detail(public_token))

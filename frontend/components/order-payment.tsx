@@ -10,7 +10,7 @@ import { clearAttempt, clearPaymentAttempt, paymentAttemptKey } from '@/lib/comm
 import { orderViewState } from '@/lib/order-state';
 import { submitWompiCheckout, withoutTransactionId } from '@/lib/wompi';
 
-export function OrderPayment({ order, token, locale, t }: { order: PaymentDetails; token: string; locale: Locale; t: Dictionary['commerce'] }) {
+export function OrderPayment({ order, token, locale, t, paused = false }: { paused?: boolean; order: PaymentDetails; token: string; locale: Locale; t: Dictionary['commerce'] }) {
   const view = orderViewState(order); const router = useRouter();
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
   const locked = useRef(false); const synced = useRef<string | null>(null); const previous = useRef(view.status);
@@ -28,13 +28,14 @@ export function OrderPayment({ order, token, locale, t }: { order: PaymentDetail
     synced.current = `${token}:${transaction}`;
     void browserRequest(`orders/${encodeURIComponent(token)}/payment-sync`, locale, { method: 'POST', body: JSON.stringify({ transaction_id: transaction }) })
       .catch(error => {
-        if (!(error instanceof ApiError && [404, 429].includes(error.status))) setMessage(t.syncDelayed);
+        if (error instanceof ApiError && error.status === 429) setMessage(t.tooManyRequests);
+        else if (!(error instanceof ApiError && error.status === 404)) setMessage(t.syncDelayed);
       }).finally(() => {
         router.refresh();
         const current = new URL(window.location.href);
         if (current.searchParams.get('id') === transaction) window.history.replaceState(window.history.state, '', withoutTransactionId(current.href));
       });
-  }, [token, locale, router, t.syncDelayed]);
+  }, [token, locale, router, t.syncDelayed, t.tooManyRequests]);
   async function pay(retry: boolean) {
     if (locked.current) return;
     locked.current = true; setBusy(true); setMessage(t.wompiRedirect);
@@ -46,10 +47,11 @@ export function OrderPayment({ order, token, locale, t }: { order: PaymentDetail
       else { await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))); submitWompiCheckout(checkout); return; }
     } catch (error) {
       if (error instanceof ApiError && error.problem.code === 'payment_not_retryable') { router.refresh(); setMessage(''); }
-      else setMessage(t.error);
+      else setMessage(error instanceof ApiError && error.status === 429 ? t.tooManyRequests : t.error);
     }
     locked.current = false; setBusy(false);
   }
+  if (paused) return message ? <p role="status">{message}</p> : null;
   return <div className="order-payment" aria-live="polite" aria-busy={busy}>
     {view.confirming && <p>{t.confirmingPayment}</p>}
     {view.unavailable && <p className="payment-notice">{t.onlineUnavailable}</p>}
