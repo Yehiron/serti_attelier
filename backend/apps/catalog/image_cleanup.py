@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from contextlib import contextmanager
+from contextvars import ContextVar
 from typing import Any
 
 from django.core.files.storage import default_storage
@@ -77,6 +79,43 @@ def delete_unreferenced(paths: set[str], using: str) -> None:
         default_storage.delete(path)
 
 
+# Each successful service operation queues one reference scan per database. Nested
+# scopes merge only on success; rollback drops the callbacks via Django on_commit.
+_cleanup_batch: ContextVar[dict[str, set[str]] | None] = ContextVar(
+    "catalog_cleanup_batch", default=None
+)
+
+
+@contextmanager
+def batch_file_cleanup():
+    parent = _cleanup_batch.get()
+    paths_by_database: dict[str, set[str]] = {}
+    token = _cleanup_batch.set(paths_by_database)
+    try:
+        yield
+    except BaseException:
+        raise
+    else:
+        for using, paths in paths_by_database.items():
+            if parent is not None:
+                parent.setdefault(using, set()).update(paths)
+            else:
+                transaction.on_commit(
+                    lambda paths=set(paths), using=using: delete_unreferenced(paths, using),
+                    using=using,
+                )
+    finally:
+        _cleanup_batch.reset(token)
+
+
+def schedule_cleanup(paths: set[str], using: str) -> None:
+    batch = _cleanup_batch.get()
+    if batch is not None:
+        batch.setdefault(using, set()).update(paths)
+    else:
+        transaction.on_commit(lambda: delete_unreferenced(paths, using), using=using)
+
+
 def replaced_files(
     sender: type[models.Model], instance: models.Model, using: str, **kwargs: Any
 ) -> None:
@@ -87,14 +126,14 @@ def replaced_files(
         private_original_cleanup(previous, instance, using)
         paths = file_paths(previous) - file_paths(instance)
         if paths:
-            transaction.on_commit(lambda: delete_unreferenced(paths, using), using=using)
+            schedule_cleanup(paths, using)
 
 
 def deleted_files(instance: models.Model, using: str, **kwargs: Any) -> None:
     private_original_cleanup(instance, None, using)
     paths = file_paths(instance)
     if paths:
-        transaction.on_commit(lambda: delete_unreferenced(paths, using), using=using)
+        schedule_cleanup(paths, using)
 
 
 def register() -> None:

@@ -48,7 +48,7 @@ Ejemplo:
 ## Catálogo
 
 ### `GET /catalog/taxonomy`
-Categorías (con subcategorías), colecciones, piedras y materiales activos, para menús y filtros.
+Categorías raíz activas (con hijas activas), colecciones activas y todas las piedras y materiales, para menús y filtros. Piedras y materiales no tienen estado de actividad.
 
 ### `GET /catalog/pieces`
 Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`, `price_max` (centavos), `availability=available|all` (por defecto `available`), `is_new`, `q` (búsqueda), `sort=newest|price_asc|price_desc|featured`, `page`.
@@ -66,6 +66,7 @@ Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`,
     "sale_price": null,
     "sale_state": "available",
     "is_new": true,
+    "hover_image": null,
     "image": { "src": "/media/…/960.webp", "srcset": "…", "width": 1600, "height": 2000, "alt": "…" }
   }],
   "facets": { "stones": [{ "slug": "esmeralda", "count": 21 }], "price": { "min_cents": 90000000, "max_cents": 1200000000 } }
@@ -79,6 +80,38 @@ Detalle completo: descripciones, historia, atributos, galería, piedras, materia
 "cta": { "kind": "add_to_cart" }
 "cta": { "kind": "whatsapp", "reason": "preorder|reserved|sold", "url": "https://wa.me/…?text=…" }
 ```
+
+### Contrato conservado en las Etapas 1–5
+
+No se modifican las rutas, filtros ni tipos públicos. Las pruebas HTTP de
+`test_stage5_contract.py` fijan el comportamiento en español e inglés:
+
+- Solo piezas publicadas: borradores, ocultas y archivadas quedan fuera de listas,
+  búsquedas y detalle (404). Reservadas y preventa siguen en la lista predeterminada;
+  las vendidas conservan su detalle y aparecen en lista con `availability=all`.
+- `category=<slug raíz>` incluye piezas asignadas directamente y a sus hijas.
+  `categories.children` contiene taxones con `slug`, `name`, `cover_image` y `cover`;
+  no contiene otro nivel de `children`. Una categoría sin hijas devuelve `[]`.
+- `image` y `hover_image` tienen `{src: string, srcset: string, width: integer,
+  height: integer, alt: string}` o `null`; `gallery` es una lista de ese objeto.
+  Solo se serializan fotos listas. La galería sigue el orden guardado, no la marca
+  de principal; el hover es opcional y distinto de la principal. Las operaciones
+  permitidas sobre una publicada mantienen una principal lista. La nulabilidad
+  histórica del tipo público se conserva para datos antiguos que incumplan esa regla.
+- `price` y `sale_price` usan `{amount_cents: integer, currency: "COP"}`;
+  `sale_price` puede ser `null`. `sale_state` conserva `available`, `reserved`,
+  `sold` y `preorder`. No se convierten centavos a pesos en la respuesta.
+- `attributes` mantiene `metal`, `metal_purity` y `dimensions_mm` como texto;
+  `ring_size` como texto o número; `length_mm`, `weight_g` y `carats` como números.
+  Las claves son opcionales y un objeto vacío es válido. Las claves históricas
+  desconocidas se conservan al editar; el formulario no permite introducirlas.
+- `cover` es un objeto de imagen o `null` y `cover_image` sigue siendo una URL o
+  `null`. Categorías/piedras conservan la proporción; colecciones se procesan a 16:9.
+
+Lectura de coherencia: `frontend/lib/api/types.ts` mantiene `Image`, `Money`,
+`SaleState`, `PieceCard`, `PieceDetail` y `Category` compatibles. No se modificó el
+frontend. `photos/status`, creación rápida y `taxonomy-cover` son rutas privadas del
+dashboard; no forman parte de `/api/v1/catalog`.
 
 ### `GET /catalog/pieces/status?skus=SRT-AN-0012,SRT-DJ-0004`
 Estado actual de varias piezas (lista de deseos y carrito). Máximo 50 SKU. Respuesta: `{ "SRT-AN-0012": "sold", … }`.

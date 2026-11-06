@@ -10,6 +10,7 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.core.files.uploadedfile import UploadedFile
 from django.db import transaction
+from django.db.models import Count, Q
 from django.http import Http404, HttpRequest, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -43,14 +44,20 @@ def taxonomy_cards(model: Any, request: HttpRequest) -> list[dict[str, Any]]:
     name = model._meta.model_name
     relation = {"category": "category", "stone": "stones", "collection": "collections"}[name]
     cards = []
-    for obj in model.objects.all():
-        pieces = obj.pieces.filter(status=Piece.Status.PUBLISHED)
+    queryset = model.objects.annotate(
+        published_total=Count(
+            "pieces", filter=Q(pieces__status=Piece.Status.PUBLISHED), distinct=True
+        )
+    )
+    if model is Category:
+        queryset = queryset.prefetch_related("children")
+    for obj in queryset:
         cards.append(
             {
                 "id": obj.pk,
                 "name": obj.name_es,
                 "image": thumbnail(obj.cover_renditions),
-                "count": pieces.count(),
+                "count": obj.published_total,
                 "children": list(obj.children.all()) if isinstance(obj, Category) else [],
                 "edit": reverse(f"admin:catalog_{name}_change", args=[obj.pk]),
                 "pieces": reverse("admin:catalog_piece_changelist")
@@ -107,7 +114,10 @@ def editor(request: HttpRequest) -> HttpResponse:
         (
             "category",
             _("Categorías"),
-            _("La foto se ve en «Comprar por categoría» de la página de inicio. Usa una foto vertical."),
+            _(
+                "La foto se ve en «Comprar por categoría» de la página de inicio. "
+                "Usa una foto vertical."
+            ),
             _("Nueva categoría"),
         ),
         (
@@ -144,7 +154,7 @@ def editor(request: HttpRequest) -> HttpResponse:
             "title": _("Editor visual"),
             "sections": sections,
             "groups": groups,
-            "stones": taxonomy_cards(Stone, request),
+            "stones": next(group["cards"] for group in groups if group["model"] == "stone"),
             "home_categories": home_categories("es"),
             "device": device,
             "taxonomy_tab": request.GET.get("tab") == "taxonomy",
@@ -173,7 +183,9 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
             if action == "taxonomy-cover":
                 obj = get_object_or_404(TAXONOMIES[model_name], pk=int(request.POST["id"]))
                 obj.cover_image = cast("UploadedFile[bytes]", request.FILES["file"])
-                catalog_services.save_taxonomy(cast(Category | Collection | Stone, obj))
+                catalog_services.save_taxonomy(
+                    cast(Category | Collection | Stone, obj), actor=request.user, request=request
+                )
             elif action == "sections-reorder":
                 editor_services.reorder_sections(ordered_ids(request))
             else:

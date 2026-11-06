@@ -19,6 +19,7 @@ from apps.audit.diff import compute_diff
 from apps.audit.services import record
 from apps.core.exceptions import PublicationError
 
+from .image_cleanup import batch_file_cleanup
 from .images import (
     build_renditions,
     cap_master,
@@ -79,7 +80,10 @@ def deletion_reasons(piece: Piece) -> list[str]:
 
 
 @transaction.atomic
-def delete_pieces(queryset: models.QuerySet[Piece]) -> None:
+@batch_file_cleanup()
+def delete_pieces(
+    queryset: models.QuerySet[Piece], *, actor: Actor = None, request: HttpRequest | None = None
+) -> None:
     pieces = list(queryset.order_by("pk").select_for_update(of=("self",)))
     failures = [
         f"{piece.sku} ({', '.join(reasons)})"
@@ -89,6 +93,13 @@ def delete_pieces(queryset: models.QuerySet[Piece]) -> None:
     if failures:
         raise ValidationError("No se borró ninguna pieza: " + "; ".join(failures))
     for piece in pieces:
+        record(
+            "catalog.piece_deleted",
+            actor=actor,
+            obj=piece,
+            diff={"Pieza": [piece.name_es, None], "SKU": [piece.sku, None]},
+            request=request,
+        )
         piece.delete()
 
 
@@ -97,6 +108,8 @@ def snapshot(piece: Piece) -> dict[str, object]:
         field.name: (
             getattr(piece, field.attname).isoformat()
             if isinstance(getattr(piece, field.attname), datetime)
+            else (piece.category.name_es if piece.category_id else None)
+            if field.name == "category"
             else getattr(piece, field.attname)
         )
         for field in piece._meta.concrete_fields
@@ -201,15 +214,14 @@ def publication_missing(piece: Piece) -> list[str]:
             missing.append(label)
     if not piece.pk:
         return [*missing, "imagen procesada", "imagen principal procesada"]
-    primary_pending = piece.images.filter(
-        is_primary=True, processing_status=PieceImage.ProcessingStatus.PENDING
-    ).exists()
+    photos = list(piece.images.all())  # reuse the admin's prefetch, including photos/status
+    primary_pending = any(p.is_primary and p.processing_status == "pending" for p in photos)
     if primary_pending:
         missing.append("la foto principal aún se está procesando")
     else:
-        if not piece.images.filter(processing_status="ready").exists():
+        if not any(p.processing_status == "ready" for p in photos):
             missing.append("imagen procesada")
-        if not piece.images.filter(is_primary=True, processing_status="ready").exists():
+        if not any(p.is_primary and p.processing_status == "ready" for p in photos):
             missing.append("imagen principal procesada")
     return missing
 
@@ -267,12 +279,20 @@ def unhide(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Pi
 
 
 @transaction.atomic
-def delete_piece(piece: Piece) -> None:
-    delete_pieces(Piece.objects.filter(pk=piece.pk))
+def delete_piece(piece: Piece, *, actor: Actor = None, request: HttpRequest | None = None) -> None:
+    delete_pieces(Piece.objects.filter(pk=piece.pk), actor=actor, request=request)
 
 
 @transaction.atomic
-def save_taxonomy(obj: Taxonomy) -> None:
+def save_taxonomy(
+    obj: Taxonomy, *, actor: Actor = None, request: HttpRequest | None = None
+) -> None:
+    old = (
+        type(obj).objects.select_for_update(of=("self",)).filter(pk=obj.pk).first()
+        if obj.pk
+        else None
+    )
+    before = taxonomy_snapshot(old) if old else {}
     if (
         isinstance(obj, (Category, Collection, Stone))
         and obj.cover_image
@@ -311,6 +331,43 @@ def save_taxonomy(obj: Taxonomy) -> None:
             obj.slug_es = candidate
     obj.full_clean()
     obj.save()
+    diff = compute_diff(before, taxonomy_snapshot(obj))
+    # Presence alone cannot distinguish replacement of two existing covers.
+    if old and hasattr(obj, "cover_image") and old.cover_image.name != obj.cover_image.name:
+        diff.pop("Portada", None)
+        diff[f"Portada de {obj.name_es}"] = [
+            "Portada anterior" if old.cover_image else "Sin portada",
+            "Portada reemplazada"
+            if old.cover_image and obj.cover_image
+            else "Portada añadida"
+            if obj.cover_image
+            else "Sin portada",
+        ]
+    if diff:
+        action = f"catalog.{obj._meta.model_name}_{'updated' if old else 'created'}"
+        record(action, actor=actor, obj=obj, diff=diff, request=request)
+
+
+def taxonomy_snapshot(obj: Taxonomy) -> dict[str, object]:
+    result = {}
+    for field in obj._meta.concrete_fields:
+        if field.primary_key or field.name in {
+            "name",
+            "slug",
+            "description",
+            "seo_title",
+            "seo_description",
+        }:
+            continue  # translated originals alias the active language
+        if field.name.startswith("cover_"):
+            continue
+        value = getattr(obj, field.name)
+        if field.is_relation:
+            value = value.name_es if value else None
+        result[str(field.verbose_name)] = value
+    if hasattr(obj, "cover_image"):
+        result["Portada"] = "Con portada" if obj.cover_image else "Sin portada"
+    return result
 
 
 @transaction.atomic
@@ -357,7 +414,10 @@ def validate_photo_state(piece: Piece, photos: list[PieceImage]) -> None:
 
 
 @transaction.atomic
-def apply_photo_changes(piece: Piece, photos: list[PieceImage], *, actor: Actor) -> None:
+@batch_file_cleanup()
+def apply_photo_changes(
+    piece: Piece, photos: list[PieceImage], *, actor: Actor, request: HttpRequest | None = None
+) -> None:
     """Replace the complete inline state, with immediate PostgreSQL constraints in mind."""
     piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     if actor is not None and not actor.has_perm("catalog.change_piece"):
@@ -387,6 +447,11 @@ def apply_photo_changes(piece: Piece, photos: list[PieceImage], *, actor: Actor)
         }
 
     before = state(list(current.values()))
+    labels = {
+        p.pk: f"Foto {p.position + 1}: {p.alt_es or 'Sin descripción'}" for p in current.values()
+    }
+    alt_before = {p.pk: (p.alt_es, p.alt_en) for p in current.values()}
+    original_before = {p.pk: p.original.name for p in current.values()}
     # Find a free block above the final range, including legacy positions near int32's limit.
     offset = len(photos)
     for position in sorted(p.position for p in current.values()):
@@ -406,8 +471,25 @@ def apply_photo_changes(piece: Piece, photos: list[PieceImage], *, actor: Actor)
     diff = {key: [before[key], after[key]] for key in before if before[key] != after[key]}
     if deleted:
         diff["borradas"] = [sorted(deleted), []]
+    for photo in ordered:
+        labels.setdefault(
+            photo.pk, f"Foto {photo.position + 1}: {photo.alt_es or 'Sin descripción'}"
+        )
+        if photo.pk in alt_before:
+            for index, locale in enumerate(("es", "en")):
+                previous, value = alt_before[photo.pk][index], getattr(photo, f"alt_{locale}")
+                if previous != value:
+                    diff[f"Descripción de {labels[photo.pk]} ({locale})"] = [previous, value]
+            if original_before[photo.pk] != photo.original.name:
+                diff[f"Archivo de {labels[photo.pk]}"] = ["Foto anterior", "Foto reemplazada"]
+    for key in ("principal", "hover", "orden", "borradas"):
+        if key in diff:
+            diff[key] = [
+                [labels[pk] for pk in value] if isinstance(value, list) else labels.get(value)
+                for value in diff[key]
+            ]
     if diff:
-        record("catalog.photos_updated", actor=actor, obj=piece, diff=diff)
+        record("catalog.photos_updated", actor=actor, obj=piece, diff=diff, request=request)
 
 
 @transaction.atomic
@@ -431,29 +513,102 @@ def delete_piece_image(obj: PieceImage) -> None:
     obj.delete()
 
 
+def collection_names(piece: Piece) -> list[str]:
+    return list(piece.collections.order_by("name_es", "pk").values_list("name_es", flat=True))
+
+
+def record_collections(
+    piece: Piece,
+    before: list[str],
+    *,
+    actor: Actor,
+    request: HttpRequest | None,
+    extra_diff: dict[str, list[object]] | None = None,
+) -> None:
+    after = collection_names(piece)
+    diff = dict(extra_diff or {})
+    if before != after:
+        diff["Colecciones"] = [before, after]
+    if diff:
+        record(
+            "catalog.collections_updated",
+            actor=actor,
+            obj=piece,
+            diff=diff,
+            request=request,
+        )
+
+
 @transaction.atomic
-def save_collection_piece(obj: CollectionPiece) -> None:
+def save_collection_piece(
+    obj: CollectionPiece, *, actor: Actor = None, request: HttpRequest | None = None
+) -> None:
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=obj.piece_id)
+    before = collection_names(piece)
+    old = (
+        CollectionPiece.objects.select_related("collection").filter(pk=obj.pk).first()
+        if obj.pk
+        else None
+    )
     obj.full_clean()
     obj.save()
+    extra_diff = {}
+    if old and old.position != obj.position:
+        extra_diff[f"Posición en {obj.collection.name_es}"] = [old.position, obj.position]
+    record_collections(piece, before, actor=actor, request=request, extra_diff=extra_diff)
 
 
 @transaction.atomic
-def delete_catalog_object(obj: Taxonomy | CollectionPiece | PieceVideo) -> None:
-    obj.delete()
+def delete_catalog_object(
+    obj: Taxonomy | CollectionPiece | PieceVideo,
+    *,
+    actor: Actor = None,
+    request: HttpRequest | None = None,
+) -> None:
+    if isinstance(obj, CollectionPiece):
+        piece = Piece.objects.select_for_update(of=("self",)).get(pk=obj.piece_id)
+        before = collection_names(piece)
+        obj.delete()
+        record_collections(piece, before, actor=actor, request=request)
+    else:
+        if isinstance(obj, (Category, Collection, Stone, Material)):
+            record(
+                f"catalog.{obj._meta.model_name}_deleted",
+                actor=actor,
+                obj=obj,
+                diff={key: [value, None] for key, value in taxonomy_snapshot(obj).items()},
+                request=request,
+            )
+        obj.delete()
 
 
 @transaction.atomic
-def save_piece_relations(piece: Piece, values: dict[str, Any]) -> None:
-    for name in ("stones", "materials", "related"):
+def save_piece_relations(
+    piece: Piece, values: dict[str, Any], *, actor: Actor = None, request: HttpRequest | None = None
+) -> None:
+    Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
+    diff = {}
+    for name, label in (
+        ("stones", "Piedras"),
+        ("materials", "Materiales"),
+        ("related", "Piezas relacionadas"),
+    ):
         if name in values:
-            related = values[name]
+            related = list(values[name])
             if name == "related" and piece.pk in [item.pk for item in related]:
                 raise ValidationError(_("Una pieza no puede relacionarse consigo misma."))
-            getattr(piece, name).set(related)
+            manager = getattr(piece, name)
+            before = list(manager.order_by("name_es", "pk").values_list("name_es", flat=True))
+            manager.set(related)
+            after = list(manager.order_by("name_es", "pk").values_list("name_es", flat=True))
+            if before != after:
+                diff[label] = [before, after]
+    if diff:
+        record("catalog.relations_updated", actor=actor, obj=piece, diff=diff, request=request)
 
 
 @transaction.atomic
-def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
+def duplicate_piece(piece: Piece, actor: Actor, request: HttpRequest | None = None) -> Piece:
     if (
         actor is None
         or not actor.has_perm("catalog.add_piece")
@@ -506,7 +661,13 @@ def duplicate_piece(piece: Piece, actor: Actor) -> Piece:
         CollectionPiece.objects.create(
             piece=copy, collection=link.collection, position=link.position
         )
-    record("catalog.piece_duplicated", actor=actor, obj=copy, diff={"source": [None, source.pk]})
+    record(
+        "catalog.piece_duplicated",
+        actor=actor,
+        obj=copy,
+        diff={"source": [None, f"{source.name_es} ({source.sku})"]},
+        request=request,
+    )
     return copy
 
 
@@ -596,7 +757,10 @@ def save_piece_video(obj: PieceVideo) -> None:
 
 
 @transaction.atomic
-def append_piece_photos(piece: Piece, uploads: list[Any], *, actor: Actor = None) -> list[str]:
+@batch_file_cleanup()
+def append_piece_photos(
+    piece: Piece, uploads: list[Any], *, actor: Actor = None, request: HttpRequest | None = None
+) -> list[str]:
     """Validate each upload independently while serializing ordering and primary selection."""
     piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
     position = piece.images.count()
@@ -617,7 +781,7 @@ def append_piece_photos(piece: Piece, uploads: list[Any], *, actor: Actor = None
                 current = list(piece.images.all())
                 for index, photo in enumerate(current):
                     photo.position = index
-                apply_photo_changes(piece, [*current, image], actor=actor)
+                apply_photo_changes(piece, [*current, image], actor=actor, request=request)
         except ValidationError as exc:
             errors.append(f"{upload.name}: {'; '.join(exc.messages)}")
         else:

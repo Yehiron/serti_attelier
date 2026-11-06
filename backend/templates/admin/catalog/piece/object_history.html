@@ -1,0 +1,15 @@
+{% extends "admin/object_history.html" %}
+{% block content %}
+  {% if catalog_audit_events %}
+    <h2>Historial del catálogo</h2>
+    <table class="w-full mb-6">
+      <thead><tr><th>Fecha</th><th>Responsable</th><th>Cambios</th></tr></thead>
+      <tbody>{% for event in catalog_audit_events %}
+        <tr><td>{{ event.at|date:"DATETIME_FORMAT" }}</td><td>{{ event.actor }}</td><td>{% for line in event.description %}<p>{{ line }}</p>{% endfor %}</td></tr>
+      {% endfor %}</tbody>
+    </table>
+    {% if catalog_audit_page.has_previous %}<a href="?audit_page={{ catalog_audit_page.previous_page_number }}">Más recientes</a>{% endif %}
+    {% if catalog_audit_page.has_next %}<a href="?audit_page={{ catalog_audit_page.next_page_number }}">Más antiguos</a>{% endif %}
+  {% endif %}
+  {{ block.super }}
+{% endblock %}

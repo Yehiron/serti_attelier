@@ -40,8 +40,12 @@ Referencias: OWASP ASVS 4.0 (nivel 2 como objetivo), *checklist* de despliegue d
 | Permiso | Propietario | Operaciones | Contenido |
 |---|---|---|---|
 | Usuarios y roles | ✅ | — | — |
-| Piezas: crear, editar, publicar, ocultar | ✅ | ✅ | ✅ |
-| Precios y precio rebajado | ✅ | ✅ | — |
+| Piezas: editar textos, clasificación, atributos y fotos | ✅ | ✅ | ✅ |
+| Piezas: crear, duplicar, publicar, ocultar, archivar y preventa | ✅ | ✅ | — |
+| Borrar fotos y borradores sin pedidos, reservas ni historial de inventario | ✅ | ✅ | — |
+| Taxonomías: crear/editar nombres, jerarquía y portadas | ✅ | ✅ | ✅ |
+| Taxonomías: borrar (si sus relaciones lo permiten) | ✅ | ✅ | — |
+| Cambiar precios y precio rebajado (Contenido solo lectura) | ✅ | ✅ | — |
 | Cupones | ✅ | ✅ | — |
 | Home, páginas, banners | ✅ | — | ✅ |
 | Pedidos: ver | ✅ | ✅ | — |
@@ -49,9 +53,10 @@ Referencias: OWASP ASVS 4.0 (nivel 2 como objetivo), *checklist* de despliegue d
 | **Confirmar pago manual** | ✅ | ✅ | — |
 | Configuración del sitio (WhatsApp, plazos, instrucciones de pago) | ✅ | — | — |
 | Indicadores | ✅ | ✅ | — |
-| Auditoría (lectura) | ✅ | — | — |
+| Auditoría general (lectura) | ✅ | — | — |
+| Historial de una pieza o taxonomía que puede consultar | ✅ | ✅ | ✅ |
 
-2FA obligatorio para Propietario; recomendado para todos.
+Con `ADMIN_2FA_REQUIRED=True` (configuración base), el segundo factor es obligatorio para el personal que accede al dashboard.
 
 ## Configuración
 
@@ -81,3 +86,34 @@ La ausencia de facturación electrónica es una **exclusión técnica del MVP, n
 ## Pruebas de seguridad
 
 Ver [testing-strategy.md](testing-strategy.md#seguridad). Antes del lanzamiento: `manage.py check --deploy` sin advertencias, escaneo con OWASP ZAP (*baseline*) contra *staging*, revisión manual de los flujos de pago y de confirmación manual.
+
+## Integridad y auditoría del catálogo
+
+Las acciones privadas mantienen sesión, segundo factor, CSRF y permisos del objeto.
+Publicar, ocultar, archivar, duplicar y cambiar preventa exigen tanto edición como
+`catalog.publish_piece`; duplicar requiere además creación. Contenido conserva
+precios legibles, sin cambiarlos ni tomar decisiones comerciales sobre las piezas.
+
+Los servicios graban `apps.audit.services.record` en la transacción de la escritura:
+actor, objeto, diferencias, IP y navegador cuando reciben la petición. Los cambios
+M2M, colecciones, descripciones de fotos, principal/hover/orden/borrado, sustituciones,
+portadas (también desde `taxonomy-cover`), altas/ediciones/bajas de taxonomías y bajas
+de piezas quedan registrados. La creación rápida reutiliza la misma auditoría del
+servicio: un único evento. Un guardado sin diferencias no añade un evento de dominio.
+Los servicios internos sin petición conservan actor de sistema y carecen de IP/navegador.
+Los `LogEntry` propios de Django se conservan como registro adicional del administrador.
+
+El historial del objeto incorpora eventos de `AuditLog`, con nombres en español y
+paginación de 50 eventos. Conserva las comprobaciones de permiso de Django y escapa
+los textos; no muestra IP ni navegador. El registro general sigue limitado a
+Propietario. Los eventos anteriores permanecen inmutables, incluidos sus antiguos IDs.
+
+Las operaciones de fotos bloquean pieza/fotos con `select_for_update(of=("self",))`
+y conservan las restricciones inmediatas. También el administrador técnico de fotos
+pasa por las mismas reglas: no puede dejar una publicada sin principal lista ni
+mover una foto a otra pieza. La limpieza de archivos se agrupa por operación y se
+programa tras commit; antes de borrar revisa referencias vivas y ambas instantáneas
+de publicaciones. Una reversión descarta la limpieza. No se introducen migraciones.
+
+La validación de esta etapa en PostgreSQL está pendiente por restricciones del
+sandbox; SQLite solo aporta evidencia auxiliar: ver [informe](catalogo-etapa-5.md).

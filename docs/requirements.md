@@ -25,20 +25,20 @@ Prioridad: **M** = MVP obligatorio · **S** = MVP si cabe · **L** = posterior.
 |---|---|---|---|---|
 | CAT-01 | Categorías: Anillos, Aretes, Cadenas, Dijes, Pulseras/Brazaletes | C | M | Existen, son administrables y tienen URL propia en ES y EN |
 | CAT-02 | Colecciones: Regalos, Novedades y Destacados, Sets, Descuentos | C | M | Administrables; una pieza puede estar en varias; orden manual |
-| CAT-03 | Navegación por piedra: Diamante, Esmeralda, Zafiro | C | M | Página por piedra; la piedra es un atributo filtrable; imagen de portada 16:9 |
+| CAT-03 | Navegación por piedra: Diamante, Esmeralda, Zafiro | C | M | Página por piedra; la piedra es un atributo filtrable; la portada conserva la proporción de la foto |
 | CAT-04 | Filtros por gema, precio y disponibilidad | C | M | Combinables, reflejados en la URL, funcionan en la primera carga sin JS; "Disponibles ahora" por defecto, "Ver también vendidas" opcional |
 | CAT-05 | Buscador | C | M | Busca por nombre, categoría, piedra y material, en ambos idiomas, sin importar tildes ni mayúsculas; estado vacío con sugerencias |
 | CAT-06 | Estados de la pieza: disponible, reservada, vendida, preventa + etiqueta "nuevo" | C + DC-08 | M | Cada estado muestra su CTA (ver PU-01…PU-06) |
 | CAT-07 | Preventa → WhatsApp | C | M | Una pieza en preventa no entra al carrito; el CTA abre WhatsApp con mensaje prellenado (nombre, SKU y URL) |
 | CAT-08 | Descripción de la pieza | C | M | Ficha con historia, materiales, piedra, medidas, peso, cuidados y galería |
 | CAT-09 | Información del fabricante | C | M | Página y bloque en la ficha; contenido administrable (P-09) |
-| CAT-10 | Imágenes 16:9 en portadas | C | M | Hero, paneles de piedra y portadas de categoría en 16:9; la galería de producto usa 4:5 (R) |
+| CAT-10 | Proporción de imágenes | C + Etapa 4 | M | Portadas de categorías y piedras conservan su proporción; colecciones se procesan a 16:9. La presentación de cada tarjeta puede recortar con CSS |
 | CAT-11 | Subcategorías | D | S | Un nivel bajo cada categoría |
 | CAT-12 | Atributos de la pieza única (talla, largo, metal, quilates, peso) | D → DC-08 | M | Se muestran como datos, no como selector; el ajuste de talla se consulta por WhatsApp (P-17) |
 | CAT-13 | Piezas relacionadas | D | S | Selección manual con respaldo automático (misma piedra o categoría, disponibles primero) |
 | CAT-14 | SEO por idioma | D | M | Title, description y slug en ES y EN; `hreflang`, `canonical`, `sitemap.xml` y datos estructurados `Product` |
 | CAT-15 | No eliminar piezas con ventas | D | M | `on_delete=PROTECT` desde `OrderItem`; el admin solo permite archivar |
-| CAT-16 | Piezas vendidas visibles y ocultables | DC-16 | M | Por defecto siguen publicadas con estado "Vendida"; acción "Ocultar del catálogo" individual y masiva en el dashboard; una pieza oculta responde 404 y sale del sitemap |
+| CAT-16 | Piezas vendidas visibles y ocultables | DC-16 | M | Conservan su publicación y detalle con estado "Vendida"; en lista se incluyen con `availability=all`; acción "Ocultar del catálogo" individual y masiva en el dashboard; una pieza oculta responde 404 y sale del sitemap |
 
 ## 2. La pieza única (DC-08, DC-09)
 
@@ -49,7 +49,7 @@ Prioridad: **M** = MVP obligatorio · **S** = MVP si cabe · **L** = posterior.
 | PU-03 | Estado "Reservada" | R | M | Mensaje: "Alguien está completando la compra de esta pieza…"; botón "Avísame por WhatsApp" |
 | PU-04 | Estado "Vendida" con CTA de pieza a medida | DC-09 | M | CTA "Creemos una pieza única para ti" abre WhatsApp con el mensaje prellenado que nombra la pieza y su SKU |
 | PU-05 | Pieza vendida en carrito o lista de deseos | DC-09 | M | Se marca como vendida, se retira del carrito con aviso y se ofrece el mismo CTA |
-| PU-06 | "Duplicar como nueva pieza" en el dashboard | R | S | Copia atributos y textos a un borrador nuevo con SKU vacío |
+| PU-06 | "Duplicar como nueva pieza" en el dashboard | R | S | Copia textos, atributos, piedras, materiales y colecciones a un borrador disponible con SKU `<SKU original truncado a 25 caracteres>-COPIA-N`; no copia fotos ni piezas relacionadas |
 
 ## 3. Compra
 
@@ -107,3 +107,26 @@ Prioridad: **M** = MVP obligatorio · **S** = MVP si cabe · **L** = posterior.
 ## Fuera del MVP
 
 Recuperación de carrito (BUY-09), dashboard a medida en Next.js (ADR-002), facturación electrónica (LEG-04), cuentas de cliente, reseñas, programa de fidelidad y envíos internacionales (DC-01).
+
+## Operación del catálogo (Etapas 1–5)
+
+- Una pieza nueva puede dejar el SKU vacío: se genera `SRT-<tres letras de la categoría raíz>-0001`
+  con secuencia por prefijo; sin categoría se usa `GEN`. Un SKU manual se conserva.
+- Publicar exige categoría, precio, nombre, slug y descripción corta en español,
+  y una principal procesada. «Lista para publicar» muestra los pendientes.
+- Borrador → publicada/archivada; publicada → oculta/archivada;
+  oculta → publicada/archivada. Archivar es definitivo, incluso para superusuarios.
+- Una publicada conserva una principal lista durante los cambios permitidos de fotos.
+  Elegir principal/hover, ordenar, borrar, sustituir archivos y editar descripciones
+  pasan por el servicio de estado final; principal y hover son distintas.
+- «Nueva categoría» desde la pieza permite raíces y un nivel de hijas de raíces activas,
+  con validación de duplicados bajo el mismo padre y permiso de creación.
+- La auditoría registra relaciones, colecciones, fotos, portadas y ciclo de taxonomías,
+  además de los cambios editoriales y el borrado de borradores permitido por el servicio.
+  Los diffs nuevos guardan nombres; el historial del objeto muestra estos eventos
+  junto a los registros del administrador. No se reescriben eventos históricos.
+- Listas, ficha, seguimiento de fotos, creación rápida y editor visual tienen
+  presupuestos de consultas y regresión de crecimiento en las pruebas de la Etapa 5.
+
+Guía para el equipo: [Catálogo: guía de uso](catalogo-guia-uso.md).
+Estado de validación y límites: [Etapa 5](catalogo-etapa-5.md).

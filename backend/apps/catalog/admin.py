@@ -29,7 +29,6 @@ from modeltranslation.admin import (
 from unfold.admin import ModelAdmin, TabularInline
 from unfold.decorators import action
 
-from apps.audit.services import record
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.exceptions import DomainError
 from apps.core.formatting import format_admin_cop
@@ -37,6 +36,7 @@ from apps.core.selectors import piece_url
 from apps.inventory.services import set_preorder
 
 from . import services
+from .audit_history import CatalogAuditHistoryMixin
 from .forms import (
     CategoryForm,
     PieceForm,
@@ -59,7 +59,9 @@ from .models import (
 from .selectors import missing_english_translation
 
 
-class TranslatedAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+class TranslatedAdmin(
+    CatalogAuditHistoryMixin, ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin
+):  # type: ignore[misc]  # Unfold is untyped.
     prepopulated_fields = {"slug": ("name",)}
     search_fields: ClassVar[tuple[str, ...]] = ("name_es", "name_en")
     list_display: tuple[str, ...] = ("name", "position")
@@ -69,14 +71,14 @@ class TranslatedAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], Mode
     readonly_fields: ClassVar[tuple[str, ...]] = ("image_preview", "image_status")
 
     def save_model(self, request: HttpRequest, obj: Any, form: Any, change: bool) -> None:
-        services.save_taxonomy(obj)
+        services.save_taxonomy(obj, actor=request.user, request=request)
 
     def delete_model(self, request: HttpRequest, obj: Any) -> None:
-        services.delete_catalog_object(obj)
+        services.delete_catalog_object(obj, actor=request.user, request=request)
 
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Any]) -> None:
         for obj in queryset:
-            services.delete_catalog_object(obj)
+            services.delete_catalog_object(obj, actor=request.user, request=request)
 
 
 @admin.register(Category)
@@ -194,8 +196,7 @@ class CategoryAdmin(TranslatedAdmin):
                         last=Max("position")
                     )["last"]
                     obj.position = (last_position + 1) if last_position is not None else 0
-                    services.save_taxonomy(obj)
-                    record("catalog.category_created", actor=request.user, obj=obj, request=request)
+                    services.save_taxonomy(obj, actor=request.user, request=request)
             except ValidationError as exc:
                 for field, errors in (
                     exc.message_dict if hasattr(exc, "message_dict") else {"__all__": exc.messages}
@@ -337,7 +338,9 @@ class CatalogHealthFilter(admin.SimpleListFilter):
 
 
 @admin.register(Piece)
-class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
+class PieceAdmin(
+    CatalogAuditHistoryMixin, ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin
+):
     prepopulated_fields = {"slug": ("name",)}
     ordering_field = None
     hide_ordering_field = False
@@ -834,7 +837,9 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
             )
         try:
             if operation == "duplicate":
-                return self.copy_response(request, services.duplicate_piece(piece, request.user))
+                return self.copy_response(
+                    request, services.duplicate_piece(piece, request.user, request)
+                )
             elif operation == "hide":
                 services.hide_pieces(Piece.objects.filter(pk=piece.pk), request.user, request)
             elif operation.startswith("preorder_"):
@@ -981,7 +986,22 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
                 request, "Selecciona una sola pieza para duplicar y abrir su copia.", messages.ERROR
             )
             return None
-        return self.copy_response(request, services.duplicate_piece(queryset.get(), request.user))
+        return self.copy_response(
+            request, services.duplicate_piece(queryset.get(), request.user, request)
+        )
+
+    def get_object(self, request, object_id, from_field=None):
+        # Unfold asks once per detail action. Share reads only inside this GET request;
+        # POST operations always re-read and services acquire their own row locks.
+        if request.method != "GET":
+            return super().get_object(request, object_id, from_field)
+        cache = getattr(request, "_catalog_piece_objects", None)
+        if cache is None:
+            cache = request._catalog_piece_objects = {}
+        key = (str(object_id), from_field)
+        if key not in cache:
+            cache[key] = super().get_object(request, object_id, from_field)
+        return cache[key]
 
     def get_queryset(self, request: HttpRequest) -> QuerySet[Piece]:
         queryset = Piece.objects.select_related("category__parent")
@@ -1064,11 +1084,13 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
             raise ValidationError(str(exc)) from exc
 
     def save_related(self, request: HttpRequest, form: Any, formsets: Any, change: bool) -> None:
-        services.save_piece_relations(form.instance, form.cleaned_data)
+        services.save_piece_relations(
+            form.instance, form.cleaned_data, actor=request.user, request=request
+        )
         for formset in formsets:
             self.save_formset(request, form, formset, change)
         for error in services.append_piece_photos(
-            form.instance, request.FILES.getlist("new_photos"), actor=request.user
+            form.instance, request.FILES.getlist("new_photos"), actor=request.user, request=request
         ):
             self.message_user(request, error, messages.ERROR)
 
@@ -1080,24 +1102,24 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
                 for image_form in formset.forms
                 if image_form.cleaned_data and not image_form.cleaned_data.get("DELETE")
             ]
-            services.apply_photo_changes(form.instance, photos, actor=request.user)
+            services.apply_photo_changes(form.instance, photos, actor=request.user, request=request)
             formset.save_m2m()
             return
         instances = formset.save(commit=False)
         for obj in formset.deleted_objects:
             if isinstance(obj, PieceVideo):
-                services.delete_catalog_object(obj)
+                services.delete_catalog_object(obj, actor=request.user, request=request)
             elif isinstance(obj, PieceImage):
                 services.delete_piece_image(obj)
             else:
-                services.delete_catalog_object(obj)
+                services.delete_catalog_object(obj, actor=request.user, request=request)
         for obj in instances:
             if isinstance(obj, PieceVideo):
                 services.save_piece_video(obj)
             elif isinstance(obj, PieceImage):
                 services.save_piece_image(obj)
             else:
-                services.save_collection_piece(obj)
+                services.save_collection_piece(obj, actor=request.user, request=request)
 
     def has_delete_permission(self, request: HttpRequest, obj: Piece | None = None) -> bool:
         return (
@@ -1107,12 +1129,12 @@ class PieceAdmin(ClientPresentationMixin, TranslationAdmin[Piece], ModelAdmin):
         )
 
     def delete_model(self, request: HttpRequest, obj: Piece) -> None:
-        services.delete_piece(obj)
+        services.delete_piece(obj, actor=request.user, request=request)
 
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Piece]) -> None:
         if not self.has_delete_permission(request):
             raise PermissionDenied
-        services.delete_pieces(queryset)
+        services.delete_pieces(queryset, actor=request.user, request=request)
 
     @admin.display(description=_("Imagen"))
     def thumbnail(self, obj: Piece) -> str:
@@ -1222,12 +1244,63 @@ class PieceImageAdmin(ClientPresentationMixin, TabbedTranslationAdmin[PieceImage
     exclude = ("renditions", "width", "height", "processing_status", "error")
     readonly_fields = ("image_preview", "image_status")
 
+    def changeform_view(self, request, object_id=None, form_url="", extra_context=None):
+        try:
+            with transaction.atomic():
+                return super().changeform_view(request, object_id, form_url, extra_context)
+        except ValidationError as exc:
+            request._catalog_photo_error = exc
+            return super().changeform_view(request, object_id, form_url, extra_context)
+
+    def get_form(self, request, obj=None, **kwargs):
+        base = super().get_form(request, obj, **kwargs)
+        error = getattr(request, "_catalog_photo_error", None)
+        if error is None:
+            return base
+
+        class PhotoErrorForm(base):
+            def clean(self):
+                cleaned = super().clean()
+                self.add_error(None, error)
+                return cleaned
+
+        return PhotoErrorForm
+
+    def delete_view(self, request, object_id, extra_context=None):
+        try:
+            return super().delete_view(request, object_id, extra_context)
+        except ValidationError as exc:
+            self.message_user(request, "; ".join(exc.messages), messages.ERROR)
+            return HttpResponseRedirect(
+                reverse("admin:catalog_pieceimage_change", args=[object_id])
+            )
+
+    def changelist_view(self, request, extra_context=None):
+        try:
+            with transaction.atomic():
+                return super().changelist_view(request, extra_context)
+        except ValidationError as exc:
+            self.message_user(request, "; ".join(exc.messages), messages.ERROR)
+            return HttpResponseRedirect(reverse("admin:catalog_pieceimage_changelist"))
+
     def save_model(self, request: HttpRequest, obj: PieceImage, form: Any, change: bool) -> None:
-        services.save_piece_image(obj)
+        previous = PieceImage.objects.filter(pk=obj.pk).first() if change else None
+        if previous and previous.piece_id != obj.piece_id:
+            raise ValidationError("No se puede mover una foto a otra pieza.")
+        photos = [photo for photo in obj.piece.images.all() if photo.pk != obj.pk]
+        services.apply_photo_changes(obj.piece, [*photos, obj], actor=request.user, request=request)
 
     def delete_model(self, request: HttpRequest, obj: PieceImage) -> None:
-        services.delete_piece_image(obj)
+        services.apply_photo_changes(
+            obj.piece,
+            list(obj.piece.images.exclude(pk=obj.pk)),
+            actor=request.user,
+            request=request,
+        )
 
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[PieceImage]) -> None:
-        for obj in queryset:
-            services.delete_piece_image(obj)
+        ids = list(queryset.values_list("pk", flat=True))
+        for piece in Piece.objects.filter(images__pk__in=ids).distinct():
+            services.apply_photo_changes(
+                piece, list(piece.images.exclude(pk__in=ids)), actor=request.user, request=request
+            )
