@@ -1,5 +1,13 @@
-const methods = ['Visa', 'Mastercard', 'American Express', 'PSE', 'Nequi', 'Bancolombia', 'Daviplata'];
-/** Locally drawn, restrained wordmarks; no remote assets or payment account details. */
+/** Card brands accepted through Wompi, drawn locally as small card-shaped badges (no remote assets). */
+function Visa() {
+  return <svg role="img" aria-label="Visa" viewBox="0 0 48 30"><title>Visa</title><rect width="48" height="30" rx="4" fill="#fff" /><text x="24" y="20" textAnchor="middle" fill="#1a1f71" fontSize="13.5" fontWeight="800" fontStyle="italic" letterSpacing="-.4" fontFamily="Arial, Helvetica, sans-serif">VISA</text><rect x="9" y="23" width="30" height="1.6" rx=".8" fill="#f7b600" /></svg>;
+}
+function Mastercard() {
+  return <svg role="img" aria-label="Mastercard" viewBox="0 0 48 30"><title>Mastercard</title><defs><clipPath id="mc-left"><circle cx="19.5" cy="15" r="9" /></clipPath></defs><rect width="48" height="30" rx="4" fill="#fff" /><circle cx="19.5" cy="15" r="9" fill="#eb001b" /><circle cx="28.5" cy="15" r="9" fill="#f79e1b" /><circle cx="28.5" cy="15" r="9" fill="#ff5f00" clipPath="url(#mc-left)" /></svg>;
+}
+function Amex() {
+  return <svg role="img" aria-label="American Express" viewBox="0 0 48 30"><title>American Express</title><rect width="48" height="30" rx="4" fill="#016fd0" /><rect x="3.5" y="3.5" width="41" height="23" rx="2" fill="none" stroke="#fff" strokeOpacity=".35" strokeWidth=".8" /><g fill="#fff" fontFamily="Arial, Helvetica, sans-serif" fontWeight="800" textAnchor="middle"><text x="24" y="14" fontSize="7" letterSpacing=".6">AMERICAN</text><text x="24" y="22" fontSize="7" letterSpacing=".9">EXPRESS</text></g></svg>;
+}
 export function PaymentMethods({ label }: { label: string }) {
-  return <div className="payment-methods"><p className="eyebrow">{label}</p><div>{methods.map(name => <svg key={name} role="img" aria-label={name} viewBox={name === 'Bancolombia' ? '0 0 125 28' : '0 0 100 28'}><title>{name}</title>{name === 'Mastercard' ? <><circle cx="40" cy="14" r="12" fill="currentColor" opacity=".65" /><circle cx="58" cy="14" r="12" fill="currentColor" opacity=".4" /><text x="49" y="17" textAnchor="middle" fontSize="8" fill="var(--color-wine)">mastercard</text></> : name === 'American Express' ? <g fill="currentColor" textAnchor="middle" fontSize="10" fontWeight="700"><text x="50" y="12">AMERICAN</text><text x="50" y="24">EXPRESS</text></g> : <text x="50%" y="20" textAnchor="middle" fill="currentColor" fontSize={name === 'Bancolombia' || name === 'Daviplata' ? '16' : '22'} fontWeight="600" fontStyle={name === 'Visa' ? 'italic' : undefined}>{name}</text>}</svg>)}</div></div>;
+  return <div className="payment-methods"><p className="eyebrow">{label}</p><div><Visa /><Mastercard /><Amex /></div></div>;
 }

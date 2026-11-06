@@ -11,5 +11,5 @@ export function StonePanels({ stones, title, subtitle, explore }: { stones: Ston
 export function Rail({ children, previous, next }: { children: ReactNode; previous: string; next: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const move = (direction: number) => { const rail = ref.current; rail?.scrollBy({ left: direction * rail.clientWidth * .8, behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' }); };
-  return <><div className="rail-controls"><button aria-label={previous} onClick={() => move(-1)}>←</button><button aria-label={next} onClick={() => move(1)}>→</button></div><div className="piece-rail" ref={ref}>{children}</div></>;
+  return <><div className="rail-controls"><button className="rail-arrow rail-arrow--prev" aria-label={previous} onClick={() => move(-1)}><svg viewBox="0 0 40 12" aria-hidden="true"><path d="M39 6H2M7 1 2 6l5 5" /></svg></button><button className="rail-arrow rail-arrow--next" aria-label={next} onClick={() => move(1)}><svg viewBox="0 0 40 12" aria-hidden="true"><path d="M1 6h37M33 1l5 5-5 5" /></svg></button></div><div className="piece-rail" ref={ref}>{children}</div></>;
 }

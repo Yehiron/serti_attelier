@@ -191,8 +191,19 @@ body:has(dialog[open]) { overflow: hidden; }
 .stone-panel .text-link { margin-top: 18px; }
 .stone-panel:focus-visible { outline: 3px solid var(--color-cream); outline-offset: -6px; }
 .rail-section { padding: 110px var(--spacing-gutter); position: relative; color: var(--color-wine); }
-.rail-controls { display: flex; justify-content: flex-end; gap: 10px; margin: -30px 0 26px; }
-.rail-controls button { font-size: calc(28px * var(--text-scale)); width: 46px; height: 46px; border: 1px solid #651c3240; border-radius: 50%; }
+.rail-controls { display: flex; justify-content: flex-end; align-items: center; gap: 4px; margin: -30px 0 26px; }
+/* Fine hairline arrows: the line stretches on hover, a thin rule underlines the active one. */
+.rail-arrow { position: relative; display: grid; place-items: center; width: 64px; height: 44px; padding: 0; background: none; border: 0; color: var(--color-wine); cursor: pointer; }
+.rail-arrow svg { width: 40px; height: 12px; fill: none; stroke: currentColor; stroke-width: 1; stroke-linecap: round; stroke-linejoin: round; transition: transform .6s var(--ease-editorial); }
+.rail-arrow::after { content: ''; position: absolute; left: 12px; right: 12px; bottom: 8px; height: 1px; background: currentColor; transform: scaleX(0); transition: transform .6s var(--ease-editorial); }
+.rail-arrow--prev::after { transform-origin: right; }
+.rail-arrow--next::after { transform-origin: left; }
+.rail-arrow--prev:hover svg { transform: translateX(-6px); }
+.rail-arrow--next:hover svg { transform: translateX(6px); }
+.rail-arrow:hover::after, .rail-arrow:focus-visible::after { transform: scaleX(1); }
+.rail-arrow:focus-visible { outline: 1px solid var(--color-wine); outline-offset: 2px; }
+.rail-controls .rail-arrow + .rail-arrow { border-left: 1px solid #651c3226; }
+@media (prefers-reduced-motion: reduce) { .rail-arrow svg, .rail-arrow::after { transition: none; } }
 .piece-rail { display: flex; gap: 28px; overflow-x: auto; scroll-snap-type: x mandatory; padding: 8px 0 28px; scrollbar-width: thin; }
 .piece-rail > article { width: min(330px,75vw); flex: 0 0 min(330px,75vw); scroll-snap-align: start; }
 .piece-photo { position: relative; display: block; aspect-ratio: 4/5; overflow: hidden; background: #fff; }
@@ -651,7 +662,7 @@ button:disabled { cursor: wait; }
 .social-links svg { width: 24px; height: 24px; }
 .social-links a:hover { background: #ead9cb15; }
 .payment-methods { padding: 0 0 30px; }
-.payment-methods > div { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; margin-top: 16px; }
-.payment-methods svg { width: auto; height: 24px; max-width: 115px; font-family: var(--font-sans); }
+.payment-methods > div { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.payment-methods svg { width: 48px; height: 30px; border-radius: 4px; box-shadow: 0 2px 8px #0000002e; }
 .floating-whatsapp { bottom: calc(24px + env(safe-area-inset-bottom)); }
 @media(max-width:760px) { .floating-whatsapp { right: 18px; } }
