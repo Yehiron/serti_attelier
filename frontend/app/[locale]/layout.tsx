@@ -1,3 +1,4 @@
+import { draftMode } from "next/headers";
 import { Suspense, type CSSProperties } from "react";
 import { Header, Footer, PreviewBar } from "@/components/site-shell";
 import { siteUrl, getSettings, emptySettings } from "@/lib/api/server";
@@ -37,6 +38,7 @@ export function generateStaticParams() {
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
   return {
+    ...((await draftMode()).isEnabled ? { robots: { index: false, follow: false }, referrer: "no-referrer" as const } : {}),
     metadataBase: new URL(siteUrl),
     title: { default: dict.meta.title, template: "%s | SERTI" },
     description: dict.meta.description,

@@ -7,6 +7,8 @@ import { trackingPath, trackingHttpStatus, unavailableTrackingHtml } from "@/lib
 
 import { routeDecision } from "@/lib/routes";
 
+import { protectDraftResponse } from '@/lib/cms-preview';
+
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export async function proxy(request: NextRequest) {
@@ -61,7 +63,7 @@ export async function proxy(request: NextRequest) {
       response.headers.set('Referrer-Policy', 'no-referrer');
       response.headers.set('X-Robots-Tag', 'noindex, nofollow');
     }
-    return response;
+    return previewHeaders(request, response);
   }
 
   const locale = negotiateLocale(
@@ -76,7 +78,7 @@ export async function proxy(request: NextRequest) {
     response.headers.set('Referrer-Policy', 'no-referrer');
     response.headers.set('X-Robots-Tag', 'noindex, nofollow');
   }
-  return response;
+  return previewHeaders(request, response);
 }
 
 export const config = {
@@ -84,3 +86,8 @@ export const config = {
   // files with an extension and Next internals never need a locale.
   matcher: ["/es/pedido/:path*", "/en/pedido/:path*", "/es/order/:path*", "/en/order/:path*", "/((?!preview|api|static|media|healthz|_next|.*\\..*).*)"],
 };
+
+export function previewHeaders(request: NextRequest, response: NextResponse) {
+  protectDraftResponse(response.headers, request.cookies.has('__prerender_bypass'));
+  return response;
+}

@@ -87,4 +87,7 @@ def test_paired_slides_split_without_storage_changes() -> None:
         ]
         assert payload["image"] == payload["slides"][0]["image"]
     finally:
-        MigrationExecutor(connection).migrate([after])
+        # Return to the latest schema, not just `after`: later migrations add columns
+        # that transactional tests running afterwards rely on.
+        latest = MigrationExecutor(connection)
+        latest.migrate(latest.loader.graph.leaf_nodes())

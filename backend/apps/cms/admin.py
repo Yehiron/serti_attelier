@@ -22,12 +22,14 @@ from apps.core.exceptions import DomainError
 from . import services
 from .forms import ContentForm, DesktopSlideForm, MobileSlideForm, PhotoInput
 from .models import (
+    FaqItem,
     HeroSlide,
     HomePublication,
     HomeSection,
     Page,
     PageRevision,
     PersonalizationService,
+    ProcessStep,
 )
 from .preview import make_token
 from .selectors import draft_sections, page_path, render_sections
@@ -128,7 +130,7 @@ class HomeSectionAdmin(ContentAdmin):
     def get_fieldsets(self, request: HttpRequest, obj: HomeSection | None = None) -> Any:
         kind = obj.kind if obj else "hero"
         fields = ["kind", "is_visible", "title"]
-        if kind in {"hero", "stone_panels", "collection_rail"}:
+        if kind in {"hero", "stone_panels", "collection_rail", "category_grid"}:
             fields.append("subtitle")
         if kind in {"statement", "story", "personalize", "banner"}:
             fields.append("body")
@@ -217,9 +219,9 @@ class HomeSectionAdmin(ContentAdmin):
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
         instances = formset.save(commit=False)
         for deleted in formset.deleted_objects:
-            services.delete_hero_slide(deleted)
+            services.delete_hero_slide(deleted, actor=request.user, request=request)
         for instance in instances:
-            services.save_hero_slide(instance)
+            services.save_hero_slide(instance, actor=request.user, request=request)
         formset.save_m2m()
 
     def get_urls(self) -> list[Any]:
@@ -261,7 +263,35 @@ class HomeSectionAdmin(ContentAdmin):
         )
 
     def save_model(self, request: HttpRequest, obj: HomeSection, form: Any, change: bool) -> None:
-        services.save_section(obj)
+        services.save_section(obj, actor=request.user, request=request)
+
+
+class PageItemInline(TranslationTabularInline, TabularInline):
+    ordering_field = "position"
+    hide_ordering_field = False
+    extra = 0
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.has_perm("cms.view_page")
+
+    def has_add_permission(self, request, obj=None):
+        return request.user.has_perm("cms.change_page")
+
+    has_change_permission = has_add_permission
+    has_delete_permission = has_add_permission
+
+    class Media:
+        js = ("cms/character-count.js",)
+
+
+class ProcessStepInline(PageItemInline):
+    model = ProcessStep
+    fields = ("position", "title", "description")
+
+
+class FaqItemInline(PageItemInline):
+    model = FaqItem
+    fields = ("position", "question", "answer")
 
 
 @admin.register(Page)
@@ -278,6 +308,35 @@ class PageAdmin(ContentAdmin):
     actions_detail = ("detail_preview", "detail_publish")
     change_form_before_template = "admin/cms/page_status.html"
 
+    class Media:
+        js = ("cms/character-count.js",)
+
+    def get_inlines(self, request, obj=None):
+        if obj and obj.kind == "personalize":
+            return (ProcessStepInline, FaqItemInline)
+        return (FaqItemInline,) if obj else ()
+
+    def get_fieldsets(self, request, obj=None):
+        fields = ["kind", "title", "slug"]
+        description = ""
+        if obj and obj.kind == "personalize":
+            fields += ["process_title", "faq_title"]
+            description = "Esta página muestra los pasos y las preguntas frecuentes de abajo."
+        else:
+            fields += ["body", "faq_title"]
+        return [
+            (None, {"fields": self.replace_orig_field(fields), "description": description}),
+            ("Publicación", {"fields": ["status", "version", "published_at", "preview_link"]}),
+        ]
+
+    def save_formset(self, request, form, formset, change):
+        instances = formset.save(commit=False)
+        for obj in formset.deleted_objects:
+            services.delete_page_item(obj, actor=request.user, request=request)
+        for obj in instances:
+            services.save_page_item(obj, actor=request.user, request=request)
+        formset.save_m2m()
+
     def change_view(
         self,
         request: HttpRequest,
@@ -287,11 +346,13 @@ class PageAdmin(ContentAdmin):
     ) -> Any:
         page = self.get_object(request, object_id)
         revision = page.revisions.first() if page else None
-        pending = not revision or any(
-            revision.snapshot[locale].get("source", {}).get(field)
-            != getattr(page, f"{field}_{locale}")
-            for locale in ("es", "en")
-            for field in ("title", "slug", "body")
+        pending = bool(
+            page
+            and (
+                not revision
+                or {lang: revision.snapshot[lang] for lang in ("es", "en")}
+                != services.page_snapshot(page)
+            )
         )
         return super().change_view(
             request, object_id, form_url, {**(extra_context or {}), "pending_page_changes": pending}
@@ -316,7 +377,7 @@ class PageAdmin(ContentAdmin):
 
             return TemplateResponse(
                 request,
-                "admin/catalog/confirm_action.html",
+                "admin/cms/confirm_publish_page.html",
                 {
                     **self.admin_site.each_context(request),
                     "title": _("Publicar"),
@@ -325,7 +386,7 @@ class PageAdmin(ContentAdmin):
                 },
             )
         try:
-            services.publish_page(page, request.user, request)
+            services.publish_page(page, request.user, request, note=request.POST.get("note", ""))
             self.message_user(request, _("Página publicada."), messages.SUCCESS)
         except (DomainError, ValidationError) as exc:
             self.message_user(request, str(exc), messages.ERROR)
@@ -365,7 +426,7 @@ class PageAdmin(ContentAdmin):
         )
 
     def save_model(self, request: HttpRequest, obj: Page, form: Any, change: bool) -> None:
-        services.save_page(obj)
+        services.save_page(obj, actor=request.user, request=request)
 
     @admin.action(description=_("Publicar"), permissions=["publish"])
     def publish(self, request: HttpRequest, queryset: QuerySet[Page]) -> None:

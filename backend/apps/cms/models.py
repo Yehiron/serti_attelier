@@ -4,7 +4,7 @@ from typing import TYPE_CHECKING, Any, TypeVar
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import URLValidator
+from django.core.validators import MaxLengthValidator, URLValidator
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.manager import MultilingualManager
@@ -60,6 +60,12 @@ class Page(Timestamped):
     title = models.CharField(verbose_name=_("Título"), max_length=250)
     slug = models.SlugField(verbose_name=_("Slug"), max_length=250, blank=True)
     body = models.TextField(verbose_name=_("Contenido"), blank=True)
+    process_title = models.CharField(
+        _("Título de los pasos"), max_length=120, default="De una idea a tu joya"
+    )
+    faq_title = models.CharField(
+        _("Título de las preguntas frecuentes"), max_length=120, default="Preguntas frecuentes"
+    )
     status = models.CharField(
         verbose_name=_("Estado"),
         max_length=10,
@@ -84,6 +90,57 @@ class Page(Timestamped):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ProcessStep(Timestamped):
+    page = models.ForeignKey(
+        Page,
+        on_delete=models.CASCADE,
+        related_name="process_steps",
+        limit_choices_to={"kind": "personalize"},
+        verbose_name=_("Página"),
+    )
+    position = models.PositiveIntegerField(_("Posición"), default=0)
+    title = models.CharField(_("Paso"), max_length=60, help_text="Hasta 60 caracteres.")
+    description = models.CharField(
+        _("Descripción"), max_length=240, blank=True, help_text="Opcional. Hasta 240 caracteres."
+    )
+
+    class Meta:
+        ordering = ["position", "pk"]
+        verbose_name = "paso"
+        verbose_name_plural = "Pasos"
+
+    def __str__(self):
+        return self.title
+
+    def clean(self):
+        super().clean()
+        if self.page_id and self.page.kind != "personalize":
+            raise ValidationError({"page": "Los pasos solo pertenecen a Personaliza."})
+
+
+class FaqItem(Timestamped):
+    page = models.ForeignKey(
+        Page, on_delete=models.CASCADE, related_name="faq_items", verbose_name=_("Página")
+    )
+    position = models.PositiveIntegerField(_("Posición"), default=0)
+    question = models.CharField(_("Pregunta"), max_length=160, help_text="Hasta 160 caracteres.")
+    answer = models.TextField(
+        _("Respuesta"),
+        max_length=1500,
+        validators=[MaxLengthValidator(1500)],
+        help_text="Hasta 1500 caracteres. Puedes usar Markdown y enlaces internos, "
+        "por ejemplo [Devoluciones](/es/legal/devoluciones).",
+    )
+
+    class Meta:
+        ordering = ["position", "pk"]
+        verbose_name = "pregunta frecuente"
+        verbose_name_plural = "Preguntas frecuentes"
+
+    def __str__(self):
+        return self.question
 
 
 class HomeSection(Illustrated):
@@ -304,6 +361,7 @@ class HomePublication(ImmutableSnapshot):
 
 
 class PageRevision(ImmutableSnapshot):
+    note = models.CharField(_("Nota"), max_length=300, blank=True)
     page = models.ForeignKey(
         Page, verbose_name=_("Página"), on_delete=models.PROTECT, related_name="revisions"
     )

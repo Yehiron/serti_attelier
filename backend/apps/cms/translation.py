@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from modeltranslation.translator import TranslationOptions, register
 
-from .models import HeroSlide, HomeSection, Page, PersonalizationService
+from .models import FaqItem, HeroSlide, HomeSection, Page, PersonalizationService, ProcessStep
 
 
 @register(HomeSection)
@@ -12,7 +12,7 @@ class SectionTranslation(TranslationOptions):
 
 @register(Page)
 class PageTranslation(TranslationOptions):
-    fields = ("title", "slug", "body")
+    fields = ("title", "slug", "body", "process_title", "faq_title")
     required_languages = ("es",)
 
 
@@ -24,3 +24,15 @@ class ServiceTranslation(TranslationOptions):
 @register(HeroSlide)
 class HeroSlideTranslation(TranslationOptions):
     fields = ("alt",)
+
+
+@register(ProcessStep)
+class ProcessStepTranslation(TranslationOptions):
+    fields = ("title", "description")
+    required_languages = ("es",)
+
+
+@register(FaqItem)
+class FaqItemTranslation(TranslationOptions):
+    fields = ("question", "answer")
+    required_languages = ("es",)

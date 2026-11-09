@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { PersonalizeContent } from './personalize-content';
 import { locale } from 'next/root-params';
 import { notFound } from 'next/navigation';
 import { getDictionary } from '@/app/[locale]/dictionaries';
@@ -32,7 +33,7 @@ export async function EditorialPage({ kind, slug }: { kind: EditorialKind; slug?
   return <main id="main" data-page-whatsapp={general ?? undefined} className={`editorial-page ${wine ? 'wine' : 'utility-page'}`}><PageAlternates alternates={alternates} /><header className="page-heading"><p className="eyebrow">SERTI · Colombia</p><h1>{title}</h1>{wine && <Ornament />}{kind === 'contact' && <p>{dict.ui.contactIntro}</p>}</header>{kind !== 'personalize' && page && <article className="prose" dangerouslySetInnerHTML={{ __html: page.body_html }} />}{!page && kind === 'manufacturer' && <p className="intro-copy">{dict.home.storyBody}</p>}
     {kind === 'legal' && page && <p className="legal-version">{dict.ui.version} {page.version} · {dict.ui.updated}: {new Intl.DateTimeFormat(current === 'es' ? 'es-CO' : 'en-US', { dateStyle: 'long', timeZone: 'America/Bogota' }).format(new Date(page.updated_at))}</p>}
     {kind === 'manufacturer' && <><Leather /><section className="editorial-section"><div><p className="eyebrow">{dict.home.eyebrow}</p><h2>{dict.ui.brand}</h2><p>{dict.home.statementBody}</p><Link className="text-link" href={href('catalog', current)}>{dict.ui.explore} ↗</Link></div><Ornament /></section></>}
-    {kind === 'personalize' && <><section className="process-section"><h2>{dict.editorial.process}</h2><ol>{dict.editorial.steps.map((step, index) => <li key={step}><span className="eyebrow">0{index + 1}</span><h3>{step}</h3></li>)}</ol></section><section className="faq-section"><h2>{dict.editorial.faq}</h2>{dict.editorial.questions.map((question, i) => <details key={question}><summary>{question}</summary><p>{dict.editorial.answers[i]}</p>{i === 2 && settings.legal_pages.filter(x => x.kind === 'returns').map(x => <Link key={x.kind} className="text-link" href={x.href}>{x.title}</Link>)}</details>)}</section></>}
+    {kind === 'personalize' && <PersonalizeContent page={page} copy={dict.editorial} />}
     {kind === 'contact' && <section className="contact-links">{general && <a className="button" href={general} target="_blank" rel="noopener noreferrer">{dict.ui.whatsapp} ↗</a>}{settings.support_email && <div><h2>{dict.ui.email}</h2><a href={`mailto:${settings.support_email}`}>{settings.support_email}</a></div>}{settings.social.length > 0 && <div><h2>{dict.ui.social}</h2>{settings.social.map(social => <a className="text-link" key={social.network} href={social.url} target="_blank" rel="noopener noreferrer">{social.network} ↗</a>)}</div>}</section>}
   </main>;
 }

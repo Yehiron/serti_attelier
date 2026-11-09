@@ -104,7 +104,15 @@ NAVIGATION: list[dict[str, Any]] = [
             },
             item("Página de inicio", "web", "cms.homesection"),
             item("Páginas", "article", "cms.page"),
-            item("Servicios de personalización", "design_services", "cms.personalizationservice"),
+            {
+                "title": _("Historial de publicaciones"),
+                "icon": "history",
+                "link": reverse_lazy("cms-history"),
+                "permission": lambda request: (
+                    request.user.has_perm("cms.view_homepublication")
+                    or request.user.has_perm("cms.view_pagerevision")
+                ),
+            },
         ],
     },
     {"title": _("Promociones"), "items": [item("Cupones", "sell", "promotions.coupon")]},

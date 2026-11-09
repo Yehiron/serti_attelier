@@ -1,3 +1,4 @@
+import { needsHomeFallback } from '@/lib/cms-preview';
 import { locale } from 'next/root-params';
 import { getDictionary } from './dictionaries';
 import { getHome, getCatalog, getTaxonomy } from '@/lib/api/server';
@@ -20,7 +21,7 @@ export default async function Home() {
   const dict = await getDictionary();
   const home = await getHome(current);
   let sections = home.sections;
-  if (!sections.length) {
+  if (needsHomeFallback(home)) {
     const [taxonomy, catalog] = await Promise.all([getTaxonomy(current), getCatalog(current, 'sort=newest&page_size=8')]);
     sections = [
       { id: 'hero', kind: 'hero', title: dict.home.title.join('\n'), subtitle: dict.home.lede, image: null, cta: { label: dict.ui.explore, href: href('catalog', current), external: false } },

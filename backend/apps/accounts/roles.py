@@ -62,7 +62,8 @@ for role in (PROPIETARIO, CONTENIDO, OPERACIONES):
         for model in ("homesection", "page", "personalizationservice")
         for action in cms_actions
     )
-    ROLE_PERMISSIONS[role].update({"cms.view_homepublication", "cms.view_pagerevision"})
+    if role != OPERACIONES:
+        ROLE_PERMISSIONS[role].update({"cms.view_homepublication", "cms.view_pagerevision"})
     if role != OPERACIONES:
         ROLE_PERMISSIONS[role].add("cms.publish_content")
 

@@ -1,0 +1,10 @@
+{% extends "admin/client_form_page.html" %}
+{% block page_title %}Publicar: {{ original.title_es }}{% endblock %}
+{% block page_subtitle %}Los cambios guardados en español e inglés aparecerán en la tienda.{% endblock %}
+{% block page_body %}
+<form method="post">{% csrf_token %}
+<label for="publication-note">Nota para el historial (opcional)</label>
+<textarea id="publication-note" name="note" maxlength="300" rows="3" class="border rounded-default p-3 w-full dark:bg-base-900" placeholder="Por ejemplo: Actualicé los tiempos de entrega"></textarea>
+{% include "admin/client_form_buttons.html" with submit_label="Confirmar" back_url=back_url %}
+</form>
+{% endblock %}

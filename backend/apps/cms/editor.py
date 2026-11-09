@@ -187,7 +187,9 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
                     cast(Category | Collection | Stone, obj), actor=request.user, request=request
                 )
             elif action == "sections-reorder":
-                editor_services.reorder_sections(ordered_ids(request))
+                editor_services.reorder_sections(
+                    ordered_ids(request), actor=request.user, request=request
+                )
             else:
                 section = get_object_or_404(HomeSection, pk=int(request.POST["section"]))
                 if action.startswith("hero-"):
@@ -196,10 +198,20 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
                         raise ValidationError(_("La portada o el dispositivo no son válidos."))
                     if action == "hero-upload":
                         warnings = editor_services.upload_hero_photos(
-                            section, device, request.FILES.getlist("files[]")
+                            section,
+                            device,
+                            request.FILES.getlist("files[]"),
+                            actor=request.user,
+                            request=request,
                         )
                     elif action == "hero-reorder":
-                        editor_services.reorder_hero_slides(section, device, ordered_ids(request))
+                        editor_services.reorder_hero_slides(
+                            section,
+                            device,
+                            ordered_ids(request),
+                            actor=request.user,
+                            request=request,
+                        )
                     elif action == "hero-delete":
                         slide = section.slides.filter(
                             device=device, pk=int(request.POST["id"])
@@ -208,18 +220,23 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
                             raise ValidationError(
                                 _("La foto no pertenece a esta portada y dispositivo.")
                             )
-                        services.delete_hero_slide(slide)
+                        services.delete_hero_slide(slide, actor=request.user, request=request)
                     else:
                         raise ValueError
                 elif action == "section-image":
                     editor_services.replace_section_image(
-                        section, cast("UploadedFile[bytes]", request.FILES["file"])
+                        section,
+                        cast("UploadedFile[bytes]", request.FILES["file"]),
+                        actor=request.user,
+                        request=request,
                     )
                 elif action == "section-visibility":
                     visible = request.POST["visible"]
                     if visible not in {"true", "false"}:
                         raise ValueError
-                    editor_services.set_section_visibility(section, visible == "true")
+                    editor_services.set_section_visibility(
+                        section, visible == "true", actor=request.user, request=request
+                    )
                 else:
                     raise ValueError
         return JsonResponse({"ok": True, "warnings": warnings})

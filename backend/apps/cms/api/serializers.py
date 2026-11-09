@@ -75,6 +75,7 @@ class RailSerializer(SectionSerializer):
 
 
 class HomeCategorySerializer(CollectionSerializer):
+    image = CmsImageSerializer(allow_null=True)
     count = serializers.IntegerField()
 
 
@@ -108,7 +109,29 @@ class CmsAlternatesSerializer(serializers.Serializer[Any]):
     en = serializers.CharField()
 
 
+class ProcessStepSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    description = serializers.CharField()
+
+
+class ProcessSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    steps = ProcessStepSerializer(many=True)
+
+
+class FaqItemSerializer(serializers.Serializer):
+    question = serializers.CharField()
+    answer_html = serializers.CharField()
+
+
+class FaqSerializer(serializers.Serializer):
+    title = serializers.CharField()
+    items = FaqItemSerializer(many=True)
+
+
 class PageSerializer(serializers.Serializer[Any]):
+    process = ProcessSerializer(required=False)
+    faq = FaqSerializer(required=False)
     kind = serializers.ChoiceField(
         choices=[
             "terms",

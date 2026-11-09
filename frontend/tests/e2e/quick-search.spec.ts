@@ -4,7 +4,7 @@ test('buscador sin desbordamiento, salto de ancho ni desplazamiento del fondo', 
   await page.goto('/es');
   const trigger = page.locator('.utilities a[aria-haspopup="dialog"]');
   await expect(trigger).toBeVisible();
-  const before = await page.locator('main').evaluate(el => el.getBoundingClientRect().width);
+  const before = await page.locator('main:not(.loading-shell)').evaluate(el => el.getBoundingClientRect().width);
   const dialog = page.locator('dialog.search-dialog');
   await expect(async () => {
     await trigger.click();
@@ -13,7 +13,7 @@ test('buscador sin desbordamiento, salto de ancho ni desplazamiento del fondo', 
   await expect(dialog.locator('input')).toBeFocused();
   await expect.poll(() => dialog.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
+  expect(await page.locator('main:not(.loading-shell)').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
   const top = await page.evaluate(() => scrollY);
   await page.mouse.wheel(0, 700);
   await expect.poll(() => page.evaluate(() => scrollY)).toBe(top);
@@ -23,12 +23,12 @@ test('buscador sin desbordamiento, salto de ancho ni desplazamiento del fondo', 
   await dialog.locator('input').fill('anillo');
   await expect(dialog.locator('.search-suggestions li')).toHaveCount(6);
   await expect.poll(() => dialog.evaluate(el => el.scrollHeight <= el.clientHeight)).toBe(true);
-  expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
+  expect(await page.locator('main:not(.loading-shell)').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
   // In a filled type="search" field the first Escape clears the text (native behavior); the next one closes.
   await expect(async () => {
     await page.keyboard.press('Escape');
     await expect(dialog).not.toBeVisible({ timeout: 1000 });
   }).toPass();
   await expect(trigger).toBeFocused();
-  expect(await page.locator('main').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
+  expect(await page.locator('main:not(.loading-shell)').evaluate(el => el.getBoundingClientRect().width)).toBe(before);
 });

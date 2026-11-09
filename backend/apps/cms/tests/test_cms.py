@@ -515,7 +515,10 @@ def test_section_images_match_the_frame_they_are_shown_in(
 
 def test_seed_content() -> None:
     assert Page.objects.count() == 8
-    assert not Page.objects.exclude(status="draft").exists()
+    # 0013 publishes Personaliza with its seeded steps/FAQ so the store does not change.
+    assert set(Page.objects.exclude(status="draft").values_list("kind", flat=True)) == {
+        "personalize"
+    }
     assert PersonalizationService.objects.count() == 5
     assert not PersonalizationService.objects.filter(is_active=True).exists()
     assert HomeSection.objects.filter(kind="hero").exists()

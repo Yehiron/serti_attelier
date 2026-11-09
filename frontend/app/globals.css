@@ -676,3 +676,14 @@ html { scrollbar-gutter: stable; }
 .search-dialog[open] { animation: search-enter 180ms ease-out; }
 @keyframes search-enter { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: translateY(0); } }
 @media(prefers-reduced-motion:reduce) { .search-dialog[open] { animation: none; } }
+
+/* Editorial FAQ: same rhythm for authored Markdown and keyboard/touch controls. */
+.faq-section details > div { margin-top: 20px; }
+.faq-section summary { min-height: 44px; }
+.faq-section summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.faq-section summary::after { transition: transform 200ms ease-out; }
+@media (prefers-reduced-motion: reduce) { .faq-section summary::after { transition: none; } }
+.faq-section details a { display: inline-block; border-bottom: 1px solid currentColor; padding: 6px 0; font-size: calc(13px * var(--text-scale)); line-height: 1.6; transition: opacity 180ms ease-out; }
+.faq-section details a:hover { opacity: .75; }
+.faq-section details a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+@media (prefers-reduced-motion: reduce) { .faq-section details a { transition: none; } }

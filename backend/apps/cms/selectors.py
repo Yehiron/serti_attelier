@@ -26,7 +26,6 @@ from .models import (
     PageRevision,
     PersonalizationService,
 )
-from .services import render_markdown
 
 LEGAL_KINDS = ("terms", "privacy", "returns", "shipping", "cookies")
 
@@ -231,13 +230,36 @@ def page_payload(page: Page, locale: str, revision: PageRevision | None = None) 
     if revision:
         content = revision.snapshot
     else:
-        content = {
-            lang: {field: localized(page, field, lang) for field in ("title", "slug", "body")}
-            for lang in ("es", "en")
-        }
-        for data in content.values():
-            data["body_html"] = render_markdown(data["body"])
+        from .services import page_snapshot
+
+        content = page_snapshot(page)
     return {
+        **(
+            {
+                "process": {
+                    "title": content[locale]["process"]["title"],
+                    "steps": [
+                        {field: row.get(field, "") for field in ("title", "description")}
+                        for row in content[locale]["process"]["steps"]
+                    ],
+                }
+            }
+            if "process" in content[locale]
+            else {}
+        ),
+        **(
+            {
+                "faq": {
+                    "title": content[locale]["faq"]["title"],
+                    "items": [
+                        {field: row.get(field, "") for field in ("question", "answer_html")}
+                        for row in content[locale]["faq"]["items"]
+                    ],
+                }
+            }
+            if "faq" in content[locale]
+            else {}
+        ),
         "kind": page.kind,
         "slug": content[locale]["slug"],
         "title": content[locale]["title"],

@@ -25,12 +25,14 @@ from apps.catalog.images import (
 )
 
 from .models import (
+    FaqItem,
     HeroSlide,
     HomePublication,
     HomeSection,
     Page,
     PageRevision,
     PersonalizationService,
+    ProcessStep,
 )
 
 TAGS = {
@@ -148,29 +150,97 @@ def process_slide_images(obj: HeroSlide) -> None:
     obj.renditions = {"webp": build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", widths)}
 
 
+def editorial_values(obj):
+    values = {}
+    for field in obj._meta.concrete_fields:
+        if field.name in {
+            "id",
+            "created_at",
+            "updated_at",
+            "renditions",
+            "width",
+            "height",
+            "version",
+            "status",
+            "published_at",
+        }:
+            continue
+        if hasattr(obj, f"{field.name}_es"):
+            continue
+        value = getattr(obj, field.name)
+        if field.name == "image":
+            value = "Foto cargada" if value else "Sin foto"
+        elif field.is_relation:
+            value = str(value) if value else "Sin seleccionar"
+        elif isinstance(value, bool):
+            value = "Sí" if value else "No"
+        elif field.choices:
+            value = str(getattr(obj, f"get_{field.name}_display")())
+        values[str(field.verbose_name)] = "" if value is None else str(value)
+    return values
+
+
+def editorial_before(obj):
+    previous = type(obj).objects.filter(pk=obj.pk).first() if obj.pk else None
+    return editorial_values(previous) if previous else {}
+
+
+def audit_editorial(
+    obj, before, actor=None, request=None, action="cms.draft_saved", image_changed=False
+):
+    after = editorial_values(obj)
+    diff = {
+        key: [before.get(key, ""), value]
+        for key, value in after.items()
+        if before.get(key, "") != value
+    }
+    if image_changed and before.get("Imagen", before.get("Foto")) == "Foto cargada":
+        diff["Foto"] = ["Foto anterior", "Foto reemplazada"]
+    if diff:
+        record(action, actor=actor, obj=obj, request=request, diff=diff)
+
+
 @transaction.atomic
-def save_hero_slide(obj: HeroSlide) -> None:
+def save_hero_slide(obj: HeroSlide, actor=None, request=None, *, audit: bool = True) -> None:
+    """Single save path for slides; bulk callers pass audit=False and record one event."""
+    before = editorial_before(obj)
+    image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
     obj.full_clean()
     process_slide_images(obj)
     obj.save()
+    if audit:
+        audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
 @transaction.atomic
-def delete_hero_slide(obj: HeroSlide) -> None:
+def delete_hero_slide(obj: HeroSlide, actor=None, request=None) -> None:
+    record(
+        "cms.slide_deleted",
+        actor=actor,
+        obj=obj,
+        request=request,
+        diff={"Foto": [obj.alt_es or "Foto de portada", "Eliminada del borrador"]},
+    )
     obj.delete()
 
 
 @transaction.atomic
-def save_section(obj: HomeSection) -> None:
+def save_section(obj: HomeSection, actor=None, request=None) -> None:
+    before = editorial_before(obj)
+    image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
     validate_section(obj)
     process_image(obj)
     obj.save()
+    audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
 @transaction.atomic
-def save_page(obj: Page) -> None:
+def save_page(obj: Page, actor=None, request=None) -> None:
+    before = editorial_before(obj)
+    image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
     obj.full_clean()
     obj.save()
+    audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
 def validate_personalization(obj: PersonalizationService) -> None:
@@ -270,29 +340,59 @@ def restore_home(
     record("cms.home_restored", actor=actor, obj=publication, request=request)
 
 
-@transaction.atomic
-def publish_page(
-    page: Page, actor: User | AnonymousUser, request: HttpRequest | None = None
-) -> PageRevision:
-    actor = require_publish(actor)
-    locked = Page.objects.select_for_update().get(pk=page.pk)
-    locked.full_clean()
+PAGE_FIELDS = ("title", "slug", "body", "process_title", "faq_title")
+
+
+def page_snapshot(page):
+    from .selectors import localized
+
+    steps = list(page.process_steps.all())
+    questions = list(page.faq_items.all())
     snapshot = {}
     for locale in ("es", "en"):
-        data = {
-            field: getattr(locked, f"{field}_{locale}") or getattr(locked, f"{field}_es") or ""
-            for field in ("title", "slug", "body")
-        }
+
+        def item(row, fields, locale=locale):
+            return {field: localized(row, field, locale) for field in fields} | {
+                "source": {field: getattr(row, f"{field}_{locale}") for field in fields},
+                "position": row.position,
+            }
+
+        data = {field: localized(page, field, locale) for field in PAGE_FIELDS}
         snapshot[locale] = data | {
             "body_html": render_markdown(data["body"]),
-            "source": {
-                field: getattr(locked, f"{field}_{locale}") for field in ("title", "slug", "body")
+            "source": {field: getattr(page, f"{field}_{locale}") for field in PAGE_FIELDS},
+            "process": {
+                "title": data["process_title"],
+                "steps": [item(row, ("title", "description")) for row in steps],
+            },
+            "faq": {
+                "title": data["faq_title"],
+                "items": [
+                    item(row, ("question", "answer"))
+                    | {"answer_html": render_markdown(localized(row, "answer", locale))}
+                    for row in questions
+                ],
             },
         }
+    return snapshot
+
+
+@transaction.atomic
+def publish_page(
+    page: Page, actor: User | AnonymousUser, request: HttpRequest | None = None, note: str = ""
+) -> PageRevision:
+    actor = require_publish(actor)
+    if len(note) > 300:
+        raise ValidationError("La nota puede tener hasta 300 caracteres.")
+    locked = Page.objects.select_for_update(of=("self",)).get(pk=page.pk)
+    locked.full_clean()
+    for row in [*locked.process_steps.all(), *locked.faq_items.all()]:
+        row.full_clean()
     revision = PageRevision.objects.create(
         page=locked,
         version=locked.version + 1,
-        snapshot=snapshot,
+        snapshot=page_snapshot(locked),
+        note=note,
         published_by=actor,
         published_by_repr=actor.get_username(),
     )
@@ -310,13 +410,49 @@ def restore_page_revision(
     revision: PageRevision, actor: User | AnonymousUser, request: HttpRequest | None = None
 ) -> None:
     actor = require_publish(actor)
-    page = Page.objects.select_for_update().get(pk=revision.page_id)
+    page = Page.objects.select_for_update(of=("self",)).get(pk=revision.page_id)
     for locale in ("es", "en"):
-        for field in ("title", "slug", "body"):
-            setattr(
-                page,
-                f"{field}_{locale}",
-                revision.snapshot[locale].get("source", revision.snapshot[locale])[field],
-            )
+        source = revision.snapshot[locale].get("source", revision.snapshot[locale])
+        for field in PAGE_FIELDS:
+            if field in source:
+                setattr(page, f"{field}_{locale}", source[field])
+    # Old snapshots have no child source: retain the draft children safely.
+    for key, model, relation, fields in (
+        ("process", ProcessStep, "process_steps", ("title", "description")),
+        ("faq", FaqItem, "faq_items", ("question", "answer")),
+    ):
+        list_key = "steps" if key == "process" else "items"
+        if key not in revision.snapshot["es"]:
+            continue
+        getattr(page, relation).all().delete()
+        for index, data in enumerate(revision.snapshot["es"][key][list_key]):
+            values = {"page": page, "position": data.get("position", index)}
+            for locale in ("es", "en"):
+                row = revision.snapshot[locale][key][list_key][index]
+                for field in fields:
+                    values[f"{field}_{locale}"] = row.get("source", row).get(field, "")
+            model.objects.create(**values)
     page.save()
     record("cms.page_restored", actor=actor, obj=page, request=request)
+
+
+@transaction.atomic
+def save_page_item(obj, actor=None, request=None):
+    Page.objects.select_for_update(of=("self",)).get(pk=obj.page_id)
+    before = editorial_before(obj)
+    obj.full_clean()
+    obj.save()
+    audit_editorial(obj, before, actor, request)
+
+
+@transaction.atomic
+def delete_page_item(obj, actor=None, request=None):
+    Page.objects.select_for_update(of=("self",)).get(pk=obj.page_id)
+    record(
+        "cms.page_item_deleted",
+        actor=actor,
+        obj=obj,
+        request=request,
+        diff={"Contenido": [str(obj), "Eliminado del borrador"]},
+    )
+    obj.delete()
