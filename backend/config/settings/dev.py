@@ -11,3 +11,5 @@ WOMPI_EVENTS_SECRET = env("WOMPI_EVENTS_SECRET", default="") or "test_events_dev
 
 # Local testing only: skip the dashboard's two-step verification unless explicitly enabled.
 ADMIN_2FA_REQUIRED = env.bool("ADMIN_2FA_REQUIRED", default=False)  # noqa: F405
+
+MIDDLEWARE = [*MIDDLEWARE, "apps.orders.dev_middleware.TrackingReadsMiddleware"]  # noqa: F405

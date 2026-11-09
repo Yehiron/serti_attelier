@@ -8,6 +8,7 @@ from django.db import transaction
 from django.utils.translation import override
 
 from .models import SiteSettings
+from .whatsapp import render_whatsapp
 
 if TYPE_CHECKING:
     from apps.catalog.models import Piece
@@ -52,7 +53,10 @@ def whatsapp_url(kind: str, piece: Piece, locale: str) -> str | None:
     if kind not in {"general", "preorder", "reserved", "sold"}:
         raise ValueError("Unknown WhatsApp template")
     with override(locale):
-        text = getattr(config, f"whatsapp_{kind}").format(
-            name=piece.name, sku=piece.sku, url=piece_url(piece, locale)
+        text = render_whatsapp(
+            getattr(config, f"whatsapp_{kind}"),
+            name=piece.name,
+            sku=piece.sku,
+            url=piece_url(piece, locale),
         )
     return f"https://wa.me/{config.whatsapp_number}?{urlencode({'text': text})}"

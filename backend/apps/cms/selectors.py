@@ -16,6 +16,7 @@ from apps.catalog.models import Category, CollectionPiece, Piece, Stone
 from apps.catalog.selectors import cover_data, published_pieces
 from apps.core.routes import href
 from apps.core.selectors import get_solo
+from apps.core.whatsapp import render_whatsapp
 
 from .models import (
     HeroSlide,
@@ -286,8 +287,11 @@ def site_settings(locale: str) -> dict[str, Any]:
         for page, revision in published_pages()
         if page.kind in LEGAL_KINDS
     }
-    message = localized(config, "whatsapp_general", locale).format(
-        name="SERTI", sku="", url=settings.PUBLIC_SITE_URL + href("home", locale)
+    message = render_whatsapp(
+        localized(config, "whatsapp_general", locale),
+        name="",
+        sku="",
+        url=settings.PUBLIC_SITE_URL + href("home", locale),
     )
     return {
         "whatsapp": {

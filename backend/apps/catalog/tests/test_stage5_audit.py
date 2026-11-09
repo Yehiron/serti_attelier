@@ -284,3 +284,26 @@ def test_history_lines_are_readable_for_the_owner(make_piece):
     assert "Precio: $1.000 → $2.500" in text
     assert "Foto 1 (Frente) → Foto 2 (Lado)" in text
     assert "Cuidados" not in text and "ID" not in text
+
+
+def test_historial_filtra_antes_de_paginar_y_conserva_auditoria(make_piece):
+    browser, _ = staff(PROPIETARIO)
+    piece = make_piece(published=False)
+    content_type = ContentType.objects.get_for_model(piece)
+    meaningful = AuditLog.objects.create(
+        action="catalog.piece_published", content_type=content_type, object_id=str(piece.pk)
+    )
+    for _ in range(51):
+        AuditLog.objects.create(
+            action="catalog.piece_updated",
+            content_type=content_type,
+            object_id=str(piece.pk),
+            diff={"slug": ["anterior", "nuevo"]},
+        )
+    count = AuditLog.objects.count()
+    response = browser.get(reverse("admin:catalog_piece_history", args=[piece.pk]))
+    events = response.context_data["catalog_audit_events"]
+    assert any(event["at"] == meaningful.at for event in events)
+    assert all(event["description"] != ["Pieza guardada"] for event in events)
+    assert response.context_data["catalog_audit_page"].paginator.num_pages == 1
+    assert AuditLog.objects.count() == count

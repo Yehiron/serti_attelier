@@ -135,6 +135,8 @@ def describe_event(event):
         if before == after:
             continue
         lines.append(f"{LABELS.get(key, labels.get(key, key))}: {before} → {after}")
+    if event.action == "catalog.piece_updated" and not lines:
+        return []
     return [title, *lines]
 
 
@@ -153,14 +155,17 @@ class CatalogAuditHistoryMixin:
             events = AuditLog.objects.filter(
                 content_type=ContentType.objects.get_for_model(self.model), object_id=str(object_id)
             ).order_by("-at", "-pk")
-            page = Paginator(events, 50).get_page(request.GET.get("audit_page"))
+            visible = [
+                (event, description) for event in events if (description := describe_event(event))
+            ]
+            page = Paginator(visible, 50).get_page(request.GET.get("audit_page"))
             response.context_data["catalog_audit_page"] = page
             response.context_data["catalog_audit_events"] = [
                 {
                     "at": event.at,
                     "actor": event.actor_repr or "Sistema",
-                    "description": describe_event(event),
+                    "description": description,
                 }
-                for event in page
+                for event, description in page
             ]
         return response
