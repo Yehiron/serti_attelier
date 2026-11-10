@@ -41,7 +41,7 @@ test('Contenido guarda sin publicar; Propietaria resuelve conflicto, revisa y pu
     await ownerPage.goto(edit);
     await expect(ownerPage.locator(field)).toHaveValue(text);
     await ownerPage.getByRole('link', { name: 'Revisar y publicar', exact: true }).click();
-    await expect(ownerPage.getByText('Preguntas frecuentes en español actualizadas.', { exact: true })).toBeVisible();
+    await expect(ownerPage.getByRole('heading', { name: 'Preguntas frecuentes · Elemento 1 · Pregunta · español', exact: true })).toBeVisible();
     await ownerPage.getByLabel('Nota opcional').fill('Revisión de permisos y conflicto');
     await ownerPage.getByRole('button', { name: 'Publicar ahora', exact: true }).click();
     await ownerPage.goto('/es/personaliza');

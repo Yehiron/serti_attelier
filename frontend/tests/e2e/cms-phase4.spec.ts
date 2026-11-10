@@ -1,4 +1,5 @@
 import { test, expect } from './fixtures';
+import { resolve } from 'node:path';
 import { adminSession, manage } from './support';
 
 const initialState = () => JSON.parse(manage('shell','-c',`import json
@@ -96,4 +97,61 @@ test('el cajón permite editar en ancho tableta', async ({page,context,isMobile}
   await expect(page.locator('.cms-properties')).toBeVisible();
   await page.getByRole('button',{name:'Vista previa',exact:true}).click();
   await expect(page.locator('.cms-preview')).toBeVisible();
+});
+
+
+test('carrusel: subir una foto para celular, verla y eliminarla', async ({page,context,isMobile})=>{
+  test.skip(isMobile,'El panel se prueba en escritorio con la vista previa en Celular');
+  test.setTimeout(120_000);
+  const session=adminSession('Contenido');
+  const initial=initialState();
+  const root=session.admin_url.split('/orders/')[0].replace(/\/?$/,'/');
+  const api=`${root}editor/documento/`;
+  const tag=`Portada de prueba ${Date.now()}`;
+  await context.addCookies([{name:'sessionid',value:session.value,url:'http://localhost:8090'}]);
+  let heroId: string | undefined;
+  try {
+    manage('shell','-c',`from apps.cms.models import HomeSection
+from apps.cms.services import save_section
+from apps.cms.documents import get_document
+from apps.accounts.models import User
+u=User.objects.filter(groups__name='Contenido').order_by('-pk').first()
+save_section(HomeSection(kind='hero',title_es='${tag}',title_en='Test cover',position=10000),actor=u,expected_version=get_document('home').draft_version)`);
+    await page.goto(`${root}editor/`);
+    await page.locator('.cms-section-select').filter({hasText:tag}).click();
+    const state=await (await context.request.get(api)).json();
+    heroId=state.sections.find((s: {values:{title?:{es:string}}})=>s.values.title?.es===tag).id;
+    const mobile=page.locator('[data-carousel="mobile"]');
+    await mobile.getByLabel('Añadir fotos para celular',{exact:true}).setInputFiles(resolve(__dirname,'fixtures/cms-carousel-mobile.png'));
+    await expect(mobile.locator('[data-slide]')).toHaveCount(1);
+    await expect(page.locator('#cms-save-status')).toHaveText('Guardado');
+    const thumbnail=mobile.locator('img');
+    await expect(thumbnail).toHaveAttribute('src',/\.webp$/);
+    const alt=await mobile.getByLabel('Texto alternativo foto 1 (ES)',{exact:true}).inputValue();
+    await page.locator('#cms-device').selectOption('390');
+    const image=page.frameLocator('#cms-frame').locator(`[data-cms-section="${heroId}"] .hero-slide--mobile img`);
+    await expect(image).toHaveAttribute('alt',alt);
+    await image.scrollIntoViewIfNeeded();
+    await expect(image).toBeVisible();
+    await expect(image).toHaveAttribute('src',/\.webp$/);
+    await expect.poll(()=>image.evaluate((el: HTMLImageElement)=>el.complete && el.naturalWidth>0)).toBe(true);
+    await mobile.getByRole('button',{name:'Eliminar foto 1',exact:true}).click();
+    await page.locator('#cms-confirm-yes').click();
+    await expect(mobile.locator('[data-slide]')).toHaveCount(0);
+    const cleaned=await (await context.request.get(api)).json();
+    expect(cleaned.sections.find((s:{id:string})=>s.id===heroId).values.slides).toHaveLength(0);
+  } finally {
+    // Also delete through the versioned API if an assertion interrupted the UI cleanup.
+    if(heroId) {
+      const state=await (await context.request.get(api)).json();
+      const hero=state.sections.find((s:{id:string})=>s.id===heroId);
+      let version=state.version;
+      const csrf=await page.locator('[name=csrfmiddlewaretoken]').first().inputValue();
+      for(const slide of hero?.values.slides || []) {
+        const result=await context.request.post(api,{headers:{'X-CSRFToken':csrf},data:{action:'hero-delete',id:heroId,slide:slide.id,device:slide.device,expected_version:version}});
+        expect(result.status()).toBe(200);version=(await result.json()).version;
+      }
+    }
+    restore(initial.publication);
+  }
 });

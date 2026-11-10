@@ -237,3 +237,224 @@ def test_photo_slot_requires_bilingual_alt_and_a_version(owner, settings, tmp_pa
     assert result.json()["version"] == version + 1
     assert result.json()["image"]["alt"] == {"es": "Foto", "en": "Photo"}
     assert AuditLog.objects.filter(action="cms.editor_photo_uploaded").exists()
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "role,allowed", [(PROPIETARIO, True), (CONTENIDO, True), (OPERACIONES, False)]
+)
+def test_carousel_version_permissions_and_audit(role, allowed, settings, tmp_path):
+    from apps.cms.tests.test_hero_slides import upload
+
+    settings.MEDIA_ROOT = tmp_path
+    browser, actor = staff(role)
+    hero = HomeSection.objects.create(kind="hero", title_es="Portada")
+    version = get_document("home").draft_version
+    url = reverse("cms-editor-photo")
+
+    def photo(version):
+        return browser.post(
+            url,
+            {
+                "section": hero.pk,
+                "device": "mobile",
+                "expected_version": version,
+                "file": [upload((80, 100)), upload((100, 120))],
+            },
+        )
+
+    response = photo(version)
+    assert response.status_code == (200 if allowed else 403)
+    if not allowed:
+        assert not hero.slides.exists()
+        for action, extra in (
+            ("hero-alt", {"slide": "1", "alt": {"es": "Foto", "en": "Photo"}}),
+            ("hero-delete", {"slide": "1"}),
+            ("hero-reorder", {"ids": []}),
+        ):
+            assert (
+                send(browser, action, id=str(hero.pk), device="mobile", **extra).status_code == 403
+            )
+        return
+    assert response.json()["version"] == version + 1
+    slides = next(s for s in response.json()["sections"] if s["id"] == str(hero.pk))["values"][
+        "slides"
+    ]
+    assert len(slides) == 2
+    for item in slides:
+        assert item["device"] == "mobile"
+        assert item["thumbnail"] and item["thumbnail"] != hero.slides.get(pk=item["id"]).image.url
+    assert AuditLog.objects.filter(action="cms.slides_uploaded", actor=actor).exists()
+    assert (
+        browser.post(
+            url, {"section": hero.pk, "device": "mobile", "file": upload((80, 100))}
+        ).status_code
+        == 409
+    )
+    assert photo(version).status_code == 409
+    assert hero.slides.count() == 2
+    ids = [s["id"] for s in slides]
+    assert (
+        send(browser, "hero-reorder", id=str(hero.pk), device="mobile", ids=ids[::-1]).status_code
+        == 200
+    )
+    assert list(hero.slides.values_list("pk", flat=True)) == [int(pk) for pk in ids[::-1]]
+    assert AuditLog.objects.filter(action="cms.slides_reordered", actor=actor).exists()
+    current = get_document("home").draft_version
+    assert (
+        send(
+            browser,
+            "hero-alt",
+            id=str(hero.pk),
+            device="mobile",
+            slide=ids[0],
+            alt={"es": "Nueva foto", "en": "New photo"},
+            version=current - 1,
+        ).status_code
+        == 409
+    )
+    assert (
+        send(
+            browser,
+            "hero-alt",
+            id=str(hero.pk),
+            device="mobile",
+            slide=ids[0],
+            alt={"es": "Nueva foto", "en": "New photo"},
+        ).status_code
+        == 200
+    )
+    assert hero.slides.get(pk=ids[0]).alt_en == "New photo"
+    latest = get_document("home").draft_version
+    assert (
+        send(
+            browser,
+            "hero-alt",
+            id=str(hero.pk),
+            device="mobile",
+            slide=ids[0],
+            alt={"es": "Foto", "en": ""},
+        ).status_code
+        == 400
+    )
+    assert (
+        send(
+            browser, "hero-reorder", id=str(hero.pk), device="mobile", ids=[ids[0], ids[0]]
+        ).status_code
+        == 400
+    )
+    assert get_document("home").draft_version == latest
+    audit = AuditLog.objects.get(
+        action="cms.draft_saved",
+        object_id=str(ids[0]),
+        content_type__model="heroslide",
+        actor=actor,
+    )
+    assert any(values[1] == "New photo" for values in audit.diff.values())
+    assert (
+        send(browser, "hero-delete", id=str(hero.pk), device="desktop", slide=ids[0]).status_code
+        == 404
+    )
+    assert (
+        send(
+            browser, "hero-delete", id=str(hero.pk), device="mobile", slide=ids[0], version=current
+        ).status_code
+        == 409
+    )
+    assert (
+        send(browser, "hero-delete", id=str(hero.pk), device="mobile", slide=ids[0]).status_code
+        == 200
+    )
+    assert not hero.slides.filter(pk=ids[0]).exists()
+    assert AuditLog.objects.filter(action="cms.slide_deleted", actor=actor).exists()
+    assert get_document("home").draft_version == version + 4
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("kind,field", [("statement", "body"), ("stone_panels", "subtitle")])
+def test_title_only_preserves_empty_source_and_public_payload(owner, kind, field):
+    from apps.cms.publishing import pending_changes
+
+    browser, actor = owner
+    section = HomeSection.objects.create(kind=kind, title_es="Antes", title_en="Before")
+    # Historical rows may contain either null or empty translations.
+    HomeSection.objects.filter(pk=section.pk).update(**{f"{field}_es": None, f"{field}_en": ""})
+    published = services.publish_home(actor, expected_version=get_document("home").draft_version)
+    before = published.snapshot
+    assert (
+        send(
+            browser,
+            "update",
+            id=str(section.pk),
+            values={"title": {"es": "Después", "en": "Before"}},
+        ).status_code
+        == 200
+    )
+    section.refresh_from_db()
+    assert getattr(section, f"{field}_es") is None
+    assert getattr(section, f"{field}_en") == ""
+    pending = pending_changes("home")
+    assert pending["count"] == 1
+    assert "Título · español" in pending["changes"][0]
+    review = browser.get(reverse("cms-review-publish", args=["home"]))
+    assert review.status_code == 200
+    assert review.content.decode().count('class="cms-change-row"') == 1
+    assert review.context["pending_count"] == 1
+    assert review.context["change_groups"] == pending["groups"]
+    for lang in ("es", "en"):
+        left = next(row for row in before[lang] if str(row["id"]) == str(section.pk))
+        right = next(row for row in pending["snapshot"][lang] if str(row["id"]) == str(section.pk))
+        assert {k: v for k, v in left.items() if k != "title"} == {
+            k: v for k, v in right.items() if k != "title"
+        }
+
+
+def test_semantic_comparison_ignores_empty_and_missing_values():
+    from apps.cms.review_changes import home_groups, page_groups
+
+    before = [{"id": 1, "kind": "statement", "title_es": "Antes", "body_es": None}]
+    after = [{"id": 1, "kind": "statement", "title_es": "Después", "body_es": "", "body_en": ""}]
+    groups = home_groups(after, before)
+    assert len(groups) == 1
+    assert groups[0]["rows"] == [
+        {"label": "Título · español", "before": "Antes", "after": "Después"}
+    ]
+    assert page_groups({"es": {"body": ""}}, {"es": {"body": None}}) == []
+    assert page_groups({"es": {"body": "Uno\r\n\r\nDos"}}, {"es": {"body": "Uno\n\nDos"}}) == []
+
+
+def test_page_comparison_does_not_duplicate_fallbacks_or_rendered_html():
+    from copy import deepcopy
+
+    from apps.cms.review_changes import page_groups
+
+    before = {
+        lang: {
+            "title": "Antes",
+            "body": "",
+            "body_html": "",
+            "source": {"title": "Antes", "body": None},
+        }
+        for lang in ("es", "en")
+    }
+    after = deepcopy(before)
+    after["es"]["title"] = after["es"]["source"]["title"] = "Después"
+    after["en"]["body"] = ""
+    assert page_groups(after, before)[0]["rows"] == [
+        {"label": "Título · español", "before": "Antes", "after": "Después"}
+    ]
+
+
+def test_legacy_summaries_ignore_empty_text_changes():
+    from apps.cms.history import home_source_summary, summary
+
+    assert (
+        home_source_summary(
+            [{"id": 1, "title_es": "Título", "body_es": "", "body_en": None}],
+            [{"id": 1, "title_es": "Título", "body_es": None}],
+        )
+        == []
+    )
+    assert summary({"es": {"body": ""}}, {"es": {"body": None}}) == [
+        "Sin cambios visibles en la tienda."
+    ]

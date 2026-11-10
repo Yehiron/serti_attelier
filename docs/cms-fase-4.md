@@ -25,7 +25,7 @@ La barra inferior usa el conteo de `pending_changes`, no el número de pulsacion
 
 ### Fotos, sin biblioteca multimedia
 
-El formulario reutiliza **`PhotoInput` / `photo_input.html`** mediante una plantilla clonable. Las portadas llaman a `editor_services.upload_hero_photos`; se conserva el enlace al formulario actual para administrar sus diapositivas y textos alternativos. Las fotos históricas usan `replace_section_image`, que ahora acepta alt ES/EN explícito sin romper a sus llamadores anteriores. Los nuevos slots llaman a `upload_editor_image`, que reutiliza `services.process_image`: validación, eliminación de metadatos, WebP y renditions del pipeline existente. No se aceptan rutas de archivo escritas a mano en la interfaz.
+El formulario reutiliza **`PhotoInput` / `photo_input.html`** mediante una plantilla clonable. Las portadas llaman a `editor_services.upload_hero_photos`; el panel de propiedades permite administrar ambos carruseles y sus textos alternativos (véase «Ajustes tras revisión»). Las fotos históricas usan `replace_section_image`, que ahora acepta alt ES/EN explícito sin romper a sus llamadores anteriores. Los nuevos slots llaman a `upload_editor_image`, que reutiliza `services.process_image`: validación, eliminación de metadatos, WebP y renditions del pipeline existente. No se aceptan rutas de archivo escritas a mano en la interfaz.
 
 Una foto para una sección aún no creada se carga con versión y auditoría y devuelve la referencia tipada, que se guarda al completar la sección. Esto permite crear Imagen con texto sin exigir antes una sección inválida. No hay modelo, buscador ni selector de biblioteca. Como en los flujos actuales, los archivos almacenados no son transaccionales: una carga abandonada o un error posterior puede dejar archivos sin referencia. Su limpieza y ciclo de vida corresponden a Fase 5. Los slots nuevos mantienen `srcset` vacío en el contenido editable, conforme al validador actual.
 
@@ -110,10 +110,52 @@ El E2E exige el stack de desarrollo migrado, PostgreSQL, Docker y una publicaci�
 
 Antes de producción: ejecutar PostgreSQL y Playwright; validar Caddy; comprobar cookies/iframe y cabeceras reales en HTTPS; revisar escritorio, 820 y 390 px, teclado, claro/oscuro, carga de imágenes y errores de consola. La compilación y las pruebas puras no sustituyen estas comprobaciones. No se declara visualmente verificado el editor ni verde la suite de integración.
 
-Para Fase 5: referencias estables y ciclo de vida de imágenes, limpieza de cargas abandonadas, renditions de slots nuevos y biblioteca multimedia. La administración avanzada de diapositivas continúa accesible en el formulario existente. No se incorporan campañas programadas.
+Para Fase 5: referencias estables y ciclo de vida de imágenes, limpieza de cargas abandonadas, renditions de slots nuevos y biblioteca multimedia. Los carruseles de portada ya se administran desde el panel de propiedades; el formulario existente conserva su compatibilidad. No se incorporan campañas programadas.
 
 No hay commit: `git add backend/apps/cms/editor_api.py` fue rechazado al crear `.git/index.lock` con **Operation not permitted**. No se crearon scripts de commit. Para registrar fuera del sandbox, usar un mensaje en español, por ejemplo `CMS fase 4: editor de tres paneles y vista previa segura`, con el tráiler solicitado:
 
 ```text
 Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>
 ```
+
+
+## Ajustes tras revisión
+
+Ronda sobre `fase-9-produccion`, base `4eec13c`. Sin push, dependencias nuevas ni migraciones; sin cambios en carrito, pagos o pedidos. `docs/capturas/` se conserva intacto.
+
+### Carrusel de portada
+
+El panel de propiedades muestra «Fotos para computador» y «Fotos para celular», con recomendaciones de los slots del registro, carga múltiple, miniaturas tomadas exclusivamente de renditions, orden mediante arrastre o botones, anuncios `aria-live`, textos alternativos ES/EN y eliminación con confirmación integrada. La imagen individual se etiqueta «Foto de respaldo (si no hay carrusel)». La administración no depende del enlace al formulario anterior.
+
+La API del documento incorpora `hero-reorder`, `hero-alt` y `hero-delete`, con sección, dispositivo e identificador de foto cuando corresponde. Reutiliza `reorder_hero_slides`, `save_hero_slide` y `delete_hero_slide`; la carga múltiple conserva `upload_hero_photos`. Todas las acciones comparten la comprobación de `expected_version`, permisos, auditoría y una sola subida de versión por petición. Se rechazan fotos de otra sección/dispositivo y órdenes inválidos. Cada guardado refresca la autorización y la vista previa. Los alt usan la cola de autosave y se incluyen al copiar textos ante un conflicto.
+
+### Cambios reales y revisión
+
+El editor envía únicamente las propiedades distintas de su última lectura/guardado y excluye `slides` del guardado de texto. Los servicios conservan las traducciones vacías históricas al recibir su equivalente vacío; las actualizaciones parciales de páginas y bindings mantienen los demás campos y filas. No se reescriben publicaciones ni se cambia el contrato JSON público.
+
+`review_changes.py` compara valores editoriales tratando `null`, cadena vacía y ausencia como equivalentes. Revisión, historial y `pending_changes` comparten las filas semánticas: una edición de título produce una fila, sin repetir las traducciones derivadas, el HTML renderizado ni los textos vacíos. Las pruebas de Manifiesto y Piedras comprueban exactamente un cambio y la conservación de las otras claves del payload público.
+
+Revisión e historial usan CSS propio de `visual-editor.css`, con superficies claras/oscuras, acento vino, enlaces secundarios visibles al editor y a la vista previa, grupos con nombre e icono del registro, columnas Antes/Después y textos largos desplegables mediante «Ver más». La revisión conserva nota, versión revisada y publicación idempotente; el botón primario explica su estado deshabilitado. El historial presenta tarjetas con fecha de Bogotá, autor, nota, cambios y restauración con confirmación integrada, limitada a `restore_content`. Las URLs y servicios de publicación/restauración se conservan.
+
+### Verificación de esta ronda
+
+- Frontend: `npm run lint`, `npm run typecheck` y `npm test` correctos (**58 pruebas**).
+- Backend sin base de datos: `pytest -q backend/apps/cms/tests -m 'not django_db'` correcto (**66 pruebas; 218 excluidas por requerir BD**), con configuración PostgreSQL y variables ficticias locales. No se usa SQLite.
+- Ruff de los archivos Python modificados, sintaxis del JavaScript, `manage.py check --settings=config.settings.test` y `git diff --check`: correctos. Revisión e historial renderizados con Django sin BD.
+- `test_phase4.py`: **19 casos recopilados**. Se añaden permisos de Propietaria/Contenido/Operaciones, carga múltiple, renditions, versión omitida/obsoleta, orden, alt, eliminación, rechazo por dispositivo, auditoría, rollback de validación y conservación de campos vacíos. Las pruebas con BD quedan para ejecución con PostgreSQL por la persona responsable, según el encargo.
+- E2E extendido con una imagen PNG determinista de prueba: Contenido crea una portada temporal, sube al carrusel de celular, comprueba la imagen WebP cargada dentro de la vista previa en Celular y la elimina. La limpieza de respaldo elimina fotos mediante la API versionada y restaura/publica la publicación inicial en `finally`. Playwright recopila los **6 casos** (3 de escritorio; sus equivalentes móviles se omiten explícitamente).
+- **E2E e inspección visual pendientes**: el stack `localhost:8090` no responde en este entorno. También se intentó inspeccionar las plantillas renderizadas en 1440/768/390 y claro/oscuro, pero Chromium aborta al arrancar por `bootstrap_check_in … Permission denied (1100)`. El render de plantillas y las pruebas puras no prueban la apariencia en navegador ni la integración con PostgreSQL.
+
+Para verificar fuera del sandbox, con PostgreSQL y el stack de desarrollo:
+
+```sh
+cd backend
+pytest apps/cms/tests/test_phase4.py apps/cms/tests/test_phase2.py apps/cms/tests/test_visual_editor.py --ds=config.settings.test -q
+```
+
+```sh
+cd frontend
+npx playwright test tests/e2e/cms-phase4.spec.ts --project=desktop
+```
+
+Registro de esta ronda: no se pudo crear el commit. `git add` fue rechazado al crear `.git/index.lock` con `Operation not permitted`. Los cambios quedan sin stage; no se crearon scripts de commit ni se hizo push.

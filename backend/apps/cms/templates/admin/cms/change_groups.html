@@ -1,0 +1,14 @@
+{% for group in change_groups %}
+<section class="cms-change-group">
+<h3><span class="material-symbols-outlined" aria-hidden="true">{{ group.icon }}</span>{{ group.name }} <span class="cms-count">{{ group.rows|length }}</span></h3>
+{% for change in group.rows %}
+<div class="cms-change-row">
+<h4>{{ change.label }}</h4>
+<div class="cms-comparison">
+<div class="cms-before"><span class="cms-value-label">Antes</span>{% if change.before|length > 240 %}<details><summary>{{ change.before|truncatechars:240 }} <span>Ver más</span></summary><del>{{ change.before }}</del></details>{% else %}<del>{{ change.before|default:"Sin contenido" }}</del>{% endif %}</div>
+<div class="cms-after"><span class="cms-value-label">Después</span>{% if change.after|length > 240 %}<details><summary>{{ change.after|truncatechars:240 }} <span>Ver más</span></summary><p>{{ change.after }}</p></details>{% else %}<p>{{ change.after|default:"Sin contenido" }}</p>{% endif %}</div>
+</div>
+</div>
+{% endfor %}
+</section>
+{% endfor %}

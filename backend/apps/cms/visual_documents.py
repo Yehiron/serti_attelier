@@ -9,7 +9,7 @@ from django.shortcuts import get_object_or_404
 from apps.audit.services import record
 
 from . import editor_services, services
-from .models import FaqItem, HomeSection, Page, ProcessStep
+from .models import FaqItem, HeroSlide, HomeSection, Page, ProcessStep
 from .registry import REGISTRY, export_registry, get_type, text, validate_fields
 
 
@@ -55,6 +55,18 @@ def values(section):
                 if section.image
                 else None
             )
+    if section.kind == "hero":
+        from .editor import thumbnail
+
+        result["slides"] = [
+            {
+                "id": str(slide.pk),
+                "device": slide.device,
+                "thumbnail": thumbnail(slide.renditions),
+                "alt": translations(slide, "alt"),
+            }
+            for slide in section.slides.all()
+        ]
     return result
 
 
@@ -128,13 +140,20 @@ def write_values(section, data):
     if set(data) - allowed:
         raise ValidationError({"__all__": "Hay campos que no pertenecen a esta sección."})
     if spec.storage != "columns":
-        section.props = data
+        section.props = {**section.props, **data}
         return
     for field in spec.fields:
+        if field.key not in data:
+            continue
         value = data.get(field.key)
         if field.translated:
             for lang in ("es", "en"):
-                setattr(section, f"{field.key}_{lang}", (value or {}).get(lang, ""))
+                if lang in (value or {}):
+                    name = f"{field.key}_{lang}"
+                    new = value[lang]
+                    # Preserve historical nulls when the editor displays an empty input.
+                    if (getattr(section, name) or "") != (new or ""):
+                        setattr(section, name, new)
         elif field.type == "collection":
             section.collection_id = value
         elif field.type == "cta":
@@ -154,7 +173,9 @@ def write_values(section, data):
                 )
         elif field.type == "image" and value:
             for lang in ("es", "en"):
-                setattr(section, f"image_alt_{lang}", value.get("alt", {}).get(lang, ""))
+                new = value.get("alt", {}).get(lang, "")
+                if (getattr(section, f"image_alt_{lang}") or "") != (new or ""):
+                    setattr(section, f"image_alt_{lang}", new)
 
 
 def mutate(key, action, data, actor, request):
@@ -173,10 +194,17 @@ def mutate(key, action, data, actor, request):
                 )
                 for f in ("title",) + (() if page.kind == "personalize" else ("body",))
             )
-            cleaned = validate_fields(fields, data["values"])
+            cleaned = validate_fields(
+                fields,
+                {
+                    **next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
+                    **data["values"],
+                },
+            )
             for field, value in cleaned.items():
                 for lang in ("es", "en"):
-                    setattr(page, f"{field}_{lang}", value[lang])
+                    if (getattr(page, f"{field}_{lang}") or "") != (value[lang] or ""):
+                        setattr(page, f"{field}_{lang}", value[lang])
             services.save_page(page, actor=actor, request=request)
             return
         kind = data["id"]
@@ -196,10 +224,21 @@ def mutate(key, action, data, actor, request):
             else replace(f, required=False)
             for f in REGISTRY[kind].fields
         )
-        cleaned = validate_fields(fields, data["values"])
-        for lang in ("es", "en"):
-            setattr(page, f"{binding['title_field']}_{lang}", cleaned["title"][lang])
-        services.save_page(page, actor=actor, request=request)
+        cleaned = validate_fields(
+            fields,
+            {
+                **next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
+                **data["values"],
+            },
+        )
+        if "title" in data["values"]:
+            for lang in ("es", "en"):
+                name = f"{binding['title_field']}_{lang}"
+                if (getattr(page, name) or "") != (cleaned["title"][lang] or ""):
+                    setattr(page, name, cleaned["title"][lang])
+            services.save_page(page, actor=actor, request=request)
+        if binding["list_field"] not in data["values"]:
+            return
         model = ProcessStep if kind == "process" else FaqItem
         rows = cleaned[binding["list_field"]]
         for item in old[len(rows) :]:
@@ -209,7 +248,8 @@ def mutate(key, action, data, actor, request):
             item.position = position
             for field, translations_ in row.items():
                 for lang, value in translations_.items():
-                    setattr(item, f"{field}_{lang}", value)
+                    if (getattr(item, f"{field}_{lang}") or "") != (value or ""):
+                        setattr(item, f"{field}_{lang}", value)
             services.save_page_item(item, actor=actor, request=request)
         return
     if action == "reorder":
@@ -225,7 +265,27 @@ def mutate(key, action, data, actor, request):
         return str(section.pk)
     section = get_object_or_404(HomeSection, pk=data["id"])
     spec = get_type(section.kind)
-    if action == "update":
+    if action.startswith("hero-"):
+        device = data.get("device")
+        if section.kind != "hero" or device not in HeroSlide.Device.values:
+            raise ValidationError("Selecciona una portada y un dispositivo válidos.")
+        if action == "hero-reorder":
+            editor_services.reorder_hero_slides(
+                section, device, [int(pk) for pk in data["ids"]], actor=actor, request=request
+            )
+        elif action in {"hero-alt", "hero-delete"}:
+            slide = get_object_or_404(section.slides, pk=data["slide"], device=device)
+            if action == "hero-delete":
+                services.delete_hero_slide(slide, actor=actor, request=request)
+            else:
+                alt = validate_fields(
+                    (text("alt", "Texto alternativo", 300, required=True),), {"alt": data["alt"]}
+                )["alt"]
+                slide.alt_es, slide.alt_en = alt["es"], alt["en"]
+                services.save_hero_slide(slide, actor=actor, request=request)
+        else:
+            raise ValidationError("Esta acción no está disponible para la portada.")
+    elif action == "update":
         write_values(section, data["values"])
         services.save_section(section, actor=actor, request=request)
     elif action == "visibility" and spec.can_hide:

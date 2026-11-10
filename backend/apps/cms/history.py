@@ -14,6 +14,7 @@ from django.views.decorators.csrf import csrf_protect
 
 from .documents import ContentConflict, get_document, require_capability
 from .models import HomePublication, Page, PageRevision
+from .review_changes import equivalent, home_groups, page_groups
 from .services import restore_home, restore_page_revision
 
 
@@ -34,11 +35,16 @@ def summary(current, previous, home=False, current_source=None, previous_source=
                 changes.append(f"Sección añadida o mostrada: {label}.")
             else:
                 old = before[key]
-                if old.get("title") != row.get("title"):
+                if not equivalent(old.get("title"), row.get("title")):
                     changes.append(f"Título cambiado: {old.get('title', '')} → {label}.")
-                if any(old.get(field) != row.get(field) for field in ("image", "slides")):
+                if any(
+                    not equivalent(old.get(field), row.get(field)) for field in ("image", "slides")
+                ):
                     changes.append(f"Fotos cambiadas en {label}.")
-                if any(old.get(field) != row.get(field) for field in ("body", "subtitle", "cta")):
+                if any(
+                    not equivalent(old.get(field), row.get(field))
+                    for field in ("body", "subtitle", "cta")
+                ):
                     changes.append(f"Textos o enlaces cambiados en {label}.")
         for key, row in before.items():
             if key not in after:
@@ -66,7 +72,7 @@ def summary(current, previous, home=False, current_source=None, previous_source=
                 ("process", "Pasos", "actualizados"),
                 ("faq", "Preguntas frecuentes", "actualizadas"),
             ):
-                if old.get(field) != new.get(field):
+                if not equivalent(old.get(field), new.get(field)):
                     changes.append(
                         f"{label} en {language} {state}"
                         + (
@@ -140,18 +146,18 @@ def home_source_summary(current, previous):
             changes.append(f"Sección {state}: {label}.")
         for locale, language in (("es", "español"), ("en", "inglés")):
             title = f"title_{locale}"
-            if old.get(title) != row.get(title):
+            if not equivalent(old.get(title), row.get(title)):
                 changes.append(
                     f"Título en {language} cambiado en {label}: "
                     f"{old.get(title) or 'Sin título'} → {row.get(title) or 'Sin título'}."
                 )
             if any(
-                old.get(f"{field}_{locale}") != row.get(f"{field}_{locale}")
+                not equivalent(old.get(f"{field}_{locale}"), row.get(f"{field}_{locale}"))
                 for field in ("body", "subtitle", "cta_label", "image_alt")
             ):
                 for field in ("body", "subtitle", "cta_label", "image_alt"):
                     name = f"{field}_{locale}"
-                    if old.get(name) != row.get(name):
+                    if not equivalent(old.get(name), row.get(name)):
                         field_label = {
                             "body": "Texto",
                             "subtitle": "Subtítulo",
@@ -163,7 +169,10 @@ def home_source_summary(current, previous):
                             f"{str(old.get(name) or 'Sin contenido')[:120]} → "
                             f"{str(row.get(name) or 'Sin contenido')[:120]}."
                         )
-        if any(old.get(field) != row.get(field) for field in ("image", "slides", "renditions")):
+        if any(
+            not equivalent(old.get(field), row.get(field))
+            for field in ("image", "slides", "renditions")
+        ):
             changes.append(f"Fotos cambiadas o reordenadas en {label}.")
         if old.get("props", {}) != row.get("props", {}):
             from .registry import REGISTRY, editorial_props
@@ -173,7 +182,7 @@ def home_source_summary(current, previous):
                 old_values = editorial_props(spec.kind, old.get("props", {}))
                 new_values = editorial_props(spec.kind, row.get("props", {}))
                 for change_label in dict.fromkeys((*old_values, *new_values)):
-                    if old_values.get(change_label, "") != new_values.get(change_label, ""):
+                    if not equivalent(old_values.get(change_label), new_values.get(change_label)):
                         changes.append(
                             f"{spec.name} · {change_label}: "
                             f"{str(old_values.get(change_label, 'Sin contenido'))[:120]} → "
@@ -182,7 +191,7 @@ def home_source_summary(current, previous):
         destinations = {
             field for field in row if field.startswith("cta_") and not field.startswith("cta_label")
         } | {"collection_id"}
-        if any(old.get(field) != row.get(field) for field in destinations):
+        if any(not equivalent(old.get(field), row.get(field)) for field in destinations):
             changes.append(f"Destino de enlaces o colección cambiado en {label}.")
     for key, row in before.items():
         if key not in after:
@@ -231,6 +240,9 @@ def history(request):
         "home" if key == "home" else f"page:{Page.objects.get(pk=key).kind}"
     )
     context["editor_url"] = reverse("visual-editor") + f"?document={content_document.key}"
+    from .publishing import preview_url
+
+    context["preview_url"] = preview_url(request, content_document.key)
     context["expected_version"] = content_document.draft_version
     context["restorations"] = content_document.draft_revisions.select_related(
         "restored_from_home", "restored_from_page"
@@ -302,6 +314,18 @@ def history(request):
             }
             for index, row in enumerate(rows)
         ]
+        for index, item in enumerate(context["rows"]):
+            prior = rows[index + 1] if index + 1 < len(rows) else older
+            item["change_groups"] = (
+                home_groups(item["publication"].draft_snapshot, prior.draft_snapshot)
+                if key == "home"
+                and prior
+                and item["publication"].draft_snapshot is not None
+                and prior.draft_snapshot is not None
+                else page_groups(item["publication"].snapshot, prior.snapshot)
+                if key != "home" and prior
+                else []
+            )
     return TemplateResponse(
         request, "admin/cms/history.html", context, status=409 if context.get("conflict") else 200
     )

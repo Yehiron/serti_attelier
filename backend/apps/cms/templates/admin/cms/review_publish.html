@@ -3,12 +3,16 @@
 {% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}">{% endblock %}
 {% block content %}
 <div class="cms-review">
-<h2>{{ document_title }}</h2><p>Revisa los textos en español e inglés. Se publicará exactamente esta versión.</p><a href="{{ editor_url }}">Volver al editor y ver la vista previa</a>
-{% if error %}<p role="alert">{{ error }}</p><a href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a>{% endif %}
-{% if pending_count %}<p>{{ pending_count }} cambio{{ pending_count|pluralize:"s" }} sin publicar</p><ul>{% for change in changes %}<li>{{ change }}</li>{% endfor %}</ul>{% else %}<p>No hay cambios pendientes</p>{% endif %}
-<form method="post">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}">
-<label for="publication-note">Nota opcional</label><textarea id="publication-note" name="note" maxlength="300" class="block border rounded-default p-3 w-full">{{ note }}</textarea>
-<button class="bg-primary-600 text-white rounded-default px-4 py-3 mt-4" {% if not pending_count or error %}disabled aria-disabled="true"{% endif %}>Publicar ahora</button>
+<header class="cms-review-header">
+<div><p class="cms-eyebrow">Revisar y publicar</p><h2>{{ document_title }}</h2><p class="cms-review-count">{{ pending_count }} cambio{{ pending_count|pluralize:"s" }} sin publicar</p></div>
+<nav class="cms-review-actions" aria-label="Documento"><a class="cms-secondary" href="{{ editor_url }}">Volver al editor</a>{% if preview_url %}<a class="cms-secondary" href="{{ preview_url }}" target="_blank" rel="noopener">Ver vista previa</a>{% endif %}</nav>
+</header>
+<p>Revisa los textos en español e inglés. Se publicará exactamente esta versión.</p>
+{% if error %}<div class="cms-review-notice" role="alert"><p>{{ error }}</p><a class="cms-secondary" href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a></div>{% endif %}
+{% if pending_count %}{% include "admin/cms/change_groups.html" %}{% else %}<p class="cms-empty">No hay cambios pendientes</p>{% endif %}
+<form method="post" class="cms-publish-form">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}">
+<label for="publication-note">Nota opcional</label><p class="cms-help" id="note-help">Quedará guardada en el historial de esta publicación.</p><textarea id="publication-note" name="note" maxlength="300" aria-describedby="note-help">{{ note }}</textarea>
+<div class="cms-publish-footer"><button class="cms-primary" {% if not pending_count or error %}disabled aria-disabled="true" aria-describedby="publish-disabled"{% endif %}>Publicar ahora</button>{% if error %}<p id="publish-disabled">Revisa la versión actual y resuelve el aviso antes de publicar.</p>{% elif not pending_count %}<p id="publish-disabled">La tienda ya muestra este contenido. Edita el borrador para publicar cambios.</p>{% endif %}</div>
 </form>
 </div>
 {% endblock %}

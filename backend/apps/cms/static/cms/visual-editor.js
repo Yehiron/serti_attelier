@@ -6,8 +6,9 @@
   const $ = id => document.getElementById(`cms-${id}`);
   const clone = value => structuredClone(value);
   let state, selected, language = 'es', timer, busy = false, uploadBusy = false, blocked = false, dirty = false;
-  let queue = [], failed, confirmation, dragId, scrollY = 0, allowUnload = false;
+  let queue = [], failed, confirmation, dragId, slideFocus, scrollY = 0, allowUnload = false;
   const local = new Map();
+  const slideEdits = new Map();
   const csrf = root.querySelector('[name=csrfmiddlewaretoken]').value;
   const spec = row => state.registry.find(s => s.kind === row.kind);
   const row = () => local.get(selected);
@@ -24,16 +25,17 @@
     el.disabled = disabled; el.onclick = action; return el;
   }
   let photoSequence = 0;
-  function photoControl(label, onFile) {
+  function photoControl(label, onFile, multiple = false) {
     const control = $('photo-widget').content.firstElementChild.cloneNode(true);
     const input = control.querySelector('input[type=file]');
     const id = `cms-photo-${++photoSequence}`;
     input.id = id; input.setAttribute('aria-label', label);
     control.querySelectorAll('label').forEach(el => el.htmlFor = id);
-    input.onchange = () => onFile(input.files[0]);
+    input.multiple = multiple;
+    input.onchange = () => onFile(multiple ? [...input.files] : input.files[0]);
     return control;
   }
-  function pending() { return dirty || busy || queue.length || failed || [...local.values()].some(r=>r.changed); }
+  function pending() { return slideEdits.size || dirty || uploadBusy || busy || queue.length || failed || [...local.values()].some(r=>r.changed); }
   function refreshPreview() {
     if (!state.preview[$('preview-language').value]) { $('preview-status').textContent = 'No tienes permiso de vista previa'; return; }
     $('preview-status').textContent = 'Cargando…';
@@ -69,7 +71,7 @@
   async function load(key = 'home') {
     const response = await fetch(`${root.dataset.api}?document=${encodeURIComponent(key)}`);
     if (!response.ok) throw Error('No se pudo abrir la página.');
-    state = await response.json(); root.dataset.version=state.version; local.clear();
+    state = await response.json(); root.dataset.version=state.version; local.clear(); slideEdits.clear();
     state.sections.forEach(s => local.set(s.id, clone(s)));
     $('document').replaceChildren(...state.documents.map(d => element('option', d.name, {value:d.key})));
     $('document').value = state.key;
@@ -84,7 +86,7 @@
     if (busy || blocked || failed || !queue.length) return;
     busy = true; status('Guardando…');
     const job = queue.shift();
-    if(job.payload.action==='create')$('properties-form').inert=true;
+    if(job.payload.action==='create' || job.payload.action.startsWith('hero-'))$('properties-form').inert=true;
     try {
       const response = await fetch(`${root.dataset.api}?document=${encodeURIComponent(state.key)}`, {
         method:'POST', headers:{'Content-Type':'application/json','X-CSRFToken':csrf},
@@ -101,7 +103,8 @@
       state.version = result.version; root.dataset.version=state.version; state.pending = result.pending; state.preview = result.preview; state.can_discard = result.can_discard;
       if (job.payload.action === 'update') {
         const latest = local.get(job.payload.id);
-        if (latest && JSON.stringify(latest.values) === JSON.stringify(job.payload.values)) {latest.changed = false;latest.errors=false;}
+        if (latest && Object.entries(job.payload.values).every(([key,value])=>JSON.stringify(latest.values[key])===JSON.stringify(value))) {latest.changed = false;latest.errors=false;}
+        state.sections = result.sections;
       } else {
         // Structural actions flush text writes first; preserve any edits made while waiting.
         const changed = [...local.values()].filter(r => r.changed && r.id !== 'new');
@@ -110,6 +113,10 @@
         if (result.selected) selected = result.selected;
         if (!local.has(selected)) selected = local.keys().next().value;
         properties();
+        if(job.payload.action==='hero-reorder' && slideFocus){
+          [...$('fields').querySelectorAll('[data-slide]')].find(el=>el.dataset.slide===slideFocus)?.querySelector('button:not(:disabled)')?.focus();
+          slideFocus=null;
+        }
       }
       structure(); refreshPreview(); status('Guardado'); announce('Cambios guardados');
     } catch { failed = job; status('Error de conexión'); $('retry').hidden = false; }
@@ -117,13 +124,25 @@
   }
   function enqueue(payload) { queue.push({payload:clone(payload)}); void drain(); }
   function flush() {
+    flushText();
+    const edits = [...slideEdits.values()];
+    slideEdits.clear();
+    if(edits.length && !blocked && failed?.payload.action==='hero-alt'){
+      failed=null;$('retry').hidden=true;
+    }
+    edits.forEach(enqueue);
+  }
+  function flushText() {
     clearTimeout(timer);
     if (!dirty || !row()) return;
     if(row().id==='new' && (busy || queue.some(j=>j.payload.action==='create'))) return;
     dirty = false;
     const current = row();
     if (failed && !blocked) { failed = null; $('retry').hidden = true; }
-    enqueue({action:current.id === 'new' ? 'create':'update', id:current.id, kind:current.kind, values:current.values});
+    const previous = state.sections.find(s=>s.id===current.id)?.values || {};
+    const values = Object.fromEntries(Object.entries(current.values).filter(([key,value])=>key!=='slides' && !(key==='image' && !previous[key] && !value?.src && !value?.alt?.es && !value?.alt?.en) && (current.id==='new' || JSON.stringify(value)!==JSON.stringify(previous[key]))));
+    if(!Object.keys(values).length && current.id!=='new'){current.changed=false;status('Guardado');updateBar();return;}
+    enqueue({action:current.id === 'new' ? 'create':'update', id:current.id, kind:current.kind, values});
   }
   function changed() {
     dirty = true; row().changed = true; status('Cambios pendientes');
@@ -178,18 +197,18 @@
   function focusList(path,index){const wrap=[...$('fields').querySelectorAll('[data-path]')].find(el=>el.dataset.path===path);const group=wrap?.querySelectorAll('fieldset')[index];(group?.querySelector('input,textarea,button') || wrap?.querySelector('button'))?.focus();}
   function fields(fields_, values, container, prefix = '') {
     fields_.forEach(field => {
-      if (field.key === 'slides' && spec(row()).storage === 'columns') return;
+      if (field.key === 'slides' && spec(row()).storage === 'columns') { heroPhotos(container); return; }
       const path = prefix + field.key;
       const wrap = element('div','',{class:'cms-field','data-path':path});
-      const label = element('span', field.label); wrap.append(label); container.append(wrap);
+      const label = element('span', row().kind==='hero' && field.key==='image' ? 'Foto de respaldo (si no hay carrusel)' : field.label); wrap.append(label); container.append(wrap);
       const set = value => { values[field.key] = value; changed(); };
       let value = values[field.key] ?? clone(field.default ?? null);
       if (field.translated) {
-        value ||= {es:'',en:''}; values[field.key] = value;
+        value ||= {es:'',en:''};
         const input = element(field.type === 'short_text' ? 'input':'textarea','',{'aria-label':`${field.label} (${language.toUpperCase()})`});
         input.value = value[language] || ''; input.setAttribute('aria-required',String(!!field.required)); if (field.max) input.maxLength = field.max;
         const count = element('small',`${input.value.length} / ${field.max || '—'}`,{class:'cms-help'});
-        input.oninput = () => { value[language] = input.value; count.textContent = `${input.value.length} / ${field.max || '—'}`; changed(); };
+        input.oninput = () => { values[field.key] = value; value[language] = input.value; count.textContent = `${input.value.length} / ${field.max || '—'}`; changed(); };
         wrap.append(input,count); if (field.type === 'markdown') wrap.append(element('p','Puedes usar **negrita**, listas y enlaces [texto](https://…). El contenido se limpia al mostrarlo.',{class:'cms-help'}));
       } else if (field.type === 'list') {
         value ||= []; values[field.key] = value;
@@ -233,19 +252,59 @@
       }
     });
   }
-  async function uploadPhoto(file, slot) {
+  function heroPhotos(container) {
+    if(selected==='new') {container.append(element('p','Guarda la portada antes de añadir fotos.'));return;}
+    for(const device of ['desktop','mobile']) {
+      const slot=spec(row()).slots.find(s=>s.key===`slides.${device}`);
+      if(!slot) continue;
+      const group=element('fieldset','',{'data-carousel':device,class:'cms-carousel'});
+      group.append(element('legend',slot.label),element('p',`Recomendación: ${device==='mobile'?slot.mobile:slot.desktop}.`,{class:'cms-help'}));
+      const slides=(row().values.slides || []).filter(s=>s.device===device);
+      const moveSlide=(id,index)=>{
+        if(index<0 || index>=slides.length)return;
+        const ids=slides.map(s=>s.id),start=ids.indexOf(id);if(start<0)return;
+        ids.splice(index,0,ids.splice(start,1)[0]);slideFocus=id;flush();enqueue({action:'hero-reorder',id:selected,device,ids});
+        announce(`Foto en la posición ${index+1}`);
+      };
+      slides.forEach((slide,index)=>{
+        const card=element('div','',{class:'cms-slide','data-slide':slide.id,draggable:'true'});
+        card.ondragstart=e=>{e.dataTransfer.setData('text/plain',slide.id);};
+        card.ondragover=e=>e.preventDefault();card.ondrop=e=>{e.preventDefault();moveSlide(e.dataTransfer.getData('text/plain'),index);};
+        if(slide.thumbnail)card.append(element('img','',{src:slide.thumbnail,alt:slide.alt[language] || 'Foto de portada',width:'160',loading:'lazy'}));
+        card.append(element('p',`Foto ${index+1}`));
+        for(const [lang,label] of [['es','ES'],['en','EN']]) {
+          const input=element('input','',{'aria-label':`Texto alternativo foto ${index+1} (${label})`,maxlength:'300'});input.value=slide.alt[lang] || '';
+          input.oninput=()=>{
+            slide.alt[lang]=input.value;
+            slideEdits.set(slide.id,{action:'hero-alt',id:selected,device,slide:slide.id,alt:slide.alt});
+            status('Cambios pendientes');clearTimeout(timer);timer=setTimeout(flush,800);updateBar();
+          };
+          input.onchange=flush;
+          card.append(element('label',`Texto alternativo (${label})`),input);
+        }
+        card.append(button('Subir',()=>moveSlide(slide.id,index-1),index===0),button('Bajar',()=>moveSlide(slide.id,index+1),index===slides.length-1),button('Eliminar foto',()=>confirmAction('¿Eliminar esta foto del carrusel?',()=>{flush();enqueue({action:'hero-delete',id:selected,device,slide:slide.id});})));
+        card.querySelectorAll('button').forEach((control,i)=>{
+          control.setAttribute('aria-label',`${['Subir','Bajar','Eliminar'][i]} foto ${index+1}`);
+        });
+        group.append(card);
+      });
+      group.append(photoControl(`Añadir fotos para ${device==='mobile'?'celular':'computador'}`,files=>uploadPhoto(files,null,device),true));
+      container.append(group);
+    }
+  }
+  async function uploadPhoto(file, slot, device) {
     if (!file || busy || blocked || queue.length) { announce('Guarda primero los textos antes de subir la foto.'); return; }
-    if(dirty && selected!=='new'){flush();announce('Espera a que se guarden los textos y vuelve a elegir la foto.');return;}
+    if((dirty || slideEdits.size) && selected!=='new'){flush();announce('Espera a que se guarden los textos y vuelve a elegir la foto.');return;}
     if(failed && !slot){announce('Corrige y guarda los textos antes de subir la foto.');return;}
     clearTimeout(timer); dirty=false; failed=null;$('retry').hidden=true; if (busy) { announce('Espera a que termine el guardado y vuelve a elegir la foto.'); return; }
-    const data=new FormData(); data.append('expected_version',state.version);data.append('section',selected);data.append('kind',row().kind);data.append('file',file);
-    if(slot)data.append('slot',slot);if($('upload-device'))data.append('device',$('upload-device').value);
+    const data=new FormData(); data.append('expected_version',state.version);data.append('section',selected);data.append('kind',row().kind);for(const item of (Array.isArray(file)?file:[file]))data.append('file',item);
+    if(slot)data.append('slot',slot);if(device)data.append('device',device);
     data.append('alt_es',row().values[slot || 'image']?.alt?.es || ''); data.append('alt_en',row().values[slot || 'image']?.alt?.en || '');
     busy=true;uploadBusy=true;$('properties-form').inert=true;status('Guardando…');
     try {const response=await fetch(root.dataset.api.replace('documento/','foto/'),{method:'POST',headers:{'X-CSRFToken':csrf},body:data});const result=await response.json();
       if(response.status===409){blocked=true;$('conflict').hidden=false;status('Error');return;}
       if(!response.ok){showErrors(result.fields || {'image':[result.error]});status('Error');return;}
-      state.version=result.version;state.pending=result.pending;if(result.image&&slot)row().values[slot]=result.image;else result.sections.forEach(s=>{if(s.id===selected)local.set(s.id,s);});properties();updateBar();refreshPreview();status('Guardado');if(slot)changed();
+      state.version=result.version;root.dataset.version=state.version;state.pending=result.pending;state.preview=result.preview;state.can_discard=result.can_discard;state.sections=result.sections;if(result.image&&slot)row().values[slot]=result.image;else result.sections.forEach(s=>{if(s.id===selected)local.set(s.id,s);});properties();updateBar();refreshPreview();status('Guardado');if(slot && selected==='new')changed();
     }catch{status('Error de conexión');}finally{busy=false;uploadBusy=false;$('properties-form').inert=false;updateBar();void drain();}
   }
   function properties() {
@@ -257,7 +316,7 @@
       $('section-actions').append(button(current.visible?'Ocultar sección':'Mostrar sección',()=>{flush();enqueue({action:'visibility',id:current.id,visible:!current.visible});}));
       if(type.multiple)$('section-actions').append(button('Duplicar sección',()=>{flush();enqueue({action:'duplicate',id:current.id});}));
       $('section-actions').append(button('Eliminar sección',()=>confirmAction('¿Eliminar esta sección del borrador?',()=>{flush();enqueue({action:'delete',id:current.id});})));
-      if(current.kind==='hero') { const device=element('select','',{'aria-label':'Fotos para'});device.append(element('option','Fotos para computador',{value:'desktop'}),element('option','Fotos para celular',{value:'mobile'}));device.id='cms-upload-device';const upload=photoControl('Añadir foto de portada',file=>uploadPhoto(file));$('section-actions').append(device,upload); $('section-actions').append(element('a','Editar fotos de portada',{href:`../cms/homesection/${current.id}/change/`})); }
+
     }
   }
   function confirmAction(message, action) { confirmation=action;$('confirm-message').textContent=message;$('confirm').hidden=false;$('confirm-no').focus(); }
@@ -265,10 +324,11 @@
   $('confirm-yes').onclick=()=>{$('confirm').hidden=true;confirmation?.();confirmation=null;};
   $('discard').onclick=()=>confirmAction('¿Volver a la última publicación? Los cambios del borrador se reemplazarán.',()=>enqueue({action:'discard'}));
   $('properties-form').onsubmit=e=>{e.preventDefault();dirty=true;flush();};
-  $('retry').onclick=()=>{if(failed&&!blocked){if(row()?.id===failed.payload.id)failed.payload.values=clone(row().values);queue.unshift(failed);failed=null;$('retry').hidden=true;void drain();}};
+  $('retry').onclick=()=>{if(failed&&!blocked){if(row()?.id===failed.payload.id && failed.payload.action==='update')failed.payload.values=Object.fromEntries(Object.keys(failed.payload.values).map(key=>[key,clone(row().values[key])]));
+    if(failed.payload.action==='hero-alt'){const slide=row()?.values.slides?.find(s=>s.id===failed.payload.slide);if(slide)failed.payload.alt=clone(slide.alt);}queue.unshift(failed);failed=null;$('retry').hidden=true;void drain();}};
   $('reload').onclick=()=>{allowUnload=true;location.reload();};
   if($('review'))$('review').onclick=e=>{if(pending()){e.preventDefault();flush();announce('Espera a que se guarden los cambios antes de revisar la publicación.');}};
-  $('copy').onclick=async()=>{const lines=[];const visit=(fields,values,prefix='')=>fields.forEach(f=>{const v=values?.[f.key];if(f.translated){for(const lang of ['es','en'])if(v?.[lang])lines.push(`${prefix}${f.label} (${lang.toUpperCase()}): ${v[lang]}`);}else if(f.type==='list'&&Array.isArray(v))v.forEach((item,i)=>visit(f.fields,item,`${f.label} ${i+1} · `));else if(f.type==='cta'&&v)for(const lang of ['es','en'])if(v.label?.[lang])lines.push(`Enlace (${lang.toUpperCase()}): ${v.label[lang]}`);});for(const r of local.values()){lines.push(spec(r).name);visit(spec(r).fields,r.values);}const texts=lines.join('\n\n');const area=$('copy-text');area.hidden=false;area.value=texts;area.focus();area.select();try{await navigator.clipboard.writeText(texts);}catch{/* Text remains selected for manual copying. */}};
+  $('copy').onclick=async()=>{const lines=[];const visit=(fields,values,prefix='')=>fields.forEach(f=>{const v=values?.[f.key];if(f.translated){for(const lang of ['es','en'])if(v?.[lang])lines.push(`${prefix}${f.label} (${lang.toUpperCase()}): ${v[lang]}`);}else if(f.key==='slides'&&Array.isArray(v))v.forEach((slide,i)=>{for(const lang of ['es','en'])if(slide.alt?.[lang])lines.push(`Foto ${i+1} (${slide.device==='mobile'?'celular':'computador'}) · Texto alternativo (${lang.toUpperCase()}): ${slide.alt[lang]}`);});else if(f.type==='list'&&Array.isArray(v))v.forEach((item,i)=>visit(f.fields,item,`${f.label} ${i+1} · `));else if(f.type==='cta'&&v)for(const lang of ['es','en'])if(v.label?.[lang])lines.push(`Enlace (${lang.toUpperCase()}): ${v.label[lang]}`);});for(const r of local.values()){lines.push(spec(r).name);visit(spec(r).fields,r.values);}const texts=lines.join('\n\n');const area=$('copy-text');area.hidden=false;area.value=texts;area.focus();area.select();try{await navigator.clipboard.writeText(texts);}catch{/* Text remains selected for manual copying. */}};
   $('document').onchange=()=>{const key=$('document').value;if(pending()){ $('document').value=state.key;announce('Espera a que se guarden los cambios antes de cambiar de página.');return;}void load(key).catch(e=>status(e.message));};
   $('add').onclick=()=>{if(uploadBusy)return;flush();if(local.has('new'))return;const kind=$('kind').value;const type=state.registry.find(s=>s.kind===kind);local.set('new',{id:'new',kind,visible:true,changed:true,values:Object.fromEntries(type.fields.map(f=>[f.key,clone(f.default)]))});selected='new';structure();properties();document.querySelector('.cms-panels').dataset.panel='properties';};
   document.querySelectorAll('[data-language]').forEach(el=>el.onclick=()=>{language=el.dataset.language;document.querySelectorAll('[data-language]').forEach(b=>b.setAttribute('aria-pressed',String(b===el)));properties();});
