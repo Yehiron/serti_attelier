@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import html
 import uuid
+from copy import deepcopy
 from string import Formatter
 from typing import Any
 
@@ -9,7 +10,7 @@ import markdown  # type: ignore[import-untyped]
 import nh3
 from django.contrib.auth.models import AnonymousUser
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django.http import HttpRequest
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
@@ -355,8 +356,22 @@ def save_page(obj: Page, actor=None, request=None) -> None:
         raise ValidationError("El tipo de una página existente no se puede cambiar.")
     before = editorial_before(obj)
     image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
+    from .page_options import prepare_slugs
+
+    prepare_slugs(obj)
+    if obj.kind == "personalize":
+        old = Page.objects.filter(pk=obj.pk).first() if obj.pk else None
+        if old is None or any(
+            (getattr(old, f"body_{lang}") or "") != (getattr(obj, f"body_{lang}") or "")
+            for lang in ("es", "en")
+        ):
+            obj.body_enabled = True
     obj.full_clean()
-    obj.save()
+    try:
+        with transaction.atomic():
+            obj.save()
+    except IntegrityError as exc:
+        raise ValidationError("Otra página ya usa esta dirección. Elige una distinta.") from exc
     audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
@@ -435,6 +450,7 @@ def publish_home(
         latest
         and equivalent(home_snapshot(latest.snapshot), snapshot)
         and equivalent(section_sources(latest.draft_snapshot), source)
+        and equivalent(latest.seo, document.seo)
     ):
         document.home_publication = latest
         document.published_version = document.draft_version
@@ -443,6 +459,7 @@ def publish_home(
     publication = HomePublication.objects.create(
         snapshot=snapshot,
         draft_snapshot=source,
+        seo=document.seo,
         published_by=actor,
         published_by_repr=actor.get_username(),
         note=note,
@@ -496,6 +513,8 @@ def restore_home(
                     section=section,
                     **(fields | mobile_data | {"image": mobile, "device": "mobile"}),
                 )
+    document.seo = deepcopy(publication.seo)
+    document.save(update_fields=["seo"])
     _record_restore(document, publication, actor, home=True)
     record("cms.home_restored", actor=actor, obj=publication, request=request)
 
@@ -508,7 +527,9 @@ def page_snapshot(page):
 
     steps = list(page.process_steps.all())
     questions = list(page.faq_items.all())
-    snapshot = {}
+    from .page_options import document_seo, draft_path
+
+    snapshot = {"_seo": document_seo(document_key(page)), "_body_enabled": page.body_enabled}
     for locale in ("es", "en"):
 
         def item(row, fields, locale=locale):
@@ -518,7 +539,10 @@ def page_snapshot(page):
             }
 
         data = {field: localized(page, field, locale) for field in PAGE_FIELDS}
+        if locale in page.slug_paths:
+            data["slug"] = page.slug_paths[locale].rstrip("/").rsplit("/", 1)[-1]
         snapshot[locale] = data | {
+            "path": draft_path(page, locale),
             "body_html": render_markdown(data["body"]),
             "source": {field: getattr(page, f"{field}_{locale}") for field in PAGE_FIELDS},
             "process": {
@@ -547,6 +571,7 @@ def publish_page(
     expected_version=None,
 ) -> PageRevision:
     actor = require_publish(actor)
+    lock_document("home")
     document = lock_document(document_key(page))
     check_version(document, expected_version, publishing=True)
     if len(note) > 300:
@@ -554,11 +579,21 @@ def publish_page(
     locked = Page.objects.select_for_update(of=("self",)).get(pk=page.pk)
     latest = locked.revisions.first()
     snapshot = page_snapshot(locked)
-    if latest and latest.snapshot == snapshot:
+    from .review_changes import equivalent, page_groups
+
+    if (
+        latest
+        and not page_groups(snapshot, latest.snapshot, kind=locked.kind)
+        and equivalent(snapshot.get("_seo", {}), latest.snapshot.get("_seo", {}))
+    ):
         document.page_revision = latest
         document.published_version = document.draft_version
         document.save(update_fields=["page_revision", "published_version"])
         return latest
+    from .page_options import validate_addresses
+    from .redirects import on_page_publish
+
+    validate_addresses(locked)
     locked.full_clean()
     for row in [*locked.process_steps.all(), *locked.faq_items.all()]:
         row.full_clean()
@@ -570,6 +605,7 @@ def publish_page(
         published_by=actor,
         published_by_repr=actor.get_username(),
     )
+    on_page_publish(locked, latest, snapshot, actor)
     locked.version = revision.version
     locked.status = "published"
     locked.published_at = timezone.now()
@@ -599,6 +635,14 @@ def restore_page_revision(
         for field in PAGE_FIELDS:
             if field in source:
                 setattr(page, f"{field}_{locale}", source[field])
+    page.slug_paths = {
+        lang: revision.snapshot[lang]["path"]
+        for lang in ("es", "en")
+        if "path" in revision.snapshot[lang]
+    }
+    page.body_enabled = revision.snapshot.get("_body_enabled", False)
+    document.seo = deepcopy(revision.snapshot.get("_seo", {}))
+    document.save(update_fields=["seo"])
     # Old snapshots have no child source: retain the draft children safely.
     for key, model, relation, fields in (
         ("process", ProcessStep, "process_steps", ("title", "description")),
@@ -684,6 +728,7 @@ def _record_restore(document, origin, actor, home=False):
         document=document,
         draft_version=document.draft_version,
         snapshot=snapshot,
+        seo=deepcopy(document.seo),
         published_by=actor,
         published_by_repr=actor.get_username(),
         **{"restored_from_home" if home else "restored_from_page": origin},

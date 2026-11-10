@@ -16,10 +16,11 @@ from apps.catalog.models import Category, Collection, Piece, Stone
 
 from . import services, visual_documents
 from .documents import ContentConflict, edit_document, lock_document, require_capability
+from .menus import MENU_KEYS, restore_menu
 from .models import Page
+from .page_options import LEGAL_KINDS, draft_path
 from .preview import make_token
 from .publishing import pending_changes
-from .selectors import page_path
 
 
 @ensure_csrf_cookie
@@ -47,16 +48,14 @@ def editor(request):
 def state(key, request):
     document = lock_document(key)
     sections = visual_documents.read_sections(key)
-    page = None if key == "home" else visual_documents.page_for(key)
+    page = visual_documents.page_for(key) if key.startswith("page:") else None
+    if key not in MENU_KEYS:
+        sections.append({"id": "seo", "kind": "seo", "visible": True, "values": document.seo})
     preview = {}
     if request.user.has_perm("cms.preview_content"):
         token = make_token(request.user)
         for lang in ("es", "en"):
-            path = (
-                f"/{lang}"
-                if page is None
-                else page_path(page.kind, lang, page.slug_es, page.slug_en)
-            )
+            path = f"/{lang}" if page is None else draft_path(page, lang)
             preview[lang] = "/preview?" + urlencode({"token": token, "path": path})
     choices = {}
     for kind, model in (
@@ -67,19 +66,31 @@ def state(key, request):
         ("page", Page),
     ):
         rows = model.objects.all()
-        if kind == "page":
-            rows = rows.filter(kind__in=("terms", "privacy", "returns", "shipping", "cookies"))
         choices[kind] = [
             {"id": row.pk, "name": getattr(row, "name_es", None) or getattr(row, "title_es", "")}
             for row in rows
         ]
     return {
+        "translation_exemptions": document.translation_exemptions,
+        "can_noindex": request.user.has_perm("cms.publish_content"),
+        "personalize_body_hidden": bool(
+            page and page.kind == "personalize" and not page.body_enabled
+        ),
+        "paths": {lang: draft_path(page, lang) for lang in ("es", "en")} if page else {},
+        "legal": {
+            "version": page.version,
+            "updated_at": page.published_at.isoformat() if page.published_at else None,
+        }
+        if page and page.kind in LEGAL_KINDS
+        else None,
         "key": key,
         "version": document.draft_version,
         "sections": sections,
         "registry": visual_documents.applicable_registry(key),
         "documents": [
             {"key": "home", "name": "Inicio"},
+            {"key": "menu:main", "name": "Menú principal"},
+            {"key": "menu:footer", "name": "Menú del pie de página"},
             *[{"key": f"page:{p.kind}", "name": p.title_es} for p in Page.objects.all()],
         ],
         "pending": pending_changes(key)["count"],
@@ -87,7 +98,13 @@ def state(key, request):
         "choices": choices,
         "review_url": reverse("cms-review-publish", args=[key]),
         "can_discard": request.user.has_perm("cms.restore_content")
-        and bool(document.home_publication_id if key == "home" else document.page_revision_id),
+        and bool(
+            document.menu_publication_id
+            if key in MENU_KEYS
+            else document.home_publication_id
+            if key == "home"
+            else document.page_revision_id
+        ),
     }
 
 
@@ -107,7 +124,7 @@ def document(request):
     key = request.GET.get("document", "home")
     try:
         # Reject unknown keys before creating the document row.
-        if key != "home":
+        if key != "home" and key not in MENU_KEYS:
             visual_documents.page_for(key)
         created = None
         if request.method == "POST":
@@ -116,12 +133,22 @@ def document(request):
             if action == "discard":
                 require_capability(request.user, "restore")
                 doc = lock_document(key)
-                origin = doc.home_publication if key == "home" else doc.page_revision
+                origin = (
+                    doc.menu_publication
+                    if key in MENU_KEYS
+                    else doc.home_publication
+                    if key == "home"
+                    else doc.page_revision
+                )
                 if not origin:
                     raise ValidationError("Todavía no hay una publicación para recuperar.")
-                (services.restore_home if key == "home" else services.restore_page_revision)(
-                    origin, request.user, request, expected_version=data.get("expected_version")
-                )
+                (
+                    restore_menu
+                    if key in MENU_KEYS
+                    else services.restore_home
+                    if key == "home"
+                    else services.restore_page_revision
+                )(origin, request.user, request, expected_version=data.get("expected_version"))
             else:
                 with edit_document(key, request.user, data.get("expected_version")):
                     created = visual_documents.mutate(key, action, data, request.user, request)

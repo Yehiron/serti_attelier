@@ -1,10 +1,10 @@
 'use client';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode, Fragment } from 'react';
 import type { Dictionary } from '@/app/[locale]/dictionaries';
 import type { Locale } from '@/lib/i18n';
-import type { Taxonomy } from '@/lib/api/types';
+import type { CmsMenuItem, Taxonomy } from '@/lib/api/types';
 import { href, routeDecision } from '@/lib/routes';
 import { useWishlist } from '@/lib/use-wishlist';
 import { CartUtility } from './cart';
@@ -12,7 +12,7 @@ import { BrandLogo, Wordmark } from './media';
 import { Heart } from './heart';
 import { Flag } from './flag';
 import { QuickSearch } from './quick-search';
-export function Navigation({ locale, dict, taxonomy, whatsapp }: { locale: Locale; dict: Dictionary; taxonomy: Taxonomy; whatsapp?: string | null }) {
+export function Navigation({ locale, dict, taxonomy, whatsapp, items }: { locale: Locale; dict: Dictionary; taxonomy: Taxonomy; whatsapp?: string | null; items?: CmsMenuItem[] }) {
   const routePathname = usePathname();
   // Normalize both the SSR internal path and the public browser path identically.
   const decision = routeDecision(routePathname);
@@ -62,12 +62,19 @@ export function Navigation({ locale, dict, taxonomy, whatsapp }: { locale: Local
     <div>{children}</div>
   </details>;
   const current = (url: string) => pathname === url ? 'page' as const : undefined;
-  const links = <>
-    {menu('catalog', dict.nav.catalog, <><Link href={href('catalog', locale)} aria-current={current(href('catalog', locale))}>{dict.ui.all}</Link>{taxonomy.categories.map(x => <div key={x.slug}><Link href={href('category', locale, x.slug)} aria-current={current(href('category', locale, x.slug))}>{x.name}</Link>{x.children.map(child => <Link className="subcategory" key={child.slug} href={href('category', locale, child.slug)} aria-current={current(href('category', locale, child.slug))}>{child.name}</Link>)}</div>)}</>)}
-    {menu('stones', dict.nav.stones, taxonomy.stones.map(x => <Link key={x.slug} href={href('stone', locale, x.slug)} aria-current={current(href('stone', locale, x.slug))}>{x.name}</Link>))}
-    {menu('collections', dict.nav.collections, taxonomy.collections.map(x => <Link key={x.slug} href={href('collection', locale, x.slug)} aria-current={current(href('collection', locale, x.slug))}>{x.name}</Link>))}
-    {(['personalize', 'story', 'contact'] as const).map(key => <Link key={key} href={href(key, locale)} aria-current={current(href(key, locale))}>{dict.nav[key]}</Link>)}
-  </>;
+  const menuItems: CmsMenuItem[] = items ?? [
+    { label: dict.nav.catalog, href: href('catalog', locale), external: false, dropdown: 'catalog' },
+    { label: dict.nav.stones, href: '', external: false, dropdown: 'stones' },
+    { label: dict.nav.collections, href: '', external: false, dropdown: 'collections' },
+    ...(['personalize', 'story', 'contact'] as const).map(key => ({ label: dict.nav[key], href: href(key, locale), external: false, dropdown: null })),
+  ];
+  const links = <>{menuItems.map((item, index) => <Fragment key={`${item.dropdown ?? item.href}-${index}`}>
+    {item.dropdown === 'catalog' ? menu('catalog', item.label, <><Link href={href('catalog', locale)} aria-current={current(href('catalog', locale))}>{dict.ui.all}</Link>{taxonomy.categories.map(x => <div key={x.slug}><Link href={href('category', locale, x.slug)} aria-current={current(href('category', locale, x.slug))}>{x.name}</Link>{x.children.map(child => <Link className="subcategory" key={child.slug} href={href('category', locale, child.slug)} aria-current={current(href('category', locale, child.slug))}>{child.name}</Link>)}</div>)}</>)
+      : item.dropdown === 'stones' ? menu('stones', item.label, taxonomy.stones.map(x => <Link key={x.slug} href={href('stone', locale, x.slug)} aria-current={current(href('stone', locale, x.slug))}>{x.name}</Link>))
+      : item.dropdown === 'collections' ? menu('collections', item.label, taxonomy.collections.map(x => <Link key={x.slug} href={href('collection', locale, x.slug)} aria-current={current(href('collection', locale, x.slug))}>{x.name}</Link>))
+      : item.external ? <a href={item.href} target="_blank" rel="noopener noreferrer">{item.label}</a>
+      : <Link href={item.href} aria-current={current(item.href)}>{item.label}</Link>}
+  </Fragment>)}</>;
   return <header className={`site-header ${home && !scrolled ? 'over-hero' : ''}`}>
     <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><BrandLogo /></Link>
     <nav ref={desktopNav} className="desktop-nav" aria-label={dict.nav.menu}>{links}</nav>

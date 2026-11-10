@@ -332,7 +332,9 @@ def test_populated_home_uses_device_renditions_and_draft_order() -> None:
         )
     for device in ("desktop", "mobile"):
         data = browser.get(reverse("cms-editor-document")).json()
-        assert [row["values"]["title"]["es"] for row in data["sections"]] == [
+        assert [
+            row["values"]["title"]["es"] for row in data["sections"] if row["kind"] != "seo"
+        ] == [
             "Manifiesto visual",
             "Portada visual",
         ]

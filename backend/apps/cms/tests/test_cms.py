@@ -158,6 +158,7 @@ def test_home_snapshot_restore_and_preview(cms_actor, actor: User, client: Clien
     section(is_visible=False, position=10)
     assert get(client, "cms/home").json() == {
         "sections": [],
+        "seo": {"title": "", "description": "", "image": None, "noindex": False},
         "published_at": None,
         "preview": False,
     }

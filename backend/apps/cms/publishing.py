@@ -17,12 +17,22 @@ _UNSET = object()
 
 
 def pending_changes(key, *, previous=_UNSET):
+    from .documents import get_document
     from .history import summary
+    from .menus import MENU_KEYS, menu_groups
+    from .page_options import seo_groups
     from .review_changes import change_lines, equivalent, home_groups, page_groups
     from .selectors import draft_sections, render_sections
 
+    doc = get_document(key)
     groups = []
-    if key == "home":
+    if key in MENU_KEYS:
+        snapshot = doc.menu_items
+        groups = menu_groups(
+            snapshot, doc.menu_publication.snapshot if doc.menu_publication else []
+        )
+        changes = change_lines(groups)
+    elif key == "home":
         rows = list(draft_sections())
         snapshot = {lang: render_sections(rows, lang) for lang in ("es", "en")}
         source = [services.section_source(row) for row in rows]
@@ -73,7 +83,19 @@ def pending_changes(key, *, previous=_UNSET):
             else summary(snapshot, previous.snapshot if previous else None)
         )
         if previous:
-            groups = page_groups(snapshot, previous.snapshot)
+            groups = page_groups(snapshot, previous.snapshot, kind=page.kind)
+            changes = change_lines(groups)
+    if key not in MENU_KEYS:
+        previous_seo = (
+            previous.seo
+            if key == "home" and previous
+            else previous.snapshot.get("_seo", {})
+            if previous
+            else {}
+        )
+        extra = seo_groups(doc.seo, previous_seo)
+        if extra:
+            groups.extend(extra)
             changes = change_lines(groups)
     if changes and not groups:
         groups = [
@@ -93,12 +115,18 @@ def pending_changes(key, *, previous=_UNSET):
 @transaction.atomic
 def review_publish(request, key):
     require_capability(request.user, "publish")
-    if key != "home":
+    from .menus import MENU_KEYS, publish_menu
+
+    if key in MENU_KEYS:
+        page, title = None, "Menú principal" if key == "menu:main" else "Menú del pie de página"
+    elif key != "home":
         page = get_object_or_404(Page, kind=key.removeprefix("page:"))
         key = f"page:{page.kind}"
         title = page.title_es
     else:
         page, title = None, "Inicio"
+    if key.startswith("page:"):
+        lock_document("home")
     document = lock_document(key)
     error = ""
     status = 200
@@ -107,7 +135,15 @@ def review_publish(request, key):
         try:
             # Service checks the version even for submissions with no pending changes.
             with transaction.atomic():
-                if page:
+                if key in MENU_KEYS:
+                    publish_menu(
+                        key,
+                        request.user,
+                        request,
+                        note=note,
+                        expected_version=request.POST.get("expected_version"),
+                    )
+                elif page:
                     services.publish_page(
                         page,
                         request.user,
@@ -124,7 +160,14 @@ def review_publish(request, key):
                     )
             messages.success(request, "Publicación guardada. La tienda ya muestra esta versión.")
             return HttpResponseRedirect(
-                reverse("cms-history") + (f"?document={page.pk}" if page else "?document=home")
+                reverse("cms-history")
+                + (
+                    f"?document={key}"
+                    if key in MENU_KEYS
+                    else f"?document={page.pk}"
+                    if page
+                    else "?document=home"
+                )
             )
         except ContentConflict as exc:
             error, status = " ".join(exc.messages), 409
@@ -156,10 +199,11 @@ def preview_url(request, key):
     from urllib.parse import urlencode
 
     from .preview import make_token
-    from .selectors import page_path
 
     if not request.user.has_perm("cms.preview_content"):
         return ""
-    page = None if key == "home" else Page.objects.get(kind=key.removeprefix("page:"))
-    path = "/es" if page is None else page_path(page.kind, "es", page.slug_es, page.slug_en)
+    from .page_options import draft_path
+
+    page = Page.objects.get(kind=key[5:]) if key.startswith("page:") else None
+    path = "/es" if page is None else draft_path(page, "es")
     return "/preview?" + urlencode({"token": make_token(request.user), "path": path})

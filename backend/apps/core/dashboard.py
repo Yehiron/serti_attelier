@@ -9,6 +9,7 @@ from django.contrib import admin
 from django.http import HttpRequest
 from django.templatetags.static import static
 from django.urls import reverse_lazy
+from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 TECHNICAL_MODELS = {
@@ -97,13 +98,32 @@ NAVIGATION: list[dict[str, Any]] = [
                 "title": _("Editor visual"),
                 "icon": "preview",
                 "link": reverse_lazy("visual-editor"),
-                "permission": lambda request: (
-                    request.user.has_perm("cms.edit_content")
-                ),
+                "permission": lambda request: request.user.has_perm("cms.edit_content"),
             },
-            {"title": _("Biblioteca de fotos"), "icon": "photo_library",
-             "link": reverse_lazy("cms-media"),
-             "permission": lambda request: request.user.has_perm("cms.edit_content")},
+            {
+                "title": _("Biblioteca de fotos"),
+                "icon": "photo_library",
+                "link": reverse_lazy("cms-media"),
+                "permission": lambda request: request.user.has_perm("cms.edit_content"),
+            },
+            {
+                "title": _("Menús"),
+                "icon": "menu",
+                "link": format_lazy("{}?document=menu:main", reverse_lazy("visual-editor")),
+                "permission": lambda request: request.user.has_perm("cms.edit_content"),
+            },
+            {
+                "title": _("Redirecciones"),
+                "icon": "alt_route",
+                "link": reverse_lazy("cms-redirect-management"),
+                "permission": lambda request: request.user.has_perm("cms.edit_content"),
+            },
+            {
+                "title": _("Traducciones pendientes"),
+                "icon": "translate",
+                "link": reverse_lazy("cms-translations"),
+                "permission": lambda request: request.user.has_perm("cms.edit_content"),
+            },
             item("Página de inicio", "web", "cms.homesection"),
             item("Páginas", "article", "cms.page"),
             {

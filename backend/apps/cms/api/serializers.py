@@ -142,7 +142,15 @@ def section_serializers():
 SECTION_SERIALIZERS = section_serializers()
 
 
+class SeoSerializer(serializers.Serializer):
+    title = serializers.CharField(allow_blank=True)
+    description = serializers.CharField(allow_blank=True)
+    image = CmsImageSerializer(allow_null=True)
+    noindex = serializers.BooleanField()
+
+
 class HomeSerializer(serializers.Serializer[Any]):
+    seo = SeoSerializer(required=False)
     sections = PolymorphicProxySerializer(
         component_name="HomeSection",
         serializers=SECTION_SERIALIZERS,
@@ -154,6 +162,8 @@ class HomeSerializer(serializers.Serializer[Any]):
 
 
 class PageSerializer(serializers.Serializer[Any]):
+    body_visible = serializers.BooleanField(required=False)
+    seo = SeoSerializer(required=False)
     process = ProcessSerializer(required=False)
     faq = FaqSerializer(required=False)
     kind = serializers.ChoiceField(
@@ -218,3 +228,20 @@ class SiteSettingsSerializer(serializers.Serializer[Any]):
 class PreviewSerializer(serializers.Serializer[Any]):
     user = serializers.CharField()
     expires_at = serializers.DateTimeField()
+
+
+class RedirectSerializer(serializers.Serializer):
+    from_path = serializers.CharField()
+    to_path = serializers.CharField()
+    status_code = serializers.ChoiceField(choices=[301, 308])
+
+
+class MenuItemSerializer(CtaSerializer):
+    dropdown = serializers.ChoiceField(
+        choices=["catalog", "stones", "collections"], allow_null=True
+    )
+
+
+class MenuSerializer(serializers.Serializer):
+    items = MenuItemSerializer(many=True)
+    preview = serializers.BooleanField()

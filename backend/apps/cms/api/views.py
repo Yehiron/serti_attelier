@@ -14,9 +14,11 @@ from ..models import Page
 from ..preview import expires_at, verify_token
 from .serializers import (
     HomeSerializer,
+    MenuSerializer,
     PageSerializer,
     PersonalizationSerializer,
     PreviewSerializer,
+    RedirectSerializer,
     SiteSettingsSerializer,
 )
 
@@ -64,12 +66,19 @@ class PageView(PublicView):
         preview = is_preview(request)
         payload: dict[str, Any] | None
         if preview:
-            from apps.catalog.selectors import localized_slug
+            from ..page_options import draft_path
 
             page = (
                 Page.objects.filter(kind=kind).first()
                 if kind
-                else Page.objects.filter(localized_slug(self.locale, slug or "")).first()
+                else next(
+                    (
+                        page
+                        for page in Page.objects.all()
+                        if draft_path(page, self.locale).rstrip("/").rsplit("/", 1)[-1] == slug
+                    ),
+                    None,
+                )
             )
             if page is None:
                 raise PageNotFound()
@@ -117,4 +126,28 @@ class PreviewVerifyView(PublicView):
         user = verify_token(token)
         response = Response({"user": user.get_username(), "expires_at": expires_at(token)})
         response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class RedirectsView(PublicView):
+    @extend_schema(responses=RedirectSerializer(many=True))
+    def get(self, request):
+        from ..redirects import active_redirects
+
+        response = Response(active_redirects())
+        response["Cache-Control"] = "public, max-age=60, s-maxage=60"
+        return response
+
+
+class MenuView(PublicView):
+    @extend_schema(parameters=PARAMETERS, responses=MenuSerializer)
+    def get(self, request, menu):
+        from ..menus import MENU_KEYS, public_menu
+
+        if "menu:" + menu not in MENU_KEYS:
+            raise PageNotFound()
+        preview = is_preview(request)
+        response = Response(public_menu("menu:" + menu, self.locale, preview))
+        if preview:
+            response["Cache-Control"] = "private, no-store"
         return response

@@ -28,6 +28,7 @@ from apps.cms.documents import get_document
 from apps.cms.management.commands.cleanup_cms_media import collect
 from apps.cms.models import HomeSection, MediaAsset
 from apps.cms.tasks import render_media
+from apps.cms.tests.helpers import historical_public_bytes
 from apps.core.tests.test_dashboard_client import staff
 
 
@@ -99,7 +100,7 @@ def test_upload_strips_metadata_hash_duplicates_renditions(
     assert asset.state == "ready"
     for ratio in media.ratios():
         rendered = media.resolve(media.reference(asset, ratio), "en")
-        a, b = map(int, ratio.split(":"))
+        a, b = map(float, ratio.split(":"))
         assert abs(rendered["width"] / rendered["height"] - a / b) < 0.02
         assert rendered["alt"] == "Workshop photo"
         assert rendered["srcset"] and "nombre-personal" not in rendered["src"]
@@ -327,7 +328,7 @@ def test_migration_public_bytes_idempotent_safe_reverse():
         )
         urls = [reverse("cms-home"), reverse("cms-page-kind", args=["personalize"])]
         baseline = {
-            (url, lang): Client().get(url, {"locale": lang}).content
+            (url, lang): historical_public_bytes(historical, url, lang)
             for url in urls
             for lang in ("es", "en")
         }
@@ -343,7 +344,7 @@ def test_migration_public_bytes_idempotent_safe_reverse():
             assert Asset.objects.count() == count
         for url in urls:
             for lang in ("es", "en"):
-                assert Client().get(url, {"locale": lang}).content == baseline[url, lang]
+                assert historical_public_bytes(current, url, lang) == baseline[url, lang]
         for lang in ("es", "en"):
             row = current.get_model("cms", "HomeSection").objects.get(pk=seeded.pk)
             expected = {

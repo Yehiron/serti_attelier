@@ -148,8 +148,46 @@ def home_groups(current, previous):
     return groups
 
 
-def page_groups(current, previous):
+def page_comparison(snapshot, kind):
+    """Read old revisions using only the fields owned by this page type."""
+    from copy import deepcopy
+
+    result = deepcopy(snapshot or {})
+    for lang in ("es", "en"):
+        data = result.get(lang, {})
+        source = data.get("source", data)
+        if kind != "personalize":
+            for field in ("process_title", "faq_title", "process", "faq"):
+                data.pop(field, None)
+                source.pop(field, None)
+        else:
+            for field, section in (("process_title", "process"), ("faq_title", "faq")):
+                # Before these source fields existed, the headings lived in the sections.
+                source.setdefault(field, data.get(section, {}).get("title", ""))
+    if kind != "personalize":
+        result.pop("_body_enabled", None)
+    return result
+
+
+def page_groups(current, previous, *, kind=None):
+    if kind is not None:
+        current = page_comparison(current, kind)
+        previous = page_comparison(previous, kind)
     groups = []
+    if bool(current.get("_body_enabled")) != bool((previous or {}).get("_body_enabled")):
+        groups.append(
+            {
+                "name": "Contenido de Personaliza",
+                "icon": "article",
+                "rows": [
+                    {
+                        "label": "Mostrar el contenido antes de los pasos",
+                        "before": display(bool((previous or {}).get("_body_enabled"))),
+                        "after": display(bool(current.get("_body_enabled"))),
+                    }
+                ],
+            }
+        )
     labels = {
         "title": "Título",
         "body": "Contenido",

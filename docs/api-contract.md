@@ -265,3 +265,27 @@ Nuevo intento Wompi tras un rechazo o error, si la reserva sigue vigente. Devuel
 | `POST …/payment-sync`, `POST …/payment-attempts` | 10/min por IP cada uno |
 | Validación de cupón (dentro de `quote`) | 10 cupones distintos/h por carrito |
 | `POST /payments/wompi/events` | Sin límite por IP; protegido por checksum y tamaño máximo de cuerpo (64 KB) |
+
+## CMS — Fase 6 (aditivo)
+
+`GET /cms/home` y `GET /cms/pages/{slug}` / `GET /cms/pages/kind/{kind}` añaden `seo`:
+
+```json
+{"seo":{"title":"","description":"","image":null,"noindex":false}}
+```
+
+Los valores vacíos conservan los metadatos anteriores. `image`, cuando existe, tiene el contrato habitual de imagen CMS (`src`, `srcset`, `width`, `height`, `alt` y `focal` opcional). La selección editorial usa una referencia estable a la generación y al recorte `1.91:1`; no se exponen referencias de biblioteca. El título y la descripción se localizan sin copiar automáticamente el español al SEO inglés. `noindex` se aplica a ambos idiomas y solo lo cambia una persona con permiso de publicación. Draft Mode consume el SEO del borrador con las mismas protecciones de vista previa.
+
+Las direcciones de `alternates` son siempre las de la publicación elegida; `slug` sigue siendo un único segmento. Las páginas legales antiguas conservan `/es/legal/<slug>` y `/en/legal/<slug>` hasta cambiar su dirección. Las direcciones nuevas elegidas en el editor son `/<idioma>/<slug>`. Ni los borradores ni la migración cambian las direcciones publicadas.
+
+| Endpoint público | Respuesta |
+|---|---|
+| `GET /cms/redirects` | Lista compacta de `{from_path,to_path,status_code}`; solo activas; códigos 301/308; caché de 60 segundos y `Cache-Control: public, max-age=60, s-maxage=60` |
+| `GET /cms/menus/main?locale=es\|en` | `{items:[{label,href,external,dropdown}],preview:false}`; `dropdown`: `catalog`, `stones`, `collections` o `null` |
+| `GET /cms/menus/footer?locale=es\|en` | Misma forma; sin desplegables; permite destinos HTTPS externos |
+
+Los menús admiten `preview=<token>` para leer el borrador, con `private, no-store`. Una publicación vacía es una lista vacía. Sus hijos de taxonomía siguen siendo datos vivos del catálogo. El registro exportado añade `seo_slot`; las once clases de secciones conservan su contrato.
+
+Las escrituras del panel usan sesión, CSRF y `expected_version`, con HTTP 409 si otra persona guardó antes. No hay escrituras editoriales públicas. Las redirecciones manuales aceptan únicamente direcciones internas normalizadas ES/EN y comprueban que su destino exista. Inicio se representa como `/es` o `/en`; también se acepta escribir la barra final en el formulario. No se cuentan visitas redirigidas en esta fase.
+
+Las páginas añaden también `body_visible` (booleano). Personaliza conserva oculto el cuerpo general de sus publicaciones históricas; una edición explícita del cuerpo lo habilita en el borrador y al publicar. Las otras páginas muestran el cuerpo como antes. Restaurar una publicación recupera ese comportamiento.

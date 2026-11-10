@@ -1,6 +1,6 @@
 import type { MetadataRoute } from 'next';
 import { connection } from 'next/server';
-import { getCatalog, getPiece, getSettings, getTaxonomy, getPublishedPage, siteUrl } from '@/lib/api/server';
+import { getCatalog, getPiece, getTaxonomy, getPublishedPageByKind, ApiError, siteUrl } from '@/lib/api/server';
 import { href, type RouteKey } from '@/lib/routes';
 import { taxonomyAlternates, taxonomyItems } from '@/lib/taxonomy';
 import { locales } from '@/lib/i18n';
@@ -9,13 +9,13 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   await connection();
   const entries = new Map<string, MetadataRoute.Sitemap[number]>();
   const add = (url: string, languages?: { es: string; en: string }) => { const absolute = new URL(url, siteUrl).href; entries.set(absolute, { url: absolute, ...(languages ? { alternates: { languages: { es: new URL(languages.es, siteUrl).href, en: new URL(languages.en, siteUrl).href } } } : {}) }); };
-  for (const key of ['home','catalog','personalize','story','contact'] as RouteKey[]) { const languages = { es: href(key,'es'), en: href(key,'en') }; for (const value of Object.values(languages)) add(value, languages); }
+  for (const key of ['home','catalog'] as RouteKey[]) { const languages = { es: href(key,'es'), en: href(key,'en') }; for (const value of Object.values(languages)) add(value, languages); }
   // Fail rather than cache an incomplete sitemap if the API is unavailable.
   const [esTaxonomy, enTaxonomy] = await Promise.all([getTaxonomy('es'), getTaxonomy('en')]);
   for (const current of locales) {
     const taxonomy = current === 'es' ? esTaxonomy : enTaxonomy;
     const otherTaxonomy = current === 'es' ? enTaxonomy : esTaxonomy;
-    const settings = await getSettings(current);
+
     for (const key of ['category', 'stone', 'collection'] as const) {
       for (const item of taxonomyItems(taxonomy, key)) {
         const alternates = taxonomyAlternates(key, current, item.slug, taxonomy, otherTaxonomy);
@@ -24,11 +24,16 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         else add(href(key, current, item.slug));
       }
     }
-    const legalPages = await Promise.all(settings.legal_pages.map(page => {
-      const slug = decodeURIComponent(page.href.split('/').filter(Boolean).at(-1)!);
-      return getPublishedPage(current, slug);
-    }));
-    for (const page of legalPages) add(page.alternates[current], page.alternates);
+    for (const kind of ['terms', 'privacy', 'returns', 'shipping', 'cookies', 'manufacturer', 'contact', 'personalize']) {
+      try {
+        const page = await getPublishedPageByKind(current, kind);
+        if (!page.seo?.noindex) add(page.alternates[current], page.alternates);
+      } catch (error) {
+        if (!(error instanceof ApiError && error.status === 404)) throw error;
+        const route = { manufacturer: 'story', personalize: 'personalize', contact: 'contact' }[kind] as RouteKey | undefined;
+        if (route) { const languages = { es: href(route, 'es'), en: href(route, 'en') }; add(languages[current], languages); }
+      }
+    }
     let page = 1;
     while (true) {
       const catalog = await getCatalog(current, `availability=all&page_size=48&page=${page}`);

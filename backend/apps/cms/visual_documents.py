@@ -9,8 +9,20 @@ from django.shortcuts import get_object_or_404
 from apps.audit.services import record
 
 from . import editor_services, services
-from .models import FaqItem, HeroSlide, HomeSection, Page, ProcessStep
+from .models import ContentDocument, FaqItem, HeroSlide, HomeSection, Page, ProcessStep
 from .registry import REGISTRY, export_registry, get_type, text, validate_fields
+
+
+def merge_values(previous, patch):
+    """A patch in English must never clear the existing Spanish source."""
+    result = deepcopy(previous)
+    for key, value in patch.items():
+        result[key] = (
+            {**result.get(key, {}), **value}
+            if isinstance(value, dict) and isinstance(result.get(key), dict)
+            else value
+        )
+    return result
 
 
 def page_for(key):
@@ -81,6 +93,15 @@ def values(section):
 
 
 def read_sections(key):
+    if key.startswith("menu:"):
+        return [
+            {
+                "id": "menu",
+                "kind": "menu",
+                "visible": True,
+                "values": {"items": ContentDocument.objects.get(key=key).menu_items},
+            }
+        ]
     if key == "home":
         return [
             {"id": str(row.pk), "kind": row.kind, "visible": row.is_visible, "values": values(row)}
@@ -92,10 +113,7 @@ def read_sections(key):
             "id": "page",
             "kind": "page",
             "visible": True,
-            "values": {
-                f: translations(page, f)
-                for f in ("title",) + (() if page.kind == "personalize" else ("body",))
-            },
+            "values": {f: translations(page, f) for f in ("title", "body", "slug")},
         }
     ]
     for kind, binding in export_registry()["page_bindings"].get(key, {}).items():
@@ -119,8 +137,37 @@ def read_sections(key):
 
 def applicable_registry(key):
     specs = [asdict(spec) for spec in REGISTRY.values() if key in spec.documents]
+    if key.startswith("menu:"):
+        from .registry import CTA, Field
+
+        return [
+            {
+                "kind": "menu",
+                "name": "Enlaces del menú",
+                "icon": "menu",
+                "fields": [
+                    asdict(
+                        Field(
+                            "items",
+                            "list",
+                            "Enlaces",
+                            max=8 if key == "menu:main" else 12,
+                            default=[],
+                            sortable=True,
+                            fields=(
+                                replace(CTA, key="link", label="Enlace", max=40),
+                                Field("visible", "boolean", "Mostrar enlace", default=True),
+                            ),
+                        )
+                    )
+                ],
+                "multiple": False,
+                "can_hide": False,
+                "can_reorder": False,
+            }
+        ]
     if key != "home":
-        page = page_for(key)
+        page_for(key)
         specs.append(
             {
                 "kind": "page",
@@ -128,11 +175,8 @@ def applicable_registry(key):
                 "icon": "article",
                 "fields": [
                     asdict(text("title", "Título", 250, required=True)),
-                    *(
-                        []
-                        if page.kind == "personalize"
-                        else [asdict(text("body", "Contenido", 50000, type="markdown"))]
-                    ),
+                    asdict(text("body", "Contenido", 50000, type="markdown")),
+                    asdict(text("slug", "Dirección de la página", 250)),
                 ],
                 "multiple": False,
                 "can_hide": False,
@@ -141,6 +185,25 @@ def applicable_registry(key):
         )
         for spec in specs:
             spec.update(multiple=False, can_hide=False, can_reorder=False)
+    from .registry import SEO_SLOT, Field
+
+    specs.append(
+        {
+            "kind": "seo",
+            "name": "Buscadores y redes sociales",
+            "icon": "search",
+            "fields": [
+                asdict(text("title", "Título SEO", 60)),
+                asdict(text("description", "Descripción SEO", 155, type="long_text")),
+                asdict(Field("image", "image", "Foto para compartir", default=None)),
+                asdict(Field("noindex", "boolean", "No indexar", default=False)),
+            ],
+            "slots": [asdict(SEO_SLOT)],
+            "multiple": False,
+            "can_hide": False,
+            "can_reorder": False,
+        }
+    )
     return specs
 
 
@@ -195,6 +258,73 @@ def write_values(section, data):
 
 def mutate(key, action, data, actor, request):
     """Caller holds edit_document, including version check, before reading any rows."""
+    if action == "translation-equal":
+        from .phase6_views import missing_pairs
+
+        document = ContentDocument.objects.get(key=key)
+        section = next((row for row in read_sections(key) if row["id"] == data["id"]), None)
+        if data["id"] == "seo" and not key.startswith("menu:"):
+            section = {"values": document.seo}
+        match = (
+            next(
+                (
+                    (path, es, en)
+                    for path, es, en in missing_pairs(section["values"])
+                    if path == data["path"]
+                ),
+                None,
+            )
+            if section
+            else None
+        )
+        if not match or match[1] != match[2]:
+            raise ValidationError("Solo puedes marcar textos que ya sean iguales en ambos idiomas.")
+        document.translation_exemptions = {
+            **document.translation_exemptions,
+            f"{data['id']}.{data['path']}": match[1],
+        }
+        document.save(update_fields=["translation_exemptions"])
+        record("cms.translation_equal", actor=actor, obj=document, request=request)
+        return
+    if data.get("id") == "seo":
+        from .media import validate_reference
+        from .page_options import validate_seo
+
+        document = ContentDocument.objects.get(key=key)
+        if action == "media-select":
+            value = {"image": validate_reference(data["reference"], selecting=True)}
+        elif action == "update":
+            value = data["values"]
+        else:
+            raise ValidationError("Guarda las opciones para buscadores.")
+        before = deepcopy(document.seo)
+        document.seo = validate_seo(merge_values(before, value), before, actor)
+        document.save(update_fields=["seo"])
+        record(
+            "cms.seo_saved",
+            actor=actor,
+            obj=document,
+            request=request,
+            diff={"Opciones para buscadores": [before, document.seo]},
+        )
+        return
+    if key.startswith("menu:"):
+        from .menus import validate_items
+
+        if action != "update" or data.get("id") != "menu" or set(data["values"]) != {"items"}:
+            raise ValidationError("Guarda los enlaces del menú.")
+        document = ContentDocument.objects.get(key=key)
+        before = deepcopy(document.menu_items)
+        document.menu_items = validate_items(key, data["values"]["items"])
+        document.save(update_fields=["menu_items"])
+        record(
+            "cms.menu_saved",
+            actor=actor,
+            obj=document,
+            request=request,
+            diff={"Enlaces": [before, document.menu_items]},
+        )
+        return
     if key != "home":
         if action != "update":
             raise ValidationError("Esta página tiene una estructura fija.")
@@ -204,17 +334,17 @@ def mutate(key, action, data, actor, request):
                 text(
                     f,
                     f,
-                    250 if f == "title" else 50000,
-                    type="short_text" if f == "title" else "markdown",
+                    50000 if f == "body" else 250,
+                    type="markdown" if f == "body" else "short_text",
                 )
-                for f in ("title",) + (() if page.kind == "personalize" else ("body",))
+                for f in ("title", "body", "slug")
             )
             cleaned = validate_fields(
                 fields,
-                {
-                    **next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
-                    **data["values"],
-                },
+                merge_values(
+                    next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
+                    data["values"],
+                ),
             )
             for field, value in cleaned.items():
                 for lang in ("es", "en"):
@@ -241,10 +371,10 @@ def mutate(key, action, data, actor, request):
         )
         cleaned = validate_fields(
             fields,
-            {
-                **next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
-                **data["values"],
-            },
+            merge_values(
+                next(row["values"] for row in read_sections(key) if row["id"] == data["id"]),
+                data["values"],
+            ),
         )
         if "title" in data["values"]:
             for lang in ("es", "en"):

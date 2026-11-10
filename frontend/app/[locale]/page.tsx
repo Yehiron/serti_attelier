@@ -1,3 +1,5 @@
+import { applyCmsSeo } from '@/lib/cms-seo';
+import { siteUrl } from '@/lib/api/server';
 import { draftMode } from 'next/headers';
 import { CmsDraftSelection } from '@/components/cms-draft-selection';
 import { sectionAttributes } from '@/lib/cms-selection';
@@ -18,7 +20,8 @@ import { pageMetadata, PageAlternates } from '@/lib/metadata';
 export const instant = false;
 export async function generateMetadata() {
   const current = await locale(); if (!isLocale(current)) notFound(); const dict = await getDictionary();
-  return pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' });
+  const home = await getHome(current);
+  return applyCmsSeo(pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' }), home.seo, siteUrl, (await draftMode()).isEnabled);
 }
 export default async function Home() {
   const current = await locale(); if (!isLocale(current)) notFound();

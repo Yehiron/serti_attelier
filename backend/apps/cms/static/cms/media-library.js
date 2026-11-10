@@ -41,6 +41,7 @@
     }
     async function mutate(action,data={}){if(pending)return;pending=true;detail.inert=true;try{const result=await request(`${api}${asset.id}/`,{action,expected_version:asset.version,...data});if(result.deleted){asset=null;cropper?.destroy();detail.replaceChildren(el('p','Foto eliminada.'));}else{asset=result;draw();}void list();return true;}catch(error){message(error.message,true);return false;}finally{pending=false;detail.inert=false;}}
     async function savePhoto(){capture();return await mutate('save',Object.fromEntries(['title','tags','alt_es','alt_en','focal_x','focal_y','crops'].map(k=>[k,asset[k]])));}
+    const requested=new URLSearchParams(location.search).get('asset');if(requested&&!onChoose)void open(requested).then(()=>{if(new URLSearchParams(location.search).get('language')==='en')detail.querySelector('[aria-label="Texto alternativo (EN)"]')?.focus();});
     void list();return ()=>{clearTimeout(poll);clearTimeout(searchTimer);cropper?.destroy();};
   }
   window.CmsMediaLibrary={open(options){const dialog=el('dialog','',{class:'cms-library-dialog','aria-label':'Elegir de la biblioteca'}),host=el('div');dialog.append(host);document.body.append(dialog);const previous=document.activeElement;let destroy;const close=()=>{destroy?.();dialog.close();dialog.remove();previous?.focus();};destroy=mount(host,options.api,options.csrf,{...options,close,onChoose:ref=>{options.onChoose(ref);close();}});dialog.addEventListener('cancel',event=>{event.preventDefault();close();});dialog.showModal();}};

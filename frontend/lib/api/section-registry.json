@@ -1249,6 +1249,19 @@
       "storage": "props_or_page_models"
     }
   ],
+  "seo_slot": {
+    "key": "image",
+    "label": "Foto para compartir",
+    "desktop": "1.91:1 · 1200 x 628 px",
+    "mobile": "1.91:1 · 1200 x 628 px",
+    "alt_required": [
+      "es",
+      "en"
+    ],
+    "ratios": [
+      "1.91:1"
+    ]
+  },
   "page_bindings": {
     "page:personalize": {
       "process": {

@@ -23,3 +23,25 @@ def cms_form_data(url, data):
         else (Page.objects.get(pk=document) if document.isdecimal() else None)
     )
     return {"expected_version": cms_version(page), **data}
+
+
+def historical_public_bytes(apps, url, locale):
+    """Exercise the real public view against the schema under migration.
+
+    Selectors use historical models in that window. New additive options absent
+    from the old schema read as defaults; no publication or stored byte changes.
+    """
+    from contextlib import ExitStack
+    from unittest.mock import patch
+
+    from django.test import Client
+
+    home = apps.get_model("cms", "HomePublication")
+    with ExitStack() as stack:
+        stack.enter_context(patch("apps.cms.selectors.HomePublication", home))
+        stack.enter_context(patch("apps.cms.selectors.Page", apps.get_model("cms", "Page")))
+        if not any(field.name == "seo" for field in home._meta.concrete_fields):
+            stack.enter_context(patch.object(home, "seo", {}, create=True))
+        response = Client().get(url, {"locale": locale})
+        assert response.status_code == 200
+        return response.content

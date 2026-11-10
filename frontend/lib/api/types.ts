@@ -23,9 +23,12 @@ export type StonePanel = Named & { description: string; image: Image | null; hre
 export type HeroSlide = { image: Image | null; mobile_image: Image | null };
 export type { Section } from './sections.generated';
 import type { Section } from './sections.generated';
-export type Home = { sections: Section[]; published_at: string | null; preview: boolean };
+export type CmsSeo = { title: string; description: string; image: Image | null; noindex: boolean };
+export type CmsMenuItem = { label: string; href: string; external: boolean; dropdown: 'catalog' | 'stones' | 'collections' | null };
+export type CmsMenu = { items: CmsMenuItem[]; preview: boolean };
+export type Home = { seo?: CmsSeo; sections: Section[]; published_at: string | null; preview: boolean };
 export type PageKind = 'terms' | 'privacy' | 'returns' | 'shipping' | 'cookies' | 'manufacturer' | 'personalize' | 'contact';
-export type CmsPage = { process?: { schema_version?: 1; title: string; steps: { title: string; description: string }[] }; faq?: { schema_version?: 1; title: string; items: { question: string; answer_html: string }[] }; kind: PageKind; slug: string; title: string; body_html: string; version: number; updated_at: string; alternates: Alternates };
+export type CmsPage = { body_visible?: boolean; seo?: CmsSeo; process?: { schema_version?: 1; title: string; steps: { title: string; description: string }[] }; faq?: { schema_version?: 1; title: string; items: { question: string; answer_html: string }[] }; kind: PageKind; slug: string; title: string; body_html: string; version: number; updated_at: string; alternates: Alternates };
 export type Personalization = { services: { id: string | number; title: string; description: string; image: Image | null; whatsapp_url: string | null }[] };
 export type Settings = { title_scale: number; text_scale: number; legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
 export type Problem = { code: string; title?: string; detail?: string; status?: number; skus?: string[]; errors?: Record<string, string[] | Record<string, string[]>> };

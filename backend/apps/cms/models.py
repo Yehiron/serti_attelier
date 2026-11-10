@@ -63,8 +63,12 @@ class Page(Timestamped):
 
     kind = models.CharField(verbose_name=_("Tipo"), max_length=20, choices=Kind, unique=True)
     title = models.CharField(verbose_name=_("Título"), max_length=250)
-    slug = models.SlugField(verbose_name=_("Slug"), max_length=250, blank=True)
+    slug = models.SlugField(verbose_name=_("Dirección de la página"), max_length=250, blank=True)
     body = models.TextField(verbose_name=_("Contenido"), blank=True)
+    body_enabled = models.BooleanField(
+        _("Contenido de Personaliza habilitado"), default=False, editable=False
+    )
+    slug_paths = models.JSONField(_("Direcciones elegidas"), default=dict, blank=True)
     process_title = models.CharField(
         _("Título de los pasos"), max_length=120, default="De una idea a tu joya"
     )
@@ -358,6 +362,7 @@ class ImmutableSnapshot(models.Model):
 
 
 class HomePublication(ImmutableSnapshot):
+    seo = models.JSONField(_("Opciones para buscadores"), default=dict, blank=True)
     note = models.CharField(verbose_name=_("Nota"), max_length=300, blank=True)
     # Keep editable source separate from the public snapshot, including hidden sections.
     draft_snapshot = models.JSONField(
@@ -415,7 +420,79 @@ class PersonalizationService(Illustrated):
         return self.title
 
 
+class MenuPublication(ImmutableSnapshot):
+    menu = models.CharField(
+        _("Menú"), max_length=20, choices=[("main", "Principal"), ("footer", "Pie de página")]
+    )
+    note = models.CharField(_("Nota"), max_length=300, blank=True)
+    objects = ImmutableQuerySet["MenuPublication"].as_manager()
+
+    class Meta(ImmutableSnapshot.Meta):
+        verbose_name = _("publicación de menú")
+        verbose_name_plural = _("publicaciones de menús")
+
+    def __str__(self):
+        return f"{self.get_menu_display()} · {self.published_at}"
+
+
+class Redirect(Timestamped):
+    from_path = models.CharField(_("Dirección anterior"), max_length=500, unique=True)
+    to_path = models.CharField(_("Dirección de destino"), max_length=500)
+    locale = models.CharField(
+        _("Idioma"), max_length=2, choices=[("es", "Español"), ("en", "Inglés")]
+    )
+    status_code = models.PositiveSmallIntegerField(
+        _("Código de redirección"),
+        default=301,
+        choices=[(301, "301 · Permanente"), (308, "308 · Permanente")],
+    )
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Creada por"),
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    hits = models.PositiveBigIntegerField(_("Visitas redirigidas"), default=0)
+    last_hit_at = models.DateTimeField(_("Última visita redirigida"), null=True, blank=True)
+    is_active = models.BooleanField(_("Activa"), default=True)
+    origin = models.CharField(
+        _("Origen"),
+        max_length=10,
+        default="manual",
+        choices=[("automatic", "Automática"), ("manual", "Manual")],
+    )
+
+    class Meta:
+        verbose_name = _("redirección")
+        verbose_name_plural = _("redirecciones")
+        ordering = ["from_path"]
+        constraints = [
+            models.CheckConstraint(
+                condition=~models.Q(from_path=models.F("to_path")), name="cms_redirect_not_self"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(status_code__in=[301, 308]), name="cms_redirect_permanent"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.from_path} → {self.to_path}"
+
+
 class ContentDocument(models.Model):
+    translation_exemptions = models.JSONField(
+        _("Textos iguales en ambos idiomas"), default=dict, blank=True
+    )
+    seo = models.JSONField(_("Opciones para buscadores"), default=dict, blank=True)
+    menu_items = models.JSONField(_("Enlaces del menú"), default=list, blank=True)
+    menu_publication = models.ForeignKey(
+        MenuPublication,
+        verbose_name=_("Publicación del menú"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     key = models.CharField(_("Identificador del documento"), max_length=50, unique=True)
     draft_version = models.PositiveBigIntegerField(_("Versión del borrador"), default=0)
     updated_at = models.DateTimeField(_("Actualizado el"), auto_now=True)
@@ -456,6 +533,14 @@ class ContentDocument(models.Model):
 
 
 class DraftRevision(ImmutableSnapshot):
+    seo = models.JSONField(_("Opciones para buscadores"), default=dict, blank=True)
+    restored_from_menu = models.ForeignKey(
+        MenuPublication,
+        verbose_name=_("Publicación del menú"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     document = models.ForeignKey(
         ContentDocument,
         verbose_name=_("Documento"),
@@ -494,8 +579,21 @@ class DraftRevision(ImmutableSnapshot):
             ),
             models.CheckConstraint(
                 condition=(
-                    models.Q(restored_from_home__isnull=False, restored_from_page__isnull=True)
-                    | models.Q(restored_from_home__isnull=True, restored_from_page__isnull=False)
+                    models.Q(
+                        restored_from_home__isnull=False,
+                        restored_from_page__isnull=True,
+                        restored_from_menu__isnull=True,
+                    )
+                    | models.Q(
+                        restored_from_home__isnull=True,
+                        restored_from_page__isnull=False,
+                        restored_from_menu__isnull=True,
+                    )
+                    | models.Q(
+                        restored_from_home__isnull=True,
+                        restored_from_page__isnull=True,
+                        restored_from_menu__isnull=False,
+                    )
                 ),
                 name="cms_restore_one_origin",
             ),
@@ -506,7 +604,7 @@ class DraftRevision(ImmutableSnapshot):
 
     @property
     def restored_from(self):
-        return self.restored_from_home or self.restored_from_page
+        return self.restored_from_home or self.restored_from_page or self.restored_from_menu
 
 
 class MediaAsset(Timestamped):

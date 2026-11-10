@@ -9,10 +9,28 @@ import { routeDecision } from "@/lib/routes";
 
 import { protectDraftResponse } from '@/lib/cms-preview';
 
+import { resolveCmsRedirect, redirectPathAllowed, type CmsRedirect } from '@/lib/cms-redirects';
+
 const ONE_YEAR = 60 * 60 * 24 * 365;
 
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
+  if (redirectPathAllowed(pathname) && !request.cookies.has('__prerender_bypass')) {
+    try {
+      const api = (process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '');
+      const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
+      if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
+      const response = await fetch(`${api}/cms/redirects`, { headers, next: { revalidate: 60 }, signal: AbortSignal.timeout(2000) });
+      if (response.ok) {
+        const rows: unknown = await response.json();
+        const redirect = Array.isArray(rows) ? resolveCmsRedirect(pathname, rows as CmsRedirect[]) : null;
+        if (redirect) {
+          const url = request.nextUrl.clone(); url.pathname = redirect.pathname;
+          return NextResponse.redirect(url, redirect.status);
+        }
+      }
+    } catch { /* A temporary CMS outage must not block the storefront. */ }
+  }
   // Never trust a browser-supplied preflight. These are request headers only,
   // overwritten on every proxy traversal, never returned to the browser.
   const forwarded = new Headers(request.headers);
@@ -84,7 +102,7 @@ export async function proxy(request: NextRequest) {
 export const config = {
   // Django owns /api, /static, /media and the admin path (routed by Caddy);
   // files with an extension and Next internals never need a locale.
-  matcher: ["/es/pedido/:path*", "/en/pedido/:path*", "/es/order/:path*", "/en/order/:path*", "/((?!preview|api|static|media|healthz|_next|.*\\..*).*)"],
+  matcher: ["/es/pedido/:path*", "/en/pedido/:path*", "/es/order/:path*", "/en/order/:path*", "/((?!preview|api|dashboard|static|media|healthz|_next|.*\\..*).*)"],
 };
 
 export function previewHeaders(request: NextRequest, response: NextResponse) {

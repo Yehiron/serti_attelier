@@ -279,7 +279,7 @@ def test_home_api_matches_category_schema(actor):
     properties = schema["components"]["schemas"]["HomeCategory"]["properties"]
     for category in data["sections"][0]["categories"]:
         assert set(category) == set(properties)
-    assert set(data) == {"sections", "published_at", "preview"}
+    assert set(data) == {"sections", "published_at", "preview", "seo"}
 
 
 @pytest.mark.parametrize("kind", ["story", "personalize", "banner"])

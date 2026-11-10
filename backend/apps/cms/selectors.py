@@ -18,6 +18,7 @@ from apps.core.selectors import get_solo
 from apps.core.whatsapp import render_whatsapp
 
 from .models import (
+    ContentDocument,
     HeroSlide,
     HomePublication,
     HomeSection,
@@ -225,13 +226,33 @@ def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, 
 
 
 def home(locale: str, preview: bool = False) -> dict[str, Any]:
-    publication = HomePublication.objects.first()
+    from django.db.models import Subquery
+
+    if preview:
+        document = (
+            ContentDocument.objects.filter(key="home")
+            .annotate(
+                live_published_at=Subquery(HomePublication.objects.values("published_at")[:1]),
+            )
+            .first()
+        )
+        publication = (
+            SimpleNamespace(published_at=document.live_published_at)
+            if document and document.live_published_at
+            else None
+        )
+    else:
+        publication = HomePublication.objects.first()
     sections = (
         render_sections(list(draft_sections()), locale)
         if preview
         else (publication.snapshot[locale] if publication else [])
     )
+    from .page_options import public_seo
+
+    seo = (document.seo if document else {}) if preview else publication.seo if publication else {}
     return {
+        "seo": public_seo(seo, locale),
         "sections": resolve_live(sections, locale),
         "published_at": publication.published_at.isoformat() if publication else None,
         "preview": preview,
@@ -255,7 +276,10 @@ def page_payload(page: Page, locale: str, revision: PageRevision | None = None) 
         from .services import page_snapshot
 
         content = page_content(page_snapshot(page))
+    from .page_options import public_seo, snapshot_path
+
     return {
+        "seo": public_seo(content.get("_seo", {}), locale),
         **(
             {
                 "process": {
@@ -288,12 +312,10 @@ def page_payload(page: Page, locale: str, revision: PageRevision | None = None) 
         "slug": content[locale]["slug"],
         "title": content[locale]["title"],
         "body_html": content[locale]["body_html"],
+        "body_visible": page.kind != "personalize" or content.get("_body_enabled", False),
         "version": revision.version if revision else page.version,
         "updated_at": (revision.published_at if revision else page.updated_at).isoformat(),
-        "alternates": {
-            lang: page_path(page.kind, lang, content["es"]["slug"], content["en"]["slug"])
-            for lang in ("es", "en")
-        },
+        "alternates": {lang: snapshot_path(page, content, lang) for lang in ("es", "en")},
     }
 
 

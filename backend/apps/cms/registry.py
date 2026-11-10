@@ -56,6 +56,15 @@ class ImageSlot:
     ratios: tuple[str, ...] = ("16:9", "4:5", "1:1")
 
 
+SEO_SLOT = ImageSlot(
+    "image",
+    "Foto para compartir",
+    "1.91:1 · 1200 x 628 px",
+    "1.91:1 · 1200 x 628 px",
+    ratios=("1.91:1",),
+)
+
+
 @dataclass(frozen=True)
 class SectionType:
     kind: str
@@ -452,6 +461,7 @@ def export_registry():
         "registry_version": 1,
         "locales": ["es", "en"],
         "sections": [asdict(spec) for spec in REGISTRY.values()],
+        "seo_slot": asdict(SEO_SLOT),
         "page_bindings": {
             "page:personalize": {
                 "process": {

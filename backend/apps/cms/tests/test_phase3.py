@@ -21,6 +21,7 @@ from apps.cms.documents import ContentConflict, get_document
 from apps.cms.models import DraftRevision, HomePublication, HomeSection, Page, PageRevision
 from apps.cms.registry import REGISTRY, validate_props
 from apps.cms.section_adapters import home_sections, page_content
+from apps.cms.tests.helpers import historical_public_bytes
 from apps.cms.tests.test_registry import bilingual, props
 
 pytestmark = pytest.mark.django_db
@@ -289,10 +290,10 @@ def test_migration_preserves_public_bytes_idempotent_and_safe_reverse():
         page.version, page.status = revision.version, "published"
         page.save()
         sources = list(section_model.objects.values())
-        # Published readers do not query new draft columns; both routes work before expansion.
+        # Real public views read historical models while their schema is under expansion.
         urls = [reverse("cms-home"), reverse("cms-page-kind", args=["personalize"])]
         baseline = {
-            (url, locale): Client().get(url, {"locale": locale}).content
+            (url, locale): historical_public_bytes(historical, url, locale)
             for url in urls
             for locale in ("es", "en")
         }
@@ -309,7 +310,7 @@ def test_migration_preserves_public_bytes_idempotent_and_safe_reverse():
         )
         for url in urls:
             for locale in ("es", "en"):
-                assert Client().get(url, {"locale": locale}).content == baseline[url, locale]
+                assert historical_public_bytes(current, url, locale) == baseline[url, locale]
         # Compare with the historical model: the runtime model's modeltranslation manager
         # rewrites `title` to `title_<active language>`, which depends on earlier tests.
         assert (

@@ -24,11 +24,13 @@ from .models import DraftRevision, HomePublication, HomeSection, MediaAsset, Pag
 
 
 def ratios():
-    from .registry import REGISTRY
+    from .registry import REGISTRY, SEO_SLOT
 
     return tuple(
         dict.fromkeys(
-            ratio for spec in REGISTRY.values() for slot in spec.slots for ratio in slot.ratios
+            ratio
+            for slot in [SEO_SLOT, *(slot for spec in REGISTRY.values() for slot in spec.slots)]
+            for ratio in slot.ratios
         )
     )
 
@@ -47,7 +49,7 @@ def validate_adjustments(focal_x, focal_y, crops, width, height):
         if not all(unit(v) for v in box.values()):
             raise ValidationError("El recorte debe estar dentro de la foto.")
         x, y, w, h = (box[k] for k in ("x", "y", "w", "h"))
-        a, b = map(int, ratio.split(":"))
+        a, b = map(float, ratio.split(":"))
         if w <= 0 or h <= 0 or x + w > 1.000001 or y + h > 1.000001:
             raise ValidationError("El recorte debe estar dentro de la foto.")
         if abs(w * width / (h * height) - a / b) > 0.015:
@@ -111,7 +113,7 @@ def enqueue(asset_id, version):
 
 
 def default_crop(asset, ratio):
-    a, b = map(int, ratio.split(":"))
+    a, b = map(float, ratio.split(":"))
     w = min(1, asset.height * a / b / asset.width)
     h = min(1, asset.width * b / a / asset.height)
     return {
@@ -223,7 +225,7 @@ def all_usage():
     for row in publications:
         label = "Publicado" if row.pk == publications[0].pk else "Historial"
         sources.append(
-            (label, f"Inicio · publicación {row.pk}", [row.snapshot, row.draft_snapshot])
+            (label, f"Inicio · publicación {row.pk}", [row.snapshot, row.draft_snapshot, row.seo])
         )
     for row in revisions:
         sources.append(
@@ -233,8 +235,28 @@ def all_usage():
                 row.snapshot,
             )
         )
-    for row in DraftRevision.objects.all():
-        sources.append(("Historial", f"Restauración {row.pk}", row.snapshot))
+    from django.db.models import CharField, JSONField, Value
+    from django.db.models.functions import Cast
+
+    from .models import ContentDocument
+
+    restored = (
+        DraftRevision.objects.order_by()
+        .annotate(usage_key=Cast("pk", CharField()), usage_kind=Value("restore"))
+        .values_list("usage_key", "snapshot", "seo", "usage_kind")
+    )
+    drafts = (
+        ContentDocument.objects.exclude(seo={})
+        .order_by()
+        .annotate(usage_snapshot=Value({}, output_field=JSONField()), usage_kind=Value("draft"))
+        .values_list("key", "usage_snapshot", "seo", "usage_kind")
+    )
+    for key, snapshot, seo, kind in restored.union(drafts, all=True):
+        sources.append(
+            ("Historial", f"Restauración {key}", [snapshot, seo])
+            if kind == "restore"
+            else ("Borrador", key, seo)
+        )
     # Personalization services are CMS images but independent from home documents.
     from .models import PersonalizationService
 

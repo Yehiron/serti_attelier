@@ -6,7 +6,7 @@ from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView
 
-from apps.cms import media_views
+from apps.cms import media_views, phase6_views
 from apps.cms.editor import action
 from apps.cms.editor_api import document as editor_document
 from apps.cms.editor_api import editor
@@ -17,6 +17,16 @@ from apps.cms.registry_view import section_registry
 from apps.notifications import views as notification_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    path(
+        settings.ADMIN_URL + "redirecciones/",
+        admin.site.admin_view(phase6_views.redirects),
+        name="cms-redirect-management",
+    ),
+    path(
+        settings.ADMIN_URL + "traducciones/",
+        admin.site.admin_view(phase6_views.translations),
+        name="cms-translations",
+    ),
     path(settings.ADMIN_URL + "biblioteca/", media_views.library, name="cms-media"),
     path(settings.ADMIN_URL + "biblioteca/api/", media_views.assets, name="cms-media-api"),
     path(

@@ -401,6 +401,12 @@ class FaqItemInline(PageItemInline):
 
 @admin.register(Page)
 class PageAdmin(ContentAdmin):
+    def has_add_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
     list_display = ("title", "kind", "status", "version")
     readonly_fields = (
         *ContentAdmin.readonly_fields,
