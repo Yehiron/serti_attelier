@@ -19,6 +19,7 @@ x-backend: &backend
     WOMPI_EVENTS_SECRET: test_events_e2e_secret
   volumes:
     - ../backend:/app
+    - ../frontend/lib/api:/frontend/lib/api:ro
     # Lets the backend test suite exercise the fake's contract (read-only).
     - ./wompi-fake:/infra/wompi-fake:ro
   depends_on:

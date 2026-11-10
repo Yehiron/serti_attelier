@@ -1,3 +1,4 @@
+import { RegistrySection } from './registry-section';
 import { EditorialTitle } from './editorial-title';
 import Link from 'next/link';
 import type { Dictionary } from '@/app/[locale]/dictionaries';
@@ -59,6 +60,10 @@ export function HomeSection({ section, locale, dict, firstHero }: { section: Sec
     case 'statement': return <StatementSection section={section} dict={dict} />;
     case 'stone_panels': return <StonePanels {...section} explore={dict.ui.explore} />;
     case 'collection_rail': return <CollectionSection section={section} locale={locale} dict={dict} />;
-    default: return <StorySection section={section} />;
+    case 'story': case 'personalize': case 'banner': return <StorySection section={section} />;
+    case 'image_text': case 'faq': case 'process': return <RegistrySection section={section} />;
+    default:
+      console.warn('Se omite una sección CMS desconocida:', (section as { kind: string }).kind);
+      return null;
   }
 }

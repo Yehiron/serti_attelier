@@ -1,0 +1,196 @@
+{
+  "es": {
+    "title": "Personaliza",
+    "slug": "personaliza",
+    "body": "Texto provisional — pendiente de revisión editorial",
+    "body_html": "<p>Texto provisional — pendiente de revisión editorial</p>",
+    "source": {
+      "title": "Personaliza",
+      "slug": "personaliza",
+      "body": "Texto provisional — pendiente de revisión editorial"
+    },
+    "process": {
+      "title": "De una idea a tu joya",
+      "steps": [
+        {
+          "title": "Conversamos sobre tu idea",
+          "description": "",
+          "position": 0,
+          "source": {
+            "title": "Conversamos sobre tu idea",
+            "description": ""
+          }
+        },
+        {
+          "title": "Elegimos piedra y metal",
+          "description": "",
+          "position": 1,
+          "source": {
+            "title": "Elegimos piedra y metal",
+            "description": ""
+          }
+        },
+        {
+          "title": "Apruebas el boceto",
+          "description": "",
+          "position": 2,
+          "source": {
+            "title": "Apruebas el boceto",
+            "description": ""
+          }
+        },
+        {
+          "title": "Taller y entrega",
+          "description": "",
+          "position": 3,
+          "source": {
+            "title": "Taller y entrega",
+            "description": ""
+          }
+        }
+      ]
+    },
+    "faq": {
+      "title": "Preguntas frecuentes",
+      "items": [
+        {
+          "question": "¿Cuánto cuesta una pieza a medida?",
+          "answer": "El precio depende de la piedra, el metal y el trabajo de taller. Conversaremos contigo antes de cotizar.",
+          "answer_html": "<p>El precio depende de la piedra, el metal y el trabajo de taller. Conversaremos contigo antes de cotizar.</p>",
+          "position": 0,
+          "source": {
+            "question": "¿Cuánto cuesta una pieza a medida?",
+            "answer": "El precio depende de la piedra, el metal y el trabajo de taller. Conversaremos contigo antes de cotizar."
+          }
+        },
+        {
+          "question": "¿Cuánto tiempo toma?",
+          "answer": "Confirmamos el tiempo de taller y entrega antes de comenzar. Cuéntanos si tienes una fecha especial.",
+          "answer_html": "<p>Confirmamos el tiempo de taller y entrega antes de comenzar. Cuéntanos si tienes una fecha especial.</p>",
+          "position": 1,
+          "source": {
+            "question": "¿Cuánto tiempo toma?",
+            "answer": "Confirmamos el tiempo de taller y entrega antes de comenzar. Cuéntanos si tienes una fecha especial."
+          }
+        },
+        {
+          "question": "¿Puedo devolver una pieza personalizada?",
+          "answer": "Consulta la política de devoluciones publicada y confirma las condiciones de tu encargo con nuestro equipo.\n\n[Devoluciones](/es/legal/devoluciones)",
+          "answer_html": "<p>Consulta la política de devoluciones publicada y confirma las condiciones de tu encargo con nuestro equipo.</p>\n<p><a href=\"/es/legal/devoluciones\" rel=\"noopener noreferrer\">Devoluciones</a></p>",
+          "position": 2,
+          "source": {
+            "question": "¿Puedo devolver una pieza personalizada?",
+            "answer": "Consulta la política de devoluciones publicada y confirma las condiciones de tu encargo con nuestro equipo.\n\n[Devoluciones](/es/legal/devoluciones)"
+          }
+        },
+        {
+          "question": "¿Puedo solicitar un certificado?",
+          "answer": "Consulta con nuestro equipo la disponibilidad y las condiciones del certificado de autenticidad.",
+          "answer_html": "<p>Consulta con nuestro equipo la disponibilidad y las condiciones del certificado de autenticidad.</p>",
+          "position": 3,
+          "source": {
+            "question": "¿Puedo solicitar un certificado?",
+            "answer": "Consulta con nuestro equipo la disponibilidad y las condiciones del certificado de autenticidad."
+          }
+        }
+      ]
+    }
+  },
+  "en": {
+    "title": "Customize",
+    "slug": "customize",
+    "body": "Provisional text — pending editorial review",
+    "body_html": "<p>Provisional text — pending editorial review</p>",
+    "source": {
+      "title": "Customize",
+      "slug": "customize",
+      "body": "Provisional text — pending editorial review"
+    },
+    "process": {
+      "title": "From an idea to your jewel",
+      "steps": [
+        {
+          "title": "We discuss your idea",
+          "description": "",
+          "position": 0,
+          "source": {
+            "title": "We discuss your idea",
+            "description": ""
+          }
+        },
+        {
+          "title": "We choose stone and metal",
+          "description": "",
+          "position": 1,
+          "source": {
+            "title": "We choose stone and metal",
+            "description": ""
+          }
+        },
+        {
+          "title": "You approve the sketch",
+          "description": "",
+          "position": 2,
+          "source": {
+            "title": "You approve the sketch",
+            "description": ""
+          }
+        },
+        {
+          "title": "Atelier and delivery",
+          "description": "",
+          "position": 3,
+          "source": {
+            "title": "Atelier and delivery",
+            "description": ""
+          }
+        }
+      ]
+    },
+    "faq": {
+      "title": "Frequently asked questions",
+      "items": [
+        {
+          "question": "How much does a custom piece cost?",
+          "answer": "Price depends on the stone, metal and work involved. We will discuss your idea before quoting.",
+          "answer_html": "<p>Price depends on the stone, metal and work involved. We will discuss your idea before quoting.</p>",
+          "position": 0,
+          "source": {
+            "question": "How much does a custom piece cost?",
+            "answer": "Price depends on the stone, metal and work involved. We will discuss your idea before quoting."
+          }
+        },
+        {
+          "question": "How long does it take?",
+          "answer": "We confirm production and delivery times before beginning. Tell us about any special date.",
+          "answer_html": "<p>We confirm production and delivery times before beginning. Tell us about any special date.</p>",
+          "position": 1,
+          "source": {
+            "question": "How long does it take?",
+            "answer": "We confirm production and delivery times before beginning. Tell us about any special date."
+          }
+        },
+        {
+          "question": "Can I return a personalized piece?",
+          "answer": "Read our published returns policy and confirm the conditions of your commission with our team.\n\n[Returns](/en/legal/returns)",
+          "answer_html": "<p>Read our published returns policy and confirm the conditions of your commission with our team.</p>\n<p><a href=\"/en/legal/returns\" rel=\"noopener noreferrer\">Returns</a></p>",
+          "position": 2,
+          "source": {
+            "question": "Can I return a personalized piece?",
+            "answer": "Read our published returns policy and confirm the conditions of your commission with our team.\n\n[Returns](/en/legal/returns)"
+          }
+        },
+        {
+          "question": "Can I request a certificate?",
+          "answer": "Ask our team about availability and conditions for a certificate of authenticity.",
+          "answer_html": "<p>Ask our team about availability and conditions for a certificate of authenticity.</p>",
+          "position": 3,
+          "source": {
+            "question": "Can I request a certificate?",
+            "answer": "Ask our team about availability and conditions for a certificate of authenticity."
+          }
+        }
+      ]
+    }
+  }
+}

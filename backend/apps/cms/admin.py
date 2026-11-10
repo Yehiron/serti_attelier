@@ -223,29 +223,31 @@ class HomeSectionAdmin(ContentAdmin):
         return (*self.readonly_fields, "kind") if obj else self.readonly_fields
 
     def get_fieldsets(self, request: HttpRequest, obj: HomeSection | None = None) -> Any:
-        kind = obj.kind if obj else "hero"
+        kind = obj.kind if obj else request.POST.get("kind", request.GET.get("kind", "hero"))
         fields = ["expected_version", "kind", "is_visible", "title"]
-        if kind in {"hero", "stone_panels", "collection_rail", "category_grid"}:
-            fields.append("subtitle")
-        if kind in {"statement", "story", "personalize", "banner"}:
-            fields.append("body")
-        if kind in {"story", "personalize", "banner"}:
-            fields.extend(["image", "image_preview", "image_alt", "image_status"])
-        if kind == "collection_rail":
-            fields.append("collection")
-        if kind in {"hero", "story", "personalize", "banner"}:
-            fields.extend(
-                [
-                    "cta_label",
-                    "cta_kind",
-                    "cta_category",
-                    "cta_stone",
-                    "cta_collection",
-                    "cta_piece",
-                    "cta_page",
-                    "cta_external_url",
-                ]
-            )
+        from .registry import REGISTRY
+
+        spec = REGISTRY.get(kind, REGISTRY["hero"])
+        if spec.storage != "columns":
+            fields = ["expected_version", "kind", "is_visible", "props"]
+        else:
+            keys = {field.key for field in spec.fields}
+            fields.extend(key for key in ("subtitle", "body", "collection") if key in keys)
+            if "image" in keys and kind != "hero":
+                fields.extend(["image", "image_preview", "image_alt", "image_status"])
+            if "cta" in keys:
+                fields.extend(
+                    [
+                        "cta_label",
+                        "cta_kind",
+                        "cta_category",
+                        "cta_stone",
+                        "cta_collection",
+                        "cta_piece",
+                        "cta_page",
+                        "cta_external_url",
+                    ]
+                )
         return [
             (None, {"fields": self.replace_orig_field(fields)}),
             (_("Orden"), {"fields": ["position"], "classes": ["collapse"]}),
@@ -382,11 +384,17 @@ class PageItemInline(TranslationTabularInline, TabularInline):
 
 
 class ProcessStepInline(PageItemInline):
+    from .registry import REGISTRY
+
+    max_num = next(field.max for field in REGISTRY["process"].fields if field.type == "list")
     model = ProcessStep
     fields = ("position", "title", "description")
 
 
 class FaqItemInline(PageItemInline):
+    from .registry import REGISTRY
+
+    max_num = next(field.max for field in REGISTRY["faq"].fields if field.type == "list")
     model = FaqItem
     fields = ("position", "question", "answer")
 

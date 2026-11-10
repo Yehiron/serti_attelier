@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from copy import deepcopy
 from types import SimpleNamespace
 from typing import Any
 from urllib.parse import urlencode
@@ -26,6 +25,8 @@ from .models import (
     PageRevision,
     PersonalizationService,
 )
+from .registry import REGISTRY
+from .section_adapters import home_sections, localize_props, page_content
 
 LEGAL_KINDS = ("terms", "privacy", "returns", "shipping", "cookies")
 
@@ -68,8 +69,25 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
     for obj in sections:
         if not obj.is_visible:
             continue
+        spec = REGISTRY.get(obj.kind)
+        if spec is None or obj.schema_version != spec.schema_version:
+            home_sections(
+                [{"kind": obj.kind, "schema_version": obj.schema_version}]
+            )  # shared warning, including draft previews
+            continue
+        if spec.storage != "columns":
+            result.append(
+                {
+                    "id": obj.pk,
+                    "kind": obj.kind,
+                    "schema_version": obj.schema_version,
+                    **localize_props(obj.kind, obj.props, locale),
+                }
+            )
+            continue
         data: dict[str, Any] = {
             "id": obj.pk,
+            "schema_version": obj.schema_version,
             "kind": obj.kind,
             "title": localized(obj, "title", locale),
         }
@@ -141,7 +159,7 @@ def home_categories(locale: str) -> list[dict[str, Any]]:
 
 
 def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, Any]]:
-    sections = deepcopy(sections)
+    sections = home_sections(sections)
     collection_ids = {
         section["collection_id"] for section in sections if section["kind"] == "collection_rail"
     }
@@ -228,16 +246,17 @@ def page_path(kind: str, locale: str, slug_es: str, slug_en: str) -> str:
 
 def page_payload(page: Page, locale: str, revision: PageRevision | None = None) -> dict[str, Any]:
     if revision:
-        content = revision.snapshot
+        content = page_content(revision.snapshot)
     else:
         from .services import page_snapshot
 
-        content = page_snapshot(page)
+        content = page_content(page_snapshot(page))
     return {
         **(
             {
                 "process": {
                     "title": content[locale]["process"]["title"],
+                    "schema_version": content[locale]["process"]["schema_version"],
                     "steps": [
                         {field: row.get(field, "") for field in ("title", "description")}
                         for row in content[locale]["process"]["steps"]
@@ -251,6 +270,7 @@ def page_payload(page: Page, locale: str, revision: PageRevision | None = None) 
             {
                 "faq": {
                     "title": content[locale]["faq"]["title"],
+                    "schema_version": content[locale]["faq"]["schema_version"],
                     "items": [
                         {field: row.get(field, "") for field in ("question", "answer_html")}
                         for row in content[locale]["faq"]["items"]

@@ -24,6 +24,7 @@ class CtaSerializer(serializers.Serializer[Any]):
 
 class SectionSerializer(serializers.Serializer[Any]):
     id = serializers.IntegerField()
+    schema_version = serializers.IntegerField()
     kind = serializers.CharField()
     title = serializers.CharField()
 
@@ -31,22 +32,6 @@ class SectionSerializer(serializers.Serializer[Any]):
 class HeroSlideSerializer(serializers.Serializer[Any]):
     image = CmsImageSerializer(allow_null=True)
     mobile_image = CmsImageSerializer(allow_null=True)
-
-
-class HeroSerializer(SectionSerializer):
-    slides = HeroSlideSerializer(many=True, required=False)
-    subtitle = serializers.CharField()
-    image = CmsImageSerializer(allow_null=True)
-    cta = CtaSerializer(allow_null=True)
-
-
-class StatementSerializer(SectionSerializer):
-    body = serializers.CharField()
-
-
-class EditorialSerializer(StatementSerializer):
-    image = CmsImageSerializer(allow_null=True)
-    cta = CtaSerializer(allow_null=True)
 
 
 class StoneSerializer(serializers.Serializer[Any]):
@@ -57,51 +42,15 @@ class StoneSerializer(serializers.Serializer[Any]):
     href = serializers.CharField()
 
 
-class StonesSerializer(SectionSerializer):
-    subtitle = serializers.CharField()
-    stones = StoneSerializer(many=True)
-
-
 class CollectionSerializer(serializers.Serializer[Any]):
     slug = serializers.CharField()
     name = serializers.CharField()
     href = serializers.CharField()
 
 
-class RailSerializer(SectionSerializer):
-    subtitle = serializers.CharField()
-    collection = CollectionSerializer()
-    pieces = PieceListSerializer(many=True)
-
-
 class HomeCategorySerializer(CollectionSerializer):
     image = CmsImageSerializer(allow_null=True)
     count = serializers.IntegerField()
-
-
-class CategoryGridSerializer(SectionSerializer):
-    subtitle = serializers.CharField()
-    categories = HomeCategorySerializer(many=True)
-
-
-class HomeSerializer(serializers.Serializer[Any]):
-    sections = PolymorphicProxySerializer(
-        component_name="HomeSection",
-        serializers={
-            "hero": HeroSerializer,
-            "statement": StatementSerializer,
-            "stone_panels": StonesSerializer,
-            "collection_rail": RailSerializer,
-            "category_grid": CategoryGridSerializer,
-            "story": EditorialSerializer,
-            "personalize": EditorialSerializer,
-            "banner": EditorialSerializer,
-        },
-        resource_type_field_name="kind",
-        many=True,
-    )
-    published_at = serializers.DateTimeField(allow_null=True)
-    preview = serializers.BooleanField()
 
 
 class CmsAlternatesSerializer(serializers.Serializer[Any]):
@@ -115,6 +64,7 @@ class ProcessStepSerializer(serializers.Serializer):
 
 
 class ProcessSerializer(serializers.Serializer):
+    schema_version = serializers.IntegerField()
     title = serializers.CharField()
     steps = ProcessStepSerializer(many=True)
 
@@ -125,8 +75,76 @@ class FaqItemSerializer(serializers.Serializer):
 
 
 class FaqSerializer(serializers.Serializer):
+    schema_version = serializers.IntegerField()
     title = serializers.CharField()
     items = FaqItemSerializer(many=True)
+
+
+def section_serializers():
+    from copy import deepcopy
+
+    from apps.cms.registry import REGISTRY
+
+    field_types = {
+        "string": serializers.CharField(),
+        "Image": CmsImageSerializer(),
+        "Image | null": CmsImageSerializer(allow_null=True),
+        "Cta | null": CtaSerializer(allow_null=True),
+        "HeroSlide[]": HeroSlideSerializer(many=True),
+        "StonePanel[]": StoneSerializer(many=True),
+        "Named & { href: string }": CollectionSerializer(),
+        "PieceCard[]": PieceListSerializer(many=True),
+        "(Named & { href: string; count: number; image: Image | null })[]": HomeCategorySerializer(
+            many=True
+        ),
+        "{ question: string; answer_html: string }[]": FaqItemSerializer(many=True),
+        "{ title: string; description: string }[]": ProcessStepSerializer(many=True),
+        "'left' | 'right'": serializers.ChoiceField(choices=["left", "right"]),
+    }
+    names = {
+        "hero": "Hero",
+        "statement": "Statement",
+        "stone_panels": "Stones",
+        "collection_rail": "Rail",
+        "category_grid": "CategoryGrid",
+        "story": "Story",
+        "personalize": "Personalize",
+        "banner": "Banner",
+        "faq": "SectionFaq",
+        "process": "SectionProcess",
+        "image_text": "ImageText",
+    }
+    result = {}
+    for spec in REGISTRY.values():
+        fields = {
+            "kind": serializers.ChoiceField(choices=[spec.kind]),
+            "schema_version": serializers.ChoiceField(choices=[spec.schema_version]),
+        }
+        for key, value in spec.public_fields:
+            field = deepcopy(field_types[value])
+            field.required = not key.endswith("?")
+            fields[key.rstrip("?")] = field
+        name = (
+            names.get(spec.kind, "".join(word.title() for word in spec.kind.split("_")))
+            + "Serializer"
+        )
+        result[spec.kind] = type(name, (SectionSerializer,), fields)
+        globals()[name] = result[spec.kind]
+    return result
+
+
+SECTION_SERIALIZERS = section_serializers()
+
+
+class HomeSerializer(serializers.Serializer[Any]):
+    sections = PolymorphicProxySerializer(
+        component_name="HomeSection",
+        serializers=SECTION_SERIALIZERS,
+        resource_type_field_name="kind",
+        many=True,
+    )
+    published_at = serializers.DateTimeField(allow_null=True)
+    preview = serializers.BooleanField()
 
 
 class PageSerializer(serializers.Serializer[Any]):

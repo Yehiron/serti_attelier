@@ -643,6 +643,9 @@ def test_schema_documents_cms_contract() -> None:
         "story",
         "personalize",
         "banner",
+        "image_text",
+        "faq",
+        "process",
     }
 
 

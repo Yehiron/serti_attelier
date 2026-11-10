@@ -1,0 +1,1259 @@
+{
+  "registry_version": 1,
+  "locales": [
+    "es",
+    "en"
+  ],
+  "sections": [
+    {
+      "kind": "hero",
+      "name": "Portada",
+      "description": "Fotos para computador y celular con título y enlace.",
+      "icon": "panorama",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "subtitle",
+          "type": "long_text",
+          "label": "Subtítulo",
+          "help": "Hasta 2000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 2000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image",
+          "type": "image",
+          "label": "Imagen",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "cta",
+          "type": "cta",
+          "label": "Enlace",
+          "help": "Elige un destino del sitio o una dirección HTTPS.",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "slides",
+          "type": "list",
+          "label": "Diapositivas",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": [],
+          "options": [],
+          "fields": [
+            {
+              "key": "device",
+              "type": "select",
+              "label": "Dispositivo",
+              "help": "",
+              "required": false,
+              "translated": false,
+              "min": null,
+              "max": null,
+              "default": "desktop",
+              "options": [
+                "desktop",
+                "mobile"
+              ],
+              "fields": [],
+              "sortable": false,
+              "option_labels": [
+                [
+                  "desktop",
+                  "Computador"
+                ],
+                [
+                  "mobile",
+                  "Celular"
+                ]
+              ]
+            },
+            {
+              "key": "image",
+              "type": "image",
+              "label": "Foto",
+              "help": "",
+              "required": true,
+              "translated": false,
+              "min": null,
+              "max": null,
+              "default": "",
+              "options": [],
+              "fields": [],
+              "sortable": false,
+              "option_labels": []
+            }
+          ],
+          "sortable": true,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "subtitle",
+          "string"
+        ],
+        [
+          "image",
+          "Image | null"
+        ],
+        [
+          "cta",
+          "Cta | null"
+        ],
+        [
+          "slides?",
+          "HeroSlide[]"
+        ]
+      ],
+      "slots": [
+        {
+          "key": "image",
+          "label": "Foto de respaldo",
+          "desktop": "16:9 · 2400 x 1350 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        },
+        {
+          "key": "slides.desktop",
+          "label": "Fotos para computador",
+          "desktop": "16:9 · 2400 x 1350 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        },
+        {
+          "key": "slides.mobile",
+          "label": "Fotos para celular",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "statement",
+      "name": "Manifiesto",
+      "description": "Título y texto de la marca.",
+      "icon": "format_quote",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "body",
+          "type": "long_text",
+          "label": "Texto",
+          "help": "Hasta 10000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 10000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "body",
+          "string"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "stone_panels",
+      "name": "Piedras",
+      "description": "Muestra las piedras del catálogo vigente.",
+      "icon": "diamond",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "subtitle",
+          "type": "long_text",
+          "label": "Subtítulo",
+          "help": "Hasta 2000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 2000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "subtitle",
+          "string"
+        ],
+        [
+          "stones",
+          "StonePanel[]"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "collection_rail",
+      "name": "Colección",
+      "description": "Carrusel de piezas de una colección vigente.",
+      "icon": "view_carousel",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "subtitle",
+          "type": "long_text",
+          "label": "Subtítulo",
+          "help": "Hasta 2000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 2000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "collection",
+          "type": "collection",
+          "label": "Colección",
+          "help": "",
+          "required": true,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": "",
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "subtitle",
+          "string"
+        ],
+        [
+          "collection",
+          "Named & { href: string }"
+        ],
+        [
+          "pieces",
+          "PieceCard[]"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "story",
+      "name": "Historia",
+      "description": "Foto, título, texto y enlace opcional.",
+      "icon": "auto_stories",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "body",
+          "type": "long_text",
+          "label": "Texto",
+          "help": "Hasta 10000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 10000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image",
+          "type": "image",
+          "label": "Imagen",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "cta",
+          "type": "cta",
+          "label": "Enlace",
+          "help": "Elige un destino del sitio o una dirección HTTPS.",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "body",
+          "string"
+        ],
+        [
+          "image",
+          "Image | null"
+        ],
+        [
+          "cta",
+          "Cta | null"
+        ]
+      ],
+      "slots": [
+        {
+          "key": "image",
+          "label": "Foto",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "personalize",
+      "name": "Personalización",
+      "description": "Foto, título, texto y enlace opcional.",
+      "icon": "design_services",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "body",
+          "type": "long_text",
+          "label": "Texto",
+          "help": "Hasta 10000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 10000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image",
+          "type": "image",
+          "label": "Imagen",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "cta",
+          "type": "cta",
+          "label": "Enlace",
+          "help": "Elige un destino del sitio o una dirección HTTPS.",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "body",
+          "string"
+        ],
+        [
+          "image",
+          "Image | null"
+        ],
+        [
+          "cta",
+          "Cta | null"
+        ]
+      ],
+      "slots": [
+        {
+          "key": "image",
+          "label": "Foto",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "banner",
+      "name": "Banner",
+      "description": "Foto, título, texto y enlace opcional.",
+      "icon": "view_day",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "body",
+          "type": "long_text",
+          "label": "Texto",
+          "help": "Hasta 10000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 10000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image",
+          "type": "image",
+          "label": "Imagen",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "cta",
+          "type": "cta",
+          "label": "Enlace",
+          "help": "Elige un destino del sitio o una dirección HTTPS.",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "body",
+          "string"
+        ],
+        [
+          "image",
+          "Image | null"
+        ],
+        [
+          "cta",
+          "Cta | null"
+        ]
+      ],
+      "slots": [
+        {
+          "key": "image",
+          "label": "Foto",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "category_grid",
+      "name": "Categorías",
+      "description": "Categorías vigentes, con título y subtítulo.",
+      "icon": "grid_view",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "subtitle",
+          "type": "long_text",
+          "label": "Subtítulo",
+          "help": "Hasta 2000 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 2000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "subtitle",
+          "string"
+        ],
+        [
+          "categories",
+          "(Named & { href: string; count: number; image: Image | null })[]"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "columns"
+    },
+    {
+      "kind": "image_text",
+      "name": "Imagen con texto",
+      "description": "Una imagen junto a una historia breve.",
+      "icon": "image",
+      "fields": [
+        {
+          "key": "eyebrow",
+          "type": "short_text",
+          "label": "Antetítulo",
+          "help": "Hasta 120 caracteres por idioma (ES/EN).",
+          "required": false,
+          "translated": true,
+          "min": null,
+          "max": 120,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 300 caracteres por idioma (ES/EN).",
+          "required": true,
+          "translated": true,
+          "min": null,
+          "max": 300,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "body",
+          "type": "long_text",
+          "label": "Texto",
+          "help": "Hasta 10000 caracteres por idioma (ES/EN).",
+          "required": true,
+          "translated": true,
+          "min": null,
+          "max": 10000,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image",
+          "type": "image",
+          "label": "Imagen para computador",
+          "help": "",
+          "required": true,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "mobile_image",
+          "type": "image",
+          "label": "Imagen para celular",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "cta",
+          "type": "cta",
+          "label": "Enlace",
+          "help": "Elige un destino del sitio o una dirección HTTPS.",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": null,
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "image_position",
+          "type": "select",
+          "label": "Posición de la imagen",
+          "help": "",
+          "required": false,
+          "translated": false,
+          "min": null,
+          "max": null,
+          "default": "left",
+          "options": [
+            "left",
+            "right"
+          ],
+          "fields": [],
+          "sortable": false,
+          "option_labels": [
+            [
+              "left",
+              "Izquierda"
+            ],
+            [
+              "right",
+              "Derecha"
+            ]
+          ]
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "eyebrow",
+          "string"
+        ],
+        [
+          "body",
+          "string"
+        ],
+        [
+          "image",
+          "Image"
+        ],
+        [
+          "mobile_image",
+          "Image | null"
+        ],
+        [
+          "cta",
+          "Cta | null"
+        ],
+        [
+          "image_position",
+          "'left' | 'right'"
+        ]
+      ],
+      "slots": [
+        {
+          "key": "image",
+          "label": "Imagen para computador",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        },
+        {
+          "key": "mobile_image",
+          "label": "Imagen para celular",
+          "desktop": "4:5 · 1600 x 2000 px",
+          "mobile": "4:5 · 1080 x 1350 px",
+          "alt_required": [
+            "es",
+            "en"
+          ]
+        }
+      ],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home"
+      ],
+      "storage": "props"
+    },
+    {
+      "kind": "faq",
+      "name": "Preguntas frecuentes",
+      "description": "Respuestas desplegables; puedes usar Markdown.",
+      "icon": "quiz",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 120 caracteres por idioma (ES/EN).",
+          "required": true,
+          "translated": true,
+          "min": null,
+          "max": 120,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "items",
+          "type": "list",
+          "label": "Preguntas",
+          "help": "",
+          "required": true,
+          "translated": false,
+          "min": 1,
+          "max": 20,
+          "default": [],
+          "options": [],
+          "fields": [
+            {
+              "key": "question",
+              "type": "short_text",
+              "label": "Pregunta",
+              "help": "Hasta 160 caracteres por idioma (ES/EN).",
+              "required": true,
+              "translated": true,
+              "min": null,
+              "max": 160,
+              "default": {
+                "es": "",
+                "en": ""
+              },
+              "options": [],
+              "fields": [],
+              "sortable": false,
+              "option_labels": []
+            },
+            {
+              "key": "answer",
+              "type": "markdown",
+              "label": "Respuesta",
+              "help": "Hasta 1500 caracteres por idioma (ES/EN).",
+              "required": true,
+              "translated": true,
+              "min": null,
+              "max": 1500,
+              "default": {
+                "es": "",
+                "en": ""
+              },
+              "options": [],
+              "fields": [],
+              "sortable": false,
+              "option_labels": []
+            }
+          ],
+          "sortable": true,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "items",
+          "{ question: string; answer_html: string }[]"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home",
+        "page:personalize"
+      ],
+      "storage": "props_or_page_models"
+    },
+    {
+      "kind": "process",
+      "name": "Proceso de encargo",
+      "description": "Pasos ordenados para encargar una joya.",
+      "icon": "format_list_numbered",
+      "fields": [
+        {
+          "key": "title",
+          "type": "short_text",
+          "label": "Título",
+          "help": "Hasta 120 caracteres por idioma (ES/EN).",
+          "required": true,
+          "translated": true,
+          "min": null,
+          "max": 120,
+          "default": {
+            "es": "",
+            "en": ""
+          },
+          "options": [],
+          "fields": [],
+          "sortable": false,
+          "option_labels": []
+        },
+        {
+          "key": "steps",
+          "type": "list",
+          "label": "Pasos",
+          "help": "",
+          "required": true,
+          "translated": false,
+          "min": 2,
+          "max": 8,
+          "default": [],
+          "options": [],
+          "fields": [
+            {
+              "key": "title",
+              "type": "short_text",
+              "label": "Paso",
+              "help": "Hasta 60 caracteres por idioma (ES/EN).",
+              "required": true,
+              "translated": true,
+              "min": null,
+              "max": 60,
+              "default": {
+                "es": "",
+                "en": ""
+              },
+              "options": [],
+              "fields": [],
+              "sortable": false,
+              "option_labels": []
+            },
+            {
+              "key": "description",
+              "type": "short_text",
+              "label": "Descripción",
+              "help": "Hasta 240 caracteres por idioma (ES/EN).",
+              "required": false,
+              "translated": true,
+              "min": null,
+              "max": 240,
+              "default": {
+                "es": "",
+                "en": ""
+              },
+              "options": [],
+              "fields": [],
+              "sortable": false,
+              "option_labels": []
+            }
+          ],
+          "sortable": true,
+          "option_labels": []
+        }
+      ],
+      "public_fields": [
+        [
+          "title",
+          "string"
+        ],
+        [
+          "steps",
+          "{ title: string; description: string }[]"
+        ]
+      ],
+      "slots": [],
+      "schema_version": 1,
+      "can_hide": true,
+      "can_reorder": true,
+      "multiple": true,
+      "documents": [
+        "home",
+        "page:personalize"
+      ],
+      "storage": "props_or_page_models"
+    }
+  ],
+  "page_bindings": {
+    "page:personalize": {
+      "process": {
+        "title_field": "process_title",
+        "relation": "process_steps",
+        "list_field": "steps",
+        "model": "cms.ProcessStep",
+        "can_hide": false,
+        "can_reorder": false,
+        "multiple": false
+      },
+      "faq": {
+        "title_field": "faq_title",
+        "relation": "faq_items",
+        "list_field": "items",
+        "model": "cms.FaqItem",
+        "can_hide": false,
+        "can_reorder": false,
+        "multiple": false
+      }
+    }
+  },
+  "cta_destinations": {
+    "category": {
+      "target": "catalog.Category"
+    },
+    "collection": {
+      "target": "catalog.Collection"
+    },
+    "piece": {
+      "target": "catalog.Piece"
+    },
+    "stone": {
+      "target": "catalog.Stone"
+    },
+    "page": {
+      "target": "cms.Page",
+      "legal_only": true
+    },
+    "catalog": {},
+    "personalize": {},
+    "story": {},
+    "contact": {},
+    "external": {
+      "url_scheme": "https"
+    }
+  }
+}

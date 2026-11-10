@@ -282,7 +282,8 @@ def test_home_api_matches_category_schema(actor):
     assert set(data) == {"sections", "published_at", "preview"}
 
 
-def test_photo_and_slide_audits(actor, settings, tmp_path):
+@pytest.mark.parametrize("kind", ["story", "personalize", "banner"])
+def test_photo_and_slide_audits(actor, settings, tmp_path, kind):
     from io import BytesIO
 
     from django.core.files.uploadedfile import SimpleUploadedFile
@@ -298,7 +299,7 @@ def test_photo_and_slide_audits(actor, settings, tmp_path):
         return SimpleUploadedFile("photo.png", buffer.getvalue(), content_type="image/png")
 
     request = RequestFactory().post("/", HTTP_USER_AGENT="Fotos CMS")
-    section = HomeSection.objects.create(kind="story", title_es="Historia")
+    section = HomeSection.objects.create(kind=kind, title_es="Historia")
     for _ in range(2):
         before = AuditLog.objects.count()
         editor_services.replace_section_image(

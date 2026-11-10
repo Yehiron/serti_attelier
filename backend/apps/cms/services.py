@@ -99,6 +99,10 @@ def require_publish(actor: User | AnonymousUser) -> User:
 
 
 def validate_section(obj: HomeSection) -> None:
+    from .section_validation import reject_irrelevant_columns, validate_instance
+
+    reject_irrelevant_columns(obj)
+    validate_instance(obj)
     obj.full_clean()
     if obj.kind == "collection_rail" and not obj.collection_id:
         raise ValidationError(_("Selecciona una colección para esta sección."))
@@ -176,6 +180,15 @@ def editorial_values(obj):
         if hasattr(obj, f"{field.name}_es"):
             continue
         value = getattr(obj, field.name)
+        if field.name == "props" and isinstance(obj, HomeSection):
+            from .registry import editorial_props
+
+            # Registry labels can match legacy column labels (notably Imagen).
+            # Keep both sources so an empty props slot cannot hide a stored photo.
+            for label, prop_value in editorial_props(obj.kind, obj.props).items():
+                key = f"Contenido · {label}" if label in values else label
+                values[key] = prop_value
+            continue
         if field.name == "image":
             value = "Foto cargada" if value else "Sin foto"
         elif field.is_relation:
@@ -198,9 +211,9 @@ def audit_editorial(
 ):
     after = editorial_values(obj)
     diff = {
-        key: [before.get(key, ""), value]
-        for key, value in after.items()
-        if before.get(key, "") != value
+        key: [before.get(key, ""), after.get(key, "")]
+        for key in dict.fromkeys((*before, *after))
+        if before.get(key, "") != after.get(key, "")
     }
     if image_changed and before.get("Imagen", before.get("Foto")) == "Foto cargada":
         diff["Foto"] = ["Foto anterior", "Foto reemplazada"]
@@ -318,18 +331,24 @@ def publish_home(
         raise ValidationError("La nota puede tener hasta 300 caracteres.")
     sections = list(draft_sections().select_for_update(of=("self",)))
     latest = HomePublication.objects.first()
-    source = [section_source(section) for section in sections]
-    snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
-    if latest and latest.snapshot == snapshot and latest.draft_snapshot == source:
-        document.home_publication = latest
-        document.published_version = document.draft_version
-        document.save(update_fields=["home_publication", "published_version"])
-        return latest
     for section in sections:
         if section.is_visible:
             validate_section(section)
             for slide in section.slides.all():
                 slide.full_clean()
+    source = [section_source(section) for section in sections]
+    snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
+    from .section_adapters import home_snapshot, section_sources
+
+    if (
+        latest
+        and home_snapshot(latest.snapshot) == snapshot
+        and section_sources(latest.draft_snapshot) == source
+    ):
+        document.home_publication = latest
+        document.published_version = document.draft_version
+        document.save(update_fields=["home_publication", "published_version"])
+        return latest
     publication = HomePublication.objects.create(
         snapshot=snapshot,
         draft_snapshot=source,
@@ -355,8 +374,17 @@ def restore_home(
     actor = require_capability(actor, "restore")
     document = lock_document("home")
     check_version(document, expected_version)
+    from .registry import get_type, validate_props
+    from .section_adapters import section_sources
+
+    sources = section_sources(publication.draft_snapshot)
+    for source in sources:
+        spec = get_type(source["kind"], source["schema_version"])
+        if spec.storage != "columns":
+            validate_props(source["kind"], source["props"], source["schema_version"])
     HomeSection.objects.all().delete()
-    for source in publication.draft_snapshot:
+
+    for source in sources:
         fields = dict(source)
         slides = fields.pop("slides", [])
         # Restore the exact editable source, including incomplete hidden drafts.
@@ -510,6 +538,30 @@ def save_page_item(obj, actor=None, request=None):
     Page.objects.select_for_update(of=("self",)).get(pk=obj.page_id)
     before = editorial_before(obj)
     obj.full_clean()
+    from .registry import FAQ_FIELDS, STEP_FIELDS, validate_fields
+
+    fields = STEP_FIELDS if isinstance(obj, ProcessStep) else FAQ_FIELDS
+    from .registry import REGISTRY
+
+    kind, relation = (
+        ("process", "process_steps") if isinstance(obj, ProcessStep) else ("faq", "faq_items")
+    )
+    limit = next(field.max for field in REGISTRY[kind].fields if field.type == "list")
+    if obj._state.adding and getattr(obj.page, relation).count() >= limit:
+        raise ValidationError({"__all__": f"Usa como máximo {limit} elementos."})
+    # Existing models intentionally retain the Phase 1 Spanish fallback.
+    validate_fields(
+        fields,
+        {
+            field.key: {
+                lang: getattr(obj, f"{field.key}_{lang}", "")
+                or getattr(obj, f"{field.key}_es", "")
+                or ""
+                for lang in ("es", "en")
+            }
+            for field in fields
+        },
+    )
     obj.save()
     audit_editorial(obj, before, actor, request)
 

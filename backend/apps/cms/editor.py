@@ -105,6 +105,7 @@ def editor(request: HttpRequest) -> HttpResponse:
         sections.append(
             {
                 "obj": section,
+                "registry_data": registry_preview(section),
                 "image": thumbnail(section.renditions),
                 "slides": slides,
                 "pieces": pieces,
@@ -274,3 +275,15 @@ def ordered_ids(request: HttpRequest) -> list[int]:
     if not isinstance(values, list) or any(type(value) is not int for value in values):
         raise ValueError
     return values
+
+
+def registry_preview(section):
+    from .registry import REGISTRY
+    from .section_adapters import localize_props
+
+    spec = REGISTRY.get(section.kind)
+    return (
+        localize_props(section.kind, section.props, "es")
+        if spec and spec.storage != "columns"
+        else None
+    )

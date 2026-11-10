@@ -1,0 +1,180 @@
+{
+  "es": [
+    {
+      "id": 1,
+      "kind": "hero",
+      "title": "Un poco de tierra. / Un poco de eternidad.",
+      "subtitle": "",
+      "image": {
+        "src": "/media/cms/desktop.webp",
+        "srcset": "",
+        "width": 1920,
+        "height": 1080,
+        "alt": "Foto"
+      },
+      "cta": null,
+      "slides": [
+        {
+          "image": {
+            "src": "/media/cms/desktop.webp",
+            "srcset": "",
+            "width": 1920,
+            "height": 1080,
+            "alt": "Foto"
+          },
+          "mobile_image": {
+            "src": "/media/cms/mobile.webp",
+            "srcset": "",
+            "width": 1080,
+            "height": 1350,
+            "alt": "Foto"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "statement",
+      "title": "No es solo joyería. Es joyería atemporal.",
+      "body": ""
+    },
+    {
+      "id": 3,
+      "kind": "stone_panels",
+      "title": "Piedras que cuentan historias",
+      "subtitle": "",
+      "stones_live": true
+    },
+    {
+      "id": 4,
+      "kind": "collection_rail",
+      "title": "Novedades y Destacados",
+      "subtitle": "",
+      "collection_id": 990001,
+      "collection": {
+        "slug": "novedades",
+        "name": "Novedades",
+        "href": "/es/colecciones/novedades"
+      }
+    },
+    {
+      "id": 5,
+      "kind": "story",
+      "title": "Nuestra historia",
+      "body": "",
+      "image": null,
+      "cta": null
+    },
+    {
+      "id": 6,
+      "kind": "personalize",
+      "title": "Una pieza que solo puede ser tuya.",
+      "body": "",
+      "image": null,
+      "cta": null
+    },
+    {
+      "id": 7,
+      "kind": "category_grid",
+      "title": "Comprar por categoría",
+      "subtitle": "Subtítulo"
+    },
+    {
+      "id": 8,
+      "kind": "banner",
+      "title": "",
+      "body": "",
+      "image": null,
+      "cta": null
+    }
+  ],
+  "en": [
+    {
+      "id": 1,
+      "kind": "hero",
+      "title": "A little earth. / A little eternity.",
+      "subtitle": "",
+      "image": {
+        "src": "/media/cms/desktop.webp",
+        "srcset": "",
+        "width": 1920,
+        "height": 1080,
+        "alt": "Photo"
+      },
+      "cta": null,
+      "slides": [
+        {
+          "image": {
+            "src": "/media/cms/desktop.webp",
+            "srcset": "",
+            "width": 1920,
+            "height": 1080,
+            "alt": "Photo"
+          },
+          "mobile_image": {
+            "src": "/media/cms/mobile.webp",
+            "srcset": "",
+            "width": 1080,
+            "height": 1350,
+            "alt": "Photo"
+          }
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "kind": "statement",
+      "title": "It's not just jewelry. It's timeless jewelry.",
+      "body": ""
+    },
+    {
+      "id": 3,
+      "kind": "stone_panels",
+      "title": "Stones that tell stories",
+      "subtitle": "",
+      "stones_live": true
+    },
+    {
+      "id": 4,
+      "kind": "collection_rail",
+      "title": "New and featured",
+      "subtitle": "",
+      "collection_id": 990001,
+      "collection": {
+        "slug": "new",
+        "name": "New",
+        "href": "/en/collections/new"
+      }
+    },
+    {
+      "id": 5,
+      "kind": "story",
+      "title": "Our story",
+      "body": "",
+      "image": null,
+      "cta": null
+    },
+    {
+      "id": 6,
+      "kind": "personalize",
+      "title": "A piece that can only be yours.",
+      "body": "",
+      "image": null,
+      "cta": null
+    },
+    {
+      "id": 7,
+      "kind": "category_grid",
+      "title": "Shop by category",
+      "subtitle": "Subtitle"
+    },
+    {
+      "id": 8,
+      "kind": "banner",
+      "title": "",
+      "body": "",
+      "image": null,
+      "cta": null
+    }
+  ]
+}

@@ -9,6 +9,7 @@ from drf_spectacular.views import SpectacularAPIView
 from apps.cms.editor import action, editor
 from apps.cms.history import history
 from apps.cms.publishing import review_publish
+from apps.cms.registry_view import section_registry
 from apps.notifications import views as notification_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
@@ -38,6 +39,11 @@ urlpatterns: list[URLPattern | URLResolver] = [
         name="cms-review-publish",
     ),
     path(settings.ADMIN_URL + "publicaciones/", admin.site.admin_view(history), name="cms-history"),
+    path(
+        settings.ADMIN_URL + "section-registry/",
+        admin.site.admin_view(section_registry),
+        name="cms-section-registry",
+    ),
     path(settings.ADMIN_URL, admin.site.urls),
     path("api/v1/", include("apps.payments.urls")),
     path("api/v1/", include("apps.orders.urls")),

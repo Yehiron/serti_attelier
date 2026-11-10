@@ -77,6 +77,10 @@ def test_paired_slides_split_without_storage_changes() -> None:
         assert (mobile.width, mobile.height, mobile.position) == (1080, 1350, 3)
         assert mobile.renditions == {"webp": {"960": "mobile-960.webp"}}
         assert (mobile.alt_es, mobile.alt_en) == ("Foto", "Photo")
+        # Runtime readers include fields added by later migrations. Finish the
+        # expansion before using them; split assertions above use historical apps.
+        latest = MigrationExecutor(connection)
+        latest.migrate(latest.loader.graph.leaf_nodes())
         payload: Any = selectors.render_sections([HomeSection.objects.get(pk=section.pk)], "es")[0]
         assert [bool(row["image"]) for row in payload["slides"]] == [True, True, False, False]
         assert [bool(row["mobile_image"]) for row in payload["slides"]] == [

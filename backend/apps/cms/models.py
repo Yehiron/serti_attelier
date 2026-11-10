@@ -9,6 +9,8 @@ from django.db import models
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.manager import MultilingualManager
 
+from .registry import REGISTRY
+
 
 def validate_https(value: str) -> None:
     URLValidator(schemes=["https"])(value)
@@ -152,17 +154,11 @@ class HomeSection(Illustrated):
     kind = models.CharField(
         verbose_name=_("Tipo"),
         max_length=24,
-        choices=[
-            ("hero", _("Portada")),
-            ("statement", _("Manifiesto")),
-            ("stone_panels", _("Piedras")),
-            ("collection_rail", _("Colección")),
-            ("story", _("Historia")),
-            ("category_grid", _("Categorías")),
-            ("personalize", _("Personalización")),
-            ("banner", _("Banner")),
-        ],
+        choices=[(spec.kind, spec.name) for spec in REGISTRY.values()],
     )
+    schema_version = models.PositiveSmallIntegerField(_("Versión del esquema"), default=1)
+    props = models.JSONField(_("Contenido de la sección"), default=dict, blank=True)
+
     position = models.PositiveIntegerField(verbose_name=_("Posición"), default=0)
     is_visible = models.BooleanField(verbose_name=_("Visible"), default=True)
     title = models.CharField(
@@ -251,7 +247,13 @@ class HomeSection(Illustrated):
         ]
 
     def __str__(self) -> str:
-        return self.title or self.kind
+        spec = REGISTRY.get(self.kind)
+        if spec and spec.storage != "columns":
+            from django.utils.translation import get_language
+
+            title = self.props.get("title", {})
+            return title.get(get_language()) or title.get("es") or spec.name
+        return self.title or (spec.name if spec else self.kind)
 
 
 class HeroSlide(Timestamped):

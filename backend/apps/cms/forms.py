@@ -27,6 +27,8 @@ class ContentForm(BaseContentForm):
         if self.errors:
             return
         obj = self.instance
+        # JSON remains a technical form until Phase 4. Labels and help come from
+        # the registry; dotted validation paths remain visible in Spanish.
         try:
             if isinstance(obj, HomeSection):
                 validate_section(obj)
@@ -41,7 +43,14 @@ class ContentForm(BaseContentForm):
                 if ratio := display_ratio(obj):
                     crop_to_ratio(image, *ratio)
         except ValidationError as exc:
-            self.add_error(None, ValidationError(exc.messages))
+            if hasattr(exc, "message_dict"):
+                for key, messages in exc.message_dict.items():
+                    self.add_error(
+                        key if key in self.fields else None,
+                        ValidationError([f"{key}: {message}" for message in messages]),
+                    )
+            else:
+                self.add_error(None, ValidationError(exc.messages))
 
 
 class PhotoInput(UnfoldAdminImageSmallFieldWidget):  # type: ignore[misc]

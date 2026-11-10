@@ -75,4 +75,7 @@ def test_category_conversion_preserves_publication_until_publish():
     assert story.title_es == "Comprar por categoría"
     assert story.title_en == "Shop by category"
     assert publication.snapshot == snapshot
-    assert selectors.home("es")["sections"] == snapshot["es"]
+    assert [
+        {key: value for key, value in section.items() if key != "schema_version"}
+        for section in selectors.home("es")["sections"]
+    ] == snapshot["es"]

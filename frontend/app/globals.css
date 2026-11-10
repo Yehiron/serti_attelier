@@ -687,3 +687,18 @@ html { scrollbar-gutter: stable; }
 .faq-section details a:hover { opacity: .75; }
 .faq-section details a:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
 @media (prefers-reduced-motion: reduce) { .faq-section details a { transition: none; } }
+
+/* Bloques del registro CMS: mismas tipografías y ritmo editorial de SERTI. */
+.cms-section-photo { display: block; min-width: 0; }
+.cms-section-photo img { display: block; width: 100%; height: auto; aspect-ratio: 4 / 5; object-fit: cover; }
+.cms-section-copy { min-width: 0; overflow-wrap: anywhere; }
+.cms-image-text.image-right .cms-section-photo { order: 2; }
+.cms-faq, .cms-process { padding: clamp(3rem, 7vw, 7rem) max(6vw, 1.25rem); }
+.cms-faq summary { min-height: 44px; cursor: pointer; }
+.cms-faq summary:focus-visible { outline: 2px solid currentColor; outline-offset: 4px; }
+.cms-process ol { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+@media (max-width: 760px) {
+  .cms-image-text { grid-template-columns: 1fr; }
+  .cms-image-text.image-right .cms-section-photo { order: initial; }
+}
+.cms-faq details, .cms-process li { border-color: color-mix(in srgb, currentColor 35%, transparent); }

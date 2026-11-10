@@ -26,7 +26,13 @@ def pending_changes(key, *, previous=_UNSET):
         source = [services.section_source(row) for row in rows]
         if previous is _UNSET:
             previous = HomePublication.objects.first()
-        if previous and previous.snapshot == snapshot and previous.draft_snapshot == source:
+        from .section_adapters import home_snapshot, section_sources
+
+        if (
+            previous
+            and home_snapshot(previous.snapshot) == snapshot
+            and section_sources(previous.draft_snapshot) == source
+        ):
             changes = []
         else:
             changes = summary(

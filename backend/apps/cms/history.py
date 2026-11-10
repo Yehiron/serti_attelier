@@ -84,7 +84,12 @@ def home_source_summary(current, previous):
     after = {row["id"]: row for row in current}
     changes = []
     for key, row in after.items():
-        label = row.get("title_es") or row.get("title") or "Sección"
+        label = (
+            row.get("title_es")
+            or row.get("props", {}).get("title", {}).get("es")
+            or row.get("title")
+            or "Sección"
+        )
         old = before.get(key)
         if old is None:
             suffix = " (oculta)" if not row.get("is_visible", True) else ""
@@ -109,6 +114,16 @@ def home_source_summary(current, previous):
                 changes.append(f"Textos en {language} cambiados en {label}.")
         if any(old.get(field) != row.get(field) for field in ("image", "slides", "renditions")):
             changes.append(f"Fotos cambiadas o reordenadas en {label}.")
+        if old.get("props", {}) != row.get("props", {}):
+            from .registry import REGISTRY, editorial_props
+
+            spec = REGISTRY.get(row.get("kind"))
+            if spec:
+                old_values = editorial_props(spec.kind, old.get("props", {}))
+                new_values = editorial_props(spec.kind, row.get("props", {}))
+                for change_label in dict.fromkeys((*old_values, *new_values)):
+                    if old_values.get(change_label, "") != new_values.get(change_label, ""):
+                        changes.append(f"{change_label} actualizado en {spec.name}.")
         destinations = {
             field for field in row if field.startswith("cta_") and not field.startswith("cta_label")
         } | {"collection_id"}

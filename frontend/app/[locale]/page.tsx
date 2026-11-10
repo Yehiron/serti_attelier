@@ -1,3 +1,4 @@
+import { supportedSections } from '@/lib/section-compat';
 import { needsHomeFallback } from '@/lib/cms-preview';
 import { locale } from 'next/root-params';
 import { getDictionary } from './dictionaries';
@@ -20,16 +21,16 @@ export default async function Home() {
   const current = await locale(); if (!isLocale(current)) notFound();
   const dict = await getDictionary();
   const home = await getHome(current);
-  let sections = home.sections;
+  let sections = supportedSections(home.sections);
   if (needsHomeFallback(home)) {
     const [taxonomy, catalog] = await Promise.all([getTaxonomy(current), getCatalog(current, 'sort=newest&page_size=8')]);
     sections = [
-      { id: 'hero', kind: 'hero', title: dict.home.title.join('\n'), subtitle: dict.home.lede, image: null, cta: { label: dict.ui.explore, href: href('catalog', current), external: false } },
-      { id: 'statement', kind: 'statement', title: dict.home.statement, body: dict.home.statementBody },
-      { id: 'stones', kind: 'stone_panels', title: dict.home.stones, subtitle: dict.home.stonesSubtitle, stones: taxonomy.stones.map(x => ({ ...x, description: '', image: x.cover_image ? { src: x.cover_image, srcset: '', width: 2400, height: 1350, alt: x.name } : null, href: href('stone', current, x.slug) })) },
-      { id: 'new', kind: 'collection_rail', title: dict.home.newest, subtitle: dict.home.newestSubtitle, collection: { slug: '', name: dict.nav.catalog, href: href('catalog', current) }, pieces: catalog.results },
-      { id: 'story', kind: 'story', title: dict.home.storyTitle, body: dict.home.storyBody, image: null, cta: { label: dict.nav.story, href: href('story', current), external: false } },
-      { id: 'personalize', kind: 'personalize', title: dict.home.customTitle, body: dict.home.customBody, image: null, cta: { label: dict.nav.personalize, href: href('personalize', current), external: false } },
+      { id: 'hero', kind: 'hero', schema_version: 1, title: dict.home.title.join('\n'), subtitle: dict.home.lede, image: null, cta: { label: dict.ui.explore, href: href('catalog', current), external: false } },
+      { id: 'statement', kind: 'statement', schema_version: 1, title: dict.home.statement, body: dict.home.statementBody },
+      { id: 'stones', kind: 'stone_panels', schema_version: 1, title: dict.home.stones, subtitle: dict.home.stonesSubtitle, stones: taxonomy.stones.map(x => ({ ...x, description: '', image: x.cover_image ? { src: x.cover_image, srcset: '', width: 2400, height: 1350, alt: x.name } : null, href: href('stone', current, x.slug) })) },
+      { id: 'new', kind: 'collection_rail', schema_version: 1, title: dict.home.newest, subtitle: dict.home.newestSubtitle, collection: { slug: '', name: dict.nav.catalog, href: href('catalog', current) }, pieces: catalog.results },
+      { id: 'story', kind: 'story', schema_version: 1, title: dict.home.storyTitle, body: dict.home.storyBody, image: null, cta: { label: dict.nav.story, href: href('story', current), external: false } },
+      { id: 'personalize', kind: 'personalize', schema_version: 1, title: dict.home.customTitle, body: dict.home.customBody, image: null, cta: { label: dict.nav.personalize, href: href('personalize', current), external: false } },
     ] satisfies Section[];
   }
   const firstHero = sections.find(x => x.kind === 'hero')?.id;

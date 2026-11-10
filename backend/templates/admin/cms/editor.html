@@ -58,6 +58,15 @@
           </div>
           {% if can_change_home %}<label class="ve-drop" data-upload="hero-upload" data-section="{{ section.obj.pk }}"><span>+ {% translate 'Agregar fotos' %}</span><input type="file" multiple accept="image/*" aria-label="{% translate 'Agregar fotos a la portada' %}"></label>{% endif %}
           </div></div>
+        {% elif section.registry_data %}
+          <div class="ve-section-body">
+            {% if section.registry_data.image %}<img class="ve-editorial-photo" src="{% if device == 'mobile' and section.registry_data.mobile_image %}{{ section.registry_data.mobile_image.src }}{% else %}{{ section.registry_data.image.src }}{% endif %}" alt="{{ section.registry_data.image.alt }}" loading="lazy">{% endif %}
+            <div><h2>{{ section.registry_data.title }}</h2><p>{{ section.registry_data.body }}</p>
+              {% for step in section.registry_data.steps %}<h3>{{ step.title }}</h3><p>{{ step.description }}</p>{% endfor %}
+              {% for item in section.registry_data.items %}<h3>{{ item.question }}</h3><p>{{ item.answer_html|striptags }}</p>{% endfor %}
+              <span>{{ section.registry_data.cta.label }}</span>
+            </div>
+          </div>
         {% else %}
           <div class="ve-section-body">
           {% if section.obj.kind == 'story' or section.obj.kind == 'personalize' or section.obj.kind == 'banner' %}
