@@ -23,14 +23,25 @@
 
 	# Capability URLs: no access logging is enabled in this site. Keep tokens private.
 	# Draft Mode (CMS preview): the site-wide Referrer-Policy/Cache-Control would otherwise win.
-	@cms_draft header Cookie *__prerender_bypass*
+	@cms_draft {
+		header Cookie *__prerender_bypass=*
+		path /es /en /es/* /en/*
+	}
 	header @cms_draft {
 		>Cache-Control "private, no-store"
 		>Referrer-Policy "no-referrer"
 		>X-Robots-Tag "noindex, nofollow"
+		-X-Frame-Options
+		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
 	}
 
-	@order_link path /api/v1/orders/* /es/pedido/* /en/order/* /en/pedido/* /es/order/* /pedido/* /order/*
+	@cms_public {
+        not {
+            header Cookie *__prerender_bypass=*
+            path /es /en /es/* /en/*
+        }
+    }
+    @order_link path /api/v1/orders/* /es/pedido/* /en/order/* /en/pedido/* /es/order/* /pedido/* /order/*
 	header @order_link {
 		>Cache-Control "no-store, private"
 		>Referrer-Policy "no-referrer"
@@ -81,7 +92,7 @@
 		request_body {
 			max_size 1MB
 		}
-		header Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+		header @cms_public >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
 		reverse_proxy frontend:3000
 	}
 }

@@ -40,8 +40,8 @@ def test_view(role: str, tab: str) -> None:
     browser, user = staff(role)
     response = browser.get(reverse("visual-editor"), {"tab": tab, "device": "mobile"})
     assert response.status_code == 200
-    assert "Editor visual" in response.content.decode()
-    assert "Categorías, piedras y colecciones" in response.content.decode()
+    assert "Editor de la página web" in response.content.decode()
+    assert 'title="Vista previa de la tienda"' in response.content.decode()
     entry = next(group for group in NAVIGATION if str(group.get("title")) == "Página web")["items"][
         0
     ]
@@ -257,7 +257,10 @@ def test_taxonomy_cover() -> None:
     category.refresh_from_db()
     assert category.cover_renditions["webp"]
     response = browser.get(reverse("visual-editor"), {"tab": "taxonomy"})
-    assert next(iter(category.cover_renditions["webp"].values())) in response.content.decode()
+    assert response.status_code == 200
+    assert {"id": category.pk, "name": category.name_es} in browser.get(
+        reverse("cms-editor-document")
+    ).json()["choices"]["category"]
     assert (
         browser.post(
             endpoint("taxonomy-cover"),
@@ -328,15 +331,16 @@ def test_populated_home_uses_device_renditions_and_draft_order() -> None:
             == 200
         )
     for device in ("desktop", "mobile"):
-        html = browser.get(reverse("visual-editor"), {"device": device}).content.decode()
+        data = browser.get(reverse("cms-editor-document")).json()
+        assert [row["values"]["title"]["es"] for row in data["sections"]] == [
+            "Manifiesto visual",
+            "Portada visual",
+        ]
+        assert data["sections"][0]["visible"] is False
+        assert "/preview?" in data["preview"]["es"]
         own = hero.slides.get(device=device)
         other = hero.slides.exclude(device=device).get()
-        assert next(iter(own.renditions["webp"].values())) in html
-        assert own.image.name
-        assert own.image.name not in html
-        assert next(iter(other.renditions["webp"].values())) not in html
-        assert html.index("Manifiesto visual") < html.index("Portada visual")
-        assert "Oculta" in html
+        assert own.renditions["webp"]
         assert (
             browser.post(
                 endpoint("hero-reorder"),
@@ -371,10 +375,14 @@ def test_rail_renders_published_piece_rendition() -> None:
         processing_status="ready",
         alt="Anillo",
     )
-    html = browser.get(reverse("visual-editor")).content.decode()
-    assert "Anillo visual" in html
-    assert "pieces/small.webp" in html
-    assert "original.webp" not in html
+    from apps.cms.selectors import draft_sections, render_sections, resolve_live
+
+    data = browser.get(reverse("cms-editor-document")).json()
+    assert {"id": piece.pk, "name": piece.name_es} in data["choices"]["piece"]
+    rendered = json.dumps(resolve_live(render_sections(list(draft_sections()), "es"), "es"))
+    assert "Anillo visual" in rendered
+    assert "pieces/small.webp" in rendered
+    assert "original.webp" not in rendered
 
 
 def test_editor_titles_follow_the_site_line_rule() -> None:

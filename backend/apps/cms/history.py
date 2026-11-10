@@ -75,7 +75,45 @@ def summary(current, previous, home=False, current_source=None, previous_source=
                             else "."
                         )
                     )
+                    if field in {"body", "slug"}:
+                        changes.append(
+                            f"{label} ({language}): {excerpt(old.get(field))} → "
+                            f"{excerpt(new.get(field))}."
+                        )
+                    elif field in {"process", "faq"}:
+                        before, after = (
+                            v if isinstance(v, dict) else {}
+                            for v in (old.get(field), new.get(field))
+                        )
+                        if before.get("title") != after.get("title"):
+                            changes.append(
+                                f"{label} · Encabezado ({language}): "
+                                f"{excerpt(before.get('title'))} → {excerpt(after.get('title'))}."
+                            )
+                        list_key = "steps" if field == "process" else "items"
+                        fields = (
+                            (("title", "Título"), ("description", "Descripción"))
+                            if field == "process"
+                            else (("question", "Pregunta"), ("answer", "Respuesta"))
+                        )
+                        old_rows, new_rows = before.get(list_key, []), after.get(list_key, [])
+                        for index in range(max(len(old_rows), len(new_rows))):
+                            left = old_rows[index] if index < len(old_rows) else {}
+                            right = new_rows[index] if index < len(new_rows) else {}
+                            left = left if isinstance(left, dict) else {}
+                            right = right if isinstance(right, dict) else {}
+                            left, right = left.get("source", left), right.get("source", right)
+                            for name, field_label in fields:
+                                if left.get(name) != right.get(name):
+                                    changes.append(
+                                        f"{label} {index + 1} · {field_label} ({language}): "
+                                        f"{excerpt(left.get(name))} → {excerpt(right.get(name))}."
+                                    )
     return changes or ["Sin cambios visibles en la tienda."]
+
+
+def excerpt(value):
+    return " ".join(str(value or "Sin contenido").split())[:120]
 
 
 def home_source_summary(current, previous):
@@ -111,7 +149,20 @@ def home_source_summary(current, previous):
                 old.get(f"{field}_{locale}") != row.get(f"{field}_{locale}")
                 for field in ("body", "subtitle", "cta_label", "image_alt")
             ):
-                changes.append(f"Textos en {language} cambiados en {label}.")
+                for field in ("body", "subtitle", "cta_label", "image_alt"):
+                    name = f"{field}_{locale}"
+                    if old.get(name) != row.get(name):
+                        field_label = {
+                            "body": "Texto",
+                            "subtitle": "Subtítulo",
+                            "cta_label": "Texto del enlace",
+                            "image_alt": "Texto alternativo",
+                        }[field]
+                        changes.append(
+                            f"{label} · {field_label} ({language}): "
+                            f"{str(old.get(name) or 'Sin contenido')[:120]} → "
+                            f"{str(row.get(name) or 'Sin contenido')[:120]}."
+                        )
         if any(old.get(field) != row.get(field) for field in ("image", "slides", "renditions")):
             changes.append(f"Fotos cambiadas o reordenadas en {label}.")
         if old.get("props", {}) != row.get("props", {}):
@@ -123,7 +174,11 @@ def home_source_summary(current, previous):
                 new_values = editorial_props(spec.kind, row.get("props", {}))
                 for change_label in dict.fromkeys((*old_values, *new_values)):
                     if old_values.get(change_label, "") != new_values.get(change_label, ""):
-                        changes.append(f"{change_label} actualizado en {spec.name}.")
+                        changes.append(
+                            f"{spec.name} · {change_label}: "
+                            f"{str(old_values.get(change_label, 'Sin contenido'))[:120]} → "
+                            f"{str(new_values.get(change_label, 'Sin contenido'))[:120]}."
+                        )
         destinations = {
             field for field in row if field.startswith("cta_") and not field.startswith("cta_label")
         } | {"collection_id"}
@@ -175,6 +230,7 @@ def history(request):
     content_document = get_document(
         "home" if key == "home" else f"page:{Page.objects.get(pk=key).kind}"
     )
+    context["editor_url"] = reverse("visual-editor") + f"?document={content_document.key}"
     context["expected_version"] = content_document.draft_version
     context["restorations"] = content_document.draft_revisions.select_related(
         "restored_from_home", "restored_from_page"

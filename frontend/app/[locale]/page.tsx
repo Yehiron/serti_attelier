@@ -1,3 +1,6 @@
+import { draftMode } from 'next/headers';
+import { CmsDraftSelection } from '@/components/cms-draft-selection';
+import { sectionAttributes } from '@/lib/cms-selection';
 import { supportedSections } from '@/lib/section-compat';
 import { needsHomeFallback } from '@/lib/cms-preview';
 import { locale } from 'next/root-params';
@@ -33,6 +36,7 @@ export default async function Home() {
       { id: 'personalize', kind: 'personalize', schema_version: 1, title: dict.home.customTitle, body: dict.home.customBody, image: null, cta: { label: dict.nav.personalize, href: href('personalize', current), external: false } },
     ] satisfies Section[];
   }
+  const draft = (await draftMode()).isEnabled;
   const firstHero = sections.find(x => x.kind === 'hero')?.id;
-  return <main id="main" className="home-page"><PageAlternates alternates={{ es: '/es', en: '/en' }} />{firstHero === undefined && <h1 className="sr-only">{dict.meta.title}</h1>}{sections.map(section => <HomeSection key={section.id} section={section} locale={current} dict={dict} firstHero={section.id === firstHero} />)}</main>;
+  return <main id="main" className="home-page"><PageAlternates alternates={{ es: '/es', en: '/en' }} />{firstHero === undefined && <h1 className="sr-only">{dict.meta.title}</h1>}{draft && <CmsDraftSelection />}{sections.map(section => draft ? <div key={section.id} {...sectionAttributes(true, section.id)}><HomeSection section={section} locale={current} dict={dict} firstHero={section.id === firstHero} /></div> : <HomeSection key={section.id} section={section} locale={current} dict={dict} firstHero={section.id === firstHero} />)}</main>;
 }

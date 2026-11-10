@@ -26,6 +26,18 @@ def validate_instance(obj):
                     }
                 },
             )
+        elif field.type == "image" and obj.image:
+            from .registry import text
+
+            validate_fields(
+                (text("alt", "Texto alternativo", 300, required=True),),
+                {
+                    "alt": {
+                        lang: getattr(obj, f"image_alt_{lang}", "") or "" for lang in ("es", "en")
+                    }
+                },
+                prefix="image.",
+            )
         elif field.type == "collection" and not obj.collection_id:
             raise ValidationError({"collection": "Selecciona una colección para esta sección."})
     if any(field.key == "cta" for field in spec.fields):

@@ -1,88 +1,16 @@
-{% extends "admin/base_site.html" %}
-{% load i18n static client_actions %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/editor.css' %}">{% endblock %}
+{% extends "admin/base_site.html" %}{% load static %}
+{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}"><script src="{% static 'cms/visual-editor.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div id="visual-editor" data-version="{{ draft_version }}" data-device="{{ device }}" data-action-url="{% url 'visual-editor-action' action='ACTION' %}">
-  <form hidden>{% csrf_token %}</form>
-  <nav class="ve-controls" aria-label="{% translate 'Editor visual' %}">
-    <a href="?device={{ device }}" {% if not taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Página de inicio' %}</a>
-    <a href="?tab=taxonomy&amp;device={{ device }}" {% if taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Categorías, piedras y colecciones' %}</a>
-    <span class="ve-devices"><a href="?device=desktop{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'desktop' %}aria-current="page"{% endif %}>{% translate 'Computador' %}</a><a href="?device=mobile{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'mobile' %}aria-current="page"{% endif %}>{% translate 'Celular' %}</a></span>
-  </nav>
-  <button type="button" id="ve-reload" hidden>Recargar versión actual</button>
-  <p id="ve-message" role="alert" tabindex="-1" hidden></p>
-  <span hidden id="ve-failure">{% translate 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.' %}</span>
-  {% if taxonomy_tab %}
-    {% for group in groups %}
-    <section class="ve-group"><h2>{{ group.label }}</h2><p>{{ group.note }}</p><div class="ve-grid">
-      {% for card in group.cards %}
-      <article id="{{ group.model }}-{{ card.id }}" class="ve-card">
-        <div class="ve-cover">{% if card.image %}<img src="{{ card.image }}" alt="{{ card.name }}" loading="lazy">{% endif %}<h3>{{ card.name }}</h3></div>
-        {% if card.can_change %}<label class="ve-drop" data-upload="taxonomy-cover" data-model="{{ group.model }}" data-id="{{ card.id }}"><span>{% if card.image %}{% translate 'Reemplazar foto' %}{% else %}{% translate 'Agregar foto' %}{% endif %}</span><input type="file" accept="image/*" aria-label="{% translate 'Foto de portada' %}"></label>{% endif %}
-        <p>{{ card.count }} {% translate 'piezas publicadas' %}</p>
-        <div>{% for child in card.children %}<span class="ve-chip">{{ child.name }}</span>{% endfor %}</div>
-        <div class="ve-toolbar">{% if card.can_change %}<a href="{{ card.edit }}">{% translate 'Editar' %}</a>{% endif %}<a href="{{ card.pieces }}">{% translate 'Ver piezas' %}</a></div>
-      </article>
-      {% endfor %}
-      {% if group.can_add %}<a class="ve-new" href="{{ group.add }}">+ {{ group.add_label }}</a>{% endif %}
-    </div></section>
-    {% endfor %}
-  {% else %}
-    <div class="ve-publication">
-      {% if pending_home_changes %}<strong>{{ pending_count }} cambio{{ pending_count|pluralize:"s" }} sin publicar</strong>{% else %}<span>{% translate 'Publicado' %} · {{ last_home_publication.published_at|date:"d/m/Y H:i" }}</span>{% endif %}
-      {% if can_preview %}<a href="{% url 'admin:cms-home-preview' %}" target="_blank" rel="noopener">{% translate 'Vista previa' %} ↗</a>{% endif %}
-      {% if can_publish %}<a href="{{ review_url }}">Revisar y publicar</a>{% elif pending_home_changes %}<p>Cambios pendientes de publicar — la Propietaria puede publicarlos</p>{% endif %}
-    </div>
-    <div class="ve-frame {% if device == 'mobile' %}ve-mobile{% endif %}">
-      <header class="ve-header"><img src="{% static 'core/brand/wordmark-wine.webp' %}" alt="SERTI"><span>{% translate 'Joyería' %} · {% translate 'Piedras' %} · {% translate 'Nuestra historia' %}</span></header>
-      <div data-sort="sections-reorder">
-      {% for section in sections %}
-      <article class="ve-section ve-{{ section.obj.kind }} {% if not section.obj.is_visible %}ve-hidden{% endif %}" data-id="{{ section.obj.pk }}">
-        <div class="ve-toolbar">
-          <span>{{ section.obj.get_kind_display }}</span>{% if not section.obj.is_visible %}<strong>{% translate 'Oculta' %}</strong>{% endif %}
-          {% if can_change_home %}
-          <button type="button" class="ve-handle" draggable="true" aria-label="{% translate 'Arrastrar para ordenar sección' %}">⠿</button>
-          <button type="button" data-move="-1" aria-label="{% translate 'Subir sección' %}">↑</button><button type="button" data-move="1" aria-label="{% translate 'Bajar sección' %}">↓</button>
-          <a href="{{ section.edit }}">{% if section.obj.kind == 'hero' %}{% translate 'Editar textos' %}{% else %}{% translate 'Editar' %}{% endif %}</a>
-          <button type="button" data-action="section-visibility" data-section="{{ section.obj.pk }}" data-visible="{{ section.obj.is_visible|yesno:'false,true' }}">{% if section.obj.is_visible %}{% translate 'Ocultar' %}{% else %}{% translate 'Mostrar' %}{% endif %}</button>
-          {% endif %}
-        </div>
-        {% if section.obj.kind == 'hero' %}
-          <div class="ve-hero-layout"><div class="ve-stack">
-          {% for slide in section.slides %}{% if slide.image %}<img style="--i:{{ forloop.counter0 }};z-index:{{ forloop.revcounter }}" src="{{ slide.image }}" alt="{{ slide.alt }}" loading="lazy">{% endif %}{% endfor %}
-          <div class="ve-hero-copy"><h2>{{ section.obj.title|title_lines }}</h2><p>{{ section.obj.subtitle }}</p><span>{{ section.obj.cta_label }}</span></div></div>
-          <div class="ve-photo-tools">
-          <p>{% if device == 'mobile' %}{% translate 'Celular: 1080 × 1350 px, vertical' %}{% else %}{% translate 'Computador: 1920 × 900 px, horizontal' %}{% endif %}</p>
-          <div class="ve-thumbs" data-sort="hero-reorder" data-section="{{ section.obj.pk }}">
-          {% for slide in section.slides %}<div data-id="{{ slide.id }}">{% if slide.image %}<img src="{{ slide.image }}" alt="{{ slide.alt }}" loading="lazy">{% endif %}{% if can_change_home %}<button type="button" class="ve-handle" draggable="true" aria-label="{% translate 'Arrastrar para ordenar foto' %}">⠿</button><button type="button" data-move="-1" aria-label="{% translate 'Mover foto antes' %}">←</button><button type="button" data-move="1" aria-label="{% translate 'Mover foto después' %}">→</button><button type="button" data-action="hero-delete" data-section="{{ section.obj.pk }}" data-id="{{ slide.id }}" data-confirm="{% translate '¿Eliminar esta foto de la portada?' %}" aria-label="{% translate 'Eliminar foto' %}">×</button>{% endif %}</div>{% endfor %}
-          </div>
-          {% if can_change_home %}<label class="ve-drop" data-upload="hero-upload" data-section="{{ section.obj.pk }}"><span>+ {% translate 'Agregar fotos' %}</span><input type="file" multiple accept="image/*" aria-label="{% translate 'Agregar fotos a la portada' %}"></label>{% endif %}
-          </div></div>
-        {% elif section.registry_data %}
-          <div class="ve-section-body">
-            {% if section.registry_data.image %}<img class="ve-editorial-photo" src="{% if device == 'mobile' and section.registry_data.mobile_image %}{{ section.registry_data.mobile_image.src }}{% else %}{{ section.registry_data.image.src }}{% endif %}" alt="{{ section.registry_data.image.alt }}" loading="lazy">{% endif %}
-            <div><h2>{{ section.registry_data.title }}</h2><p>{{ section.registry_data.body }}</p>
-              {% for step in section.registry_data.steps %}<h3>{{ step.title }}</h3><p>{{ step.description }}</p>{% endfor %}
-              {% for item in section.registry_data.items %}<h3>{{ item.question }}</h3><p>{{ item.answer_html|striptags }}</p>{% endfor %}
-              <span>{{ section.registry_data.cta.label }}</span>
-            </div>
-          </div>
-        {% else %}
-          <div class="ve-section-body">
-          {% if section.obj.kind == 'story' or section.obj.kind == 'personalize' or section.obj.kind == 'banner' %}
-          <div>{% if section.image %}<img class="ve-editorial-photo" src="{{ section.image }}" alt="{{ section.obj.image_alt }}" loading="lazy">{% endif %}{% if can_change_home %}<label class="ve-drop" data-upload="section-image" data-section="{{ section.obj.pk }}"><span>{% if section.image %}{% translate 'Reemplazar foto' %}{% else %}{% translate 'Agregar foto' %}{% endif %}</span><input type="file" accept="image/*" aria-label="{% translate 'Foto de la sección' %}"></label>{% endif %}</div>
-          {% endif %}
-          <div><h2>{{ section.obj.title|title_lines }}</h2><p>{{ section.obj.subtitle }}</p>{% if section.obj.kind != 'category_grid' %}<div class="ve-body">{{ section.obj.body|linebreaksbr }}</div><span>{{ section.obj.cta_label }}</span>{% endif %}</div>
-          </div>
-          {% if section.obj.kind == 'category_grid' %}<div class="ve-categories">{% for category in home_categories %}<a href="{{ category.href }}">{% if category.image %}<img src="{{ category.image.src }}" alt="" loading="lazy">{% endif %}<h3>{{ category.name }}</h3><small>{{ category.count }} {% translate 'piezas' %}</small><span aria-hidden="true">↗</span></a>{% endfor %}</div>{% endif %}
-          {% if section.obj.kind == 'stone_panels' %}<div class="ve-stones">{% for stone in stones %}<a href="?tab=taxonomy&amp;device={{ device }}#stone-{{ stone.id }}">{% if stone.image %}<img src="{{ stone.image }}" alt="{{ stone.name }}" loading="lazy">{% endif %}<h3>{{ stone.name }}</h3></a>{% endfor %}</div>{% endif %}
-          {% if section.obj.kind == 'collection_rail' %}{% if section.obj.collection.name != section.obj.title %}<h3>{{ section.obj.collection.name }}</h3>{% endif %}<div class="ve-rail">{% for piece in section.pieces %}<div>{% if piece.image %}<img src="{{ piece.image }}" alt="{{ piece.name }}" loading="lazy">{% endif %}<p>{{ piece.name }}</p></div>{% endfor %}</div>{% endif %}
-        {% endif %}
-      </article>
-      {% endfor %}
-      </div><footer class="ve-footer">SERTI · {% translate 'Joyería de autor · Colombia' %}</footer>
-    </div>
-  {% endif %}
+<div id="cms-editor" class="cms-workspace" data-api="{{ api_url }}" data-publish="{{ can_publish|yesno:'true,false' }}">
+{% csrf_token %}<template id="cms-photo-widget">{{ photo_widget }}</template>
+<header class="cms-toolbar"><label>Página <select id="cms-document" aria-label="Página"></select></label><a href="{{ history_url }}">Historial</a><span class="cms-draft-label">Borrador · solo tú y tu equipo lo ven</span></header>
+<div id="cms-conflict" role="alert" hidden>Otra persona guardó cambios en esta página <button id="cms-reload">Ver sus cambios (recargar)</button><button id="cms-copy">Copiar mis textos</button><textarea id="cms-copy-text" aria-label="Mis textos para copiar" hidden readonly></textarea></div>
+<nav class="cms-mobile-tabs" aria-label="Panel del editor"><button data-panel="structure">Secciones</button><button data-panel="preview">Vista previa</button><button data-panel="properties">Propiedades</button></nav>
+<div class="cms-panels" data-panel="structure">
+<aside class="cms-structure" aria-label="Estructura"><h2>Secciones</h2><ol id="cms-sections"></ol><label>Añadir sección<select id="cms-kind" aria-label="Tipo de sección"></select></label><button id="cms-add">Añadir sección</button><p id="cms-announcement" class="cms-help" aria-live="polite"></p></aside>
+<section class="cms-preview" aria-label="Vista previa"><div class="cms-preview-toolbar"><label>Tamaño<select id="cms-device"><option value="1280">Escritorio</option><option value="820">Tableta</option><option value="390">Celular</option></select></label><label>Idioma<select id="cms-preview-language"><option value="es">ES</option><option value="en">EN</option></select></label><button id="cms-refresh">Recargar</button><span id="cms-preview-status" role="status">Cargando…</span></div><div id="cms-preview-space"><iframe id="cms-frame" title="Vista previa de la tienda" src="about:blank"></iframe></div></section>
+<aside class="cms-properties" aria-label="Propiedades"><h2 id="cms-section-title">Selecciona una sección</h2><div class="cms-language-tabs" role="group" aria-label="Idioma de los textos"><button data-language="es" aria-pressed="true">ES</button><button data-language="en" aria-pressed="false">EN</button><span id="cms-missing"></span></div><form id="cms-properties-form"><div id="cms-fields"></div><button type="submit">Guardar cambios</button></form><div id="cms-section-actions"></div><div id="cms-confirm" hidden role="group" aria-label="Confirmar acción"><p id="cms-confirm-message"></p><button id="cms-confirm-yes">Sí, continuar</button><button id="cms-confirm-no">Cancelar</button></div></aside>
 </div>
-<script src="{% static 'core/editor.js' %}" defer></script>
+<footer class="cms-savebar"><span id="cms-pending">Sin cambios sin publicar</span><span id="cms-save-status" role="status">Guardado</span><button id="cms-retry" hidden>Reintentar</button><button id="cms-discard" hidden>Descartar cambios</button>{% if can_publish %}<a id="cms-review" href="#">Revisar y publicar</a>{% else %}<span class="cms-owner-note">Los cambios quedan en borrador: la Propietaria puede publicarlos</span>{% endif %}</footer>
+</div>
 {% endblock %}

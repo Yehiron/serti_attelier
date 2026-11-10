@@ -77,12 +77,18 @@ def set_section_visibility(section: HomeSection, visible: bool, actor=None, requ
 @draft_mutation(lambda *args: "home")
 @transaction.atomic
 def replace_section_image(
-    section: HomeSection, upload: UploadedFile[bytes], actor=None, request=None
+    section: HomeSection, upload: UploadedFile[bytes], actor=None, request=None, *, alt=None
 ) -> None:
-    if section.kind not in {"story", "personalize", "banner"}:
+    if section.kind not in {"hero", "story", "personalize", "banner"}:
         raise ValidationError(_("Esta sección no admite una foto."))
     section = HomeSection.objects.select_for_update(of=("self",)).get(pk=section.pk)
     section.image = upload
+    if alt is not None:
+        from .registry import text, validate_fields
+
+        validate_fields((text("alt", "Texto alternativo", 300, required=True),), {"alt": alt})
+        for lang in ("es", "en"):
+            setattr(section, f"image_alt_{lang}", alt[lang])
     for locale in ("es", "en"):
         if not getattr(section, f"image_alt_{locale}"):
             setattr(section, f"image_alt_{locale}", section.title_es or _("Foto SERTI"))
@@ -130,3 +136,32 @@ def upload_hero_photos(
         diff={"Fotos de portada": ["", ", ".join(labels)]},
     )
     return warnings
+
+
+@draft_mutation(lambda *args: "home")
+@transaction.atomic
+def upload_editor_image(upload, alt, actor=None, request=None):
+    """Reuse the existing metadata-free CMS image pipeline, without a media library."""
+    from .registry import text, validate_fields
+
+    validate_fields((text("alt", "Texto alternativo", 300, required=True),), {"alt": alt})
+    holder = HomeSection(kind="image_text", image=upload)
+    services.process_image(holder)
+    image = {
+        "src": holder.image.url,
+        "srcset": "",
+        "width": holder.width,
+        "height": holder.height,
+        "alt": alt,
+    }
+    record(
+        "cms.editor_photo_uploaded",
+        actor=actor,
+        request=request,
+        diff={
+            "Foto": ["", "Foto cargada"],
+            "Texto alternativo ES": ["", alt["es"]],
+            "Texto alternativo EN": ["", alt["en"]],
+        },
+    )
+    return image

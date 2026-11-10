@@ -109,6 +109,7 @@ def review_publish(request, key):
             **admin.site.each_context(request),
             "title": "Revisar y publicar",
             "document_title": title,
+            "editor_url": reverse("visual-editor") + f"?document={key}",
             "expected_version": document.draft_version,
             "changes": pending["changes"],
             "pending_count": pending["count"],

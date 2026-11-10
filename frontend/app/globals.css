@@ -514,9 +514,9 @@ legend { padding: 0 0 14px; }
 @media(prefers-reduced-motion:reduce) { html { scroll-behavior: auto; } }
 /* A CMS home may begin with a light section instead of a hero. */
 .site-header.over-hero { background: var(--color-cream); color: var(--color-wine); }
-body:has(.home-page > .hero:first-of-type) .site-header.over-hero { margin-bottom: -90px; background: transparent; color: var(--color-cream); }
-body:has(.home-page:not(:has(> .hero:first-of-type))) .site-header.over-hero { margin-bottom: 0; background: var(--color-cream); }
-@media(max-width:760px) { body:has(.home-page > .hero:first-of-type) .site-header.over-hero { margin-bottom: -78px; } }
+body:has(.home-page > .hero:first-of-type, .home-page > [data-cms-section]:first-of-type > .hero) .site-header.over-hero { margin-bottom: -90px; background: transparent; color: var(--color-cream); }
+body:has(.home-page:not(:has(> .hero:first-of-type, > [data-cms-section]:first-of-type > .hero))) .site-header.over-hero { margin-bottom: 0; background: var(--color-cream); }
+@media(max-width:760px) { body:has(.home-page > .hero:first-of-type, .home-page > [data-cms-section]:first-of-type > .hero) .site-header.over-hero { margin-bottom: -78px; } }
 
 .sticky-piece-name { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
 

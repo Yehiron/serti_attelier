@@ -22,6 +22,8 @@ x-backend: &backend
     - ../frontend/lib/api:/frontend/lib/api:ro
     # Lets the backend test suite exercise the fake's contract (read-only).
     - ./wompi-fake:/infra/wompi-fake:ro
+    - ./Caddyfile:/infra/Caddyfile:ro
+    - ./Caddyfile.dev:/infra/Caddyfile.dev:ro
   depends_on:
     wompi-fake:
       condition: service_started

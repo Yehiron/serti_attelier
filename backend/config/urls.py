@@ -6,7 +6,10 @@ from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView
 
-from apps.cms.editor import action, editor
+from apps.cms.editor import action
+from apps.cms.editor_api import document as editor_document
+from apps.cms.editor_api import editor
+from apps.cms.editor_api import photo as editor_photo
 from apps.cms.history import history
 from apps.cms.publishing import review_publish
 from apps.cms.registry_view import section_registry
@@ -27,6 +30,8 @@ urlpatterns: list[URLPattern | URLResolver] = [
         settings.ADMIN_URL + "notifications/", notification_views.page, name="admin-notifications"
     ),
     path(settings.ADMIN_URL, include("apps.accounts.urls")),
+    path(settings.ADMIN_URL + "editor/foto/", editor_photo, name="cms-editor-photo"),
+    path(settings.ADMIN_URL + "editor/documento/", editor_document, name="cms-editor-document"),
     path(settings.ADMIN_URL + "editor/", admin.site.admin_view(editor), name="visual-editor"),
     path(
         settings.ADMIN_URL + "editor/<slug:action>/",
