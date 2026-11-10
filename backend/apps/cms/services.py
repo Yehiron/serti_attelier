@@ -24,7 +24,15 @@ from apps.catalog.images import (
     validated_image,
 )
 
+from .documents import (
+    check_version,
+    document_key,
+    draft_mutation,
+    lock_document,
+    require_capability,
+)
 from .models import (
+    DraftRevision,
     FaqItem,
     HeroSlide,
     HomePublication,
@@ -200,6 +208,7 @@ def audit_editorial(
         record(action, actor=actor, obj=obj, request=request, diff=diff)
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def save_hero_slide(obj: HeroSlide, actor=None, request=None, *, audit: bool = True) -> None:
     """Single save path for slides; bulk callers pass audit=False and record one event."""
@@ -212,6 +221,7 @@ def save_hero_slide(obj: HeroSlide, actor=None, request=None, *, audit: bool = T
         audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def delete_hero_slide(obj: HeroSlide, actor=None, request=None) -> None:
     record(
@@ -224,6 +234,7 @@ def delete_hero_slide(obj: HeroSlide, actor=None, request=None) -> None:
     obj.delete()
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def save_section(obj: HomeSection, actor=None, request=None) -> None:
     before = editorial_before(obj)
@@ -234,8 +245,11 @@ def save_section(obj: HomeSection, actor=None, request=None) -> None:
     audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def save_page(obj: Page, actor=None, request=None) -> None:
+    if obj.pk and Page.objects.filter(pk=obj.pk).exclude(kind=obj.kind).exists():
+        raise ValidationError("El tipo de una página existente no se puede cambiar.")
     before = editorial_before(obj)
     image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
     obj.full_clean()
@@ -259,7 +273,8 @@ def validate_personalization(obj: PersonalizationService) -> None:
 
 
 @transaction.atomic
-def save_personalization(obj: PersonalizationService) -> None:
+def save_personalization(obj: PersonalizationService, actor=None) -> None:
+    require_capability(actor, "edit")
     validate_personalization(obj)
     process_image(obj)
     obj.save()
@@ -288,33 +303,58 @@ def section_source(section: HomeSection) -> dict[str, Any]:
 
 @transaction.atomic
 def publish_home(
-    actor: User | AnonymousUser, request: HttpRequest | None = None, note: str = ""
+    actor: User | AnonymousUser,
+    request: HttpRequest | None = None,
+    note: str = "",
+    *,
+    expected_version=None,
 ) -> HomePublication:
     from .selectors import draft_sections, render_sections
 
     actor = require_publish(actor)
+    document = lock_document("home")
+    check_version(document, expected_version, publishing=True)
+    if len(note) > 300:
+        raise ValidationError("La nota puede tener hasta 300 caracteres.")
     sections = list(draft_sections().select_for_update(of=("self",)))
+    latest = HomePublication.objects.first()
+    source = [section_source(section) for section in sections]
+    snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
+    if latest and latest.snapshot == snapshot and latest.draft_snapshot == source:
+        document.home_publication = latest
+        document.published_version = document.draft_version
+        document.save(update_fields=["home_publication", "published_version"])
+        return latest
     for section in sections:
         if section.is_visible:
             validate_section(section)
             for slide in section.slides.all():
                 slide.full_clean()
     publication = HomePublication.objects.create(
-        snapshot={locale: render_sections(sections, locale) for locale in ("es", "en")},
-        draft_snapshot=[section_source(section) for section in sections],
+        snapshot=snapshot,
+        draft_snapshot=source,
         published_by=actor,
         published_by_repr=actor.get_username(),
         note=note,
     )
+    document.home_publication = publication
+    document.published_version = document.draft_version
+    document.save(update_fields=["home_publication", "published_version"])
     record("cms.home_published", actor=actor, obj=publication, request=request)
     return publication
 
 
 @transaction.atomic
 def restore_home(
-    publication: HomePublication, actor: User | AnonymousUser, request: HttpRequest | None = None
+    publication: HomePublication,
+    actor: User | AnonymousUser,
+    request: HttpRequest | None = None,
+    *,
+    expected_version=None,
 ) -> None:
-    actor = require_publish(actor)
+    actor = require_capability(actor, "restore")
+    document = lock_document("home")
+    check_version(document, expected_version)
     HomeSection.objects.all().delete()
     for source in publication.draft_snapshot:
         fields = dict(source)
@@ -337,6 +377,7 @@ def restore_home(
                     section=section,
                     **(fields | mobile_data | {"image": mobile, "device": "mobile"}),
                 )
+    _record_restore(document, publication, actor, home=True)
     record("cms.home_restored", actor=actor, obj=publication, request=request)
 
 
@@ -379,19 +420,33 @@ def page_snapshot(page):
 
 @transaction.atomic
 def publish_page(
-    page: Page, actor: User | AnonymousUser, request: HttpRequest | None = None, note: str = ""
+    page: Page,
+    actor: User | AnonymousUser,
+    request: HttpRequest | None = None,
+    note: str = "",
+    *,
+    expected_version=None,
 ) -> PageRevision:
     actor = require_publish(actor)
+    document = lock_document(document_key(page))
+    check_version(document, expected_version, publishing=True)
     if len(note) > 300:
         raise ValidationError("La nota puede tener hasta 300 caracteres.")
     locked = Page.objects.select_for_update(of=("self",)).get(pk=page.pk)
+    latest = locked.revisions.first()
+    snapshot = page_snapshot(locked)
+    if latest and latest.snapshot == snapshot:
+        document.page_revision = latest
+        document.published_version = document.draft_version
+        document.save(update_fields=["page_revision", "published_version"])
+        return latest
     locked.full_clean()
     for row in [*locked.process_steps.all(), *locked.faq_items.all()]:
         row.full_clean()
     revision = PageRevision.objects.create(
         page=locked,
         version=locked.version + 1,
-        snapshot=page_snapshot(locked),
+        snapshot=snapshot,
         note=note,
         published_by=actor,
         published_by_repr=actor.get_username(),
@@ -401,15 +456,24 @@ def publish_page(
     locked.published_at = timezone.now()
     locked.save()
     page.refresh_from_db()
+    document.page_revision = revision
+    document.published_version = document.draft_version
+    document.save(update_fields=["page_revision", "published_version"])
     record("cms.page_published", actor=actor, obj=page, request=request)
     return revision
 
 
 @transaction.atomic
 def restore_page_revision(
-    revision: PageRevision, actor: User | AnonymousUser, request: HttpRequest | None = None
+    revision: PageRevision,
+    actor: User | AnonymousUser,
+    request: HttpRequest | None = None,
+    *,
+    expected_version=None,
 ) -> None:
-    actor = require_publish(actor)
+    actor = require_capability(actor, "restore")
+    document = lock_document(document_key(revision.page))
+    check_version(document, expected_version)
     page = Page.objects.select_for_update(of=("self",)).get(pk=revision.page_id)
     for locale in ("es", "en"):
         source = revision.snapshot[locale].get("source", revision.snapshot[locale])
@@ -433,11 +497,16 @@ def restore_page_revision(
                     values[f"{field}_{locale}"] = row.get("source", row).get(field, "")
             model.objects.create(**values)
     page.save()
+    _record_restore(document, revision, actor)
     record("cms.page_restored", actor=actor, obj=page, request=request)
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def save_page_item(obj, actor=None, request=None):
+    if obj.pk and type(obj).objects.filter(pk=obj.pk).exclude(page_id=obj.page_id).exists():
+        raise ValidationError("Este contenido pertenece a otra página.")
     Page.objects.select_for_update(of=("self",)).get(pk=obj.page_id)
     before = editorial_before(obj)
     obj.full_clean()
@@ -445,6 +514,7 @@ def save_page_item(obj, actor=None, request=None):
     audit_editorial(obj, before, actor, request)
 
 
+@draft_mutation(lambda obj, *args: document_key(obj))
 @transaction.atomic
 def delete_page_item(obj, actor=None, request=None):
     Page.objects.select_for_update(of=("self",)).get(pk=obj.page_id)
@@ -456,3 +526,22 @@ def delete_page_item(obj, actor=None, request=None):
         diff={"Contenido": [str(obj), "Eliminado del borrador"]},
     )
     obj.delete()
+
+
+def _record_restore(document, origin, actor, home=False):
+    document.draft_version += 1
+    document.updated_by = actor
+    document.save(update_fields=["draft_version", "updated_by", "updated_at"])
+    snapshot = (
+        [section_source(row) for row in HomeSection.objects.prefetch_related("slides").all()]
+        if home
+        else page_snapshot(Page.objects.get(pk=origin.page_id))
+    )
+    DraftRevision.objects.create(
+        document=document,
+        draft_version=document.draft_version,
+        snapshot=snapshot,
+        published_by=actor,
+        published_by_repr=actor.get_username(),
+        **{"restored_from_home" if home else "restored_from_page": origin},
+    )

@@ -167,7 +167,7 @@ def test_multiple_upload(add: bool, settings: Any, tmp_path: Any) -> None:
 
 
 def test_page_detail_publish() -> None:
-    browser, _ = staff(CONTENIDO)
+    browser, _ = staff(PROPIETARIO)
     page = Page.objects.get(kind="terms")
     page.title_es = "Detalle"
     page.body_es = "Texto"
@@ -176,7 +176,14 @@ def test_page_detail_publish() -> None:
     url = reverse("admin:cms_page_change", args=[page.pk])
     assert "Cambios sin publicar" in browser.get(url).content.decode()
     response = browser.post(reverse("admin:cms_page_detail_publish", args=[page.pk]))
-    assert response.status_code == 302 and response["Location"] == url
+    review_url = reverse("cms-review-publish", args=[f"page:{page.kind}"])
+    assert response.status_code == 302 and response["Location"] == review_url
+    page.refresh_from_db()
+    assert page.version == version
+    from apps.cms.tests.helpers import cms_version
+
+    response = browser.post(review_url, {"expected_version": cms_version(page)})
+    assert response.status_code == 302
     page.refresh_from_db()
     assert page.version == version + 1
     assert "Publicado" in browser.get(url).content.decode()

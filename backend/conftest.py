@@ -17,3 +17,13 @@ def no_wompi_network(monkeypatch: Any) -> None:
         raise AssertionError("Mockea WompiClient: red prohibida en pruebas")
 
     monkeypatch.setattr("apps.payments.wompi.urlopen", forbidden)
+
+
+@pytest.fixture
+def cms_actor():
+    """Explicit service actor for image/validation regressions unrelated to role policy."""
+    from apps.accounts.models import User
+
+    return User.objects.create_superuser(
+        username="cms-regression", email="cms-regression@example.com"
+    )

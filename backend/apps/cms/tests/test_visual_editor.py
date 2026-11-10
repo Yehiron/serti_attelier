@@ -17,6 +17,7 @@ from apps.catalog.models import Category
 from apps.cms import editor_services, services
 from apps.cms.admin import HomeSectionAdmin
 from apps.cms.models import HeroSlide, HomeSection
+from apps.cms.tests.helpers import cms_form_data, cms_version
 from apps.cms.tests.test_hero_slides import upload
 from apps.core.dashboard import NAVIGATION
 from apps.core.tests.test_dashboard_client import staff
@@ -72,11 +73,14 @@ def test_hero_actions() -> None:
     with patch.object(services, "save_hero_slide", wraps=services.save_hero_slide) as save:
         response = browser.post(
             endpoint("hero-upload"),
-            {
-                "section": hero.pk,
-                "device": "mobile",
-                "files[]": [upload((90, 120)), upload((120, 90))],
-            },
+            cms_form_data(
+                endpoint("hero-upload"),
+                {
+                    "section": hero.pk,
+                    "device": "mobile",
+                    "files[]": [upload((90, 120)), upload((120, 90))],
+                },
+            ),
         )
     assert response.status_code == 200
     assert save.call_count == 2
@@ -88,20 +92,30 @@ def test_hero_actions() -> None:
     assert (
         browser.post(
             endpoint("hero-reorder"),
-            {"section": hero.pk, "device": "mobile", "ids": json.dumps(ids)},
+            cms_form_data(
+                endpoint("hero-reorder"),
+                {"section": hero.pk, "device": "mobile", "ids": json.dumps(ids)},
+            ),
         ).status_code
         == 200
     )
     assert list(hero.slides.filter(device="mobile").values_list("pk", flat=True)) == ids
     assert (
         browser.post(
-            endpoint("hero-delete"), {"section": hero.pk, "device": "desktop", "id": existing.pk}
+            endpoint("hero-delete"),
+            cms_form_data(
+                endpoint("hero-delete"),
+                {"section": hero.pk, "device": "desktop", "id": existing.pk},
+            ),
         ).status_code
         == 400
     )
     assert (
         browser.post(
-            endpoint("hero-delete"), {"section": hero.pk, "device": "mobile", "id": existing.pk}
+            endpoint("hero-delete"),
+            cms_form_data(
+                endpoint("hero-delete"), {"section": hero.pk, "device": "mobile", "id": existing.pk}
+            ),
         ).status_code
         == 200
     )
@@ -117,17 +131,23 @@ def test_hero_scope_and_invalid_upload(device: str) -> None:
         assert (
             browser.post(
                 endpoint("hero-upload"),
-                {"section": section.pk, "device": selected, "files[]": [upload((90, 120))]},
+                cms_form_data(
+                    endpoint("hero-upload"),
+                    {"section": section.pk, "device": selected, "files[]": [upload((90, 120))]},
+                ),
             ).status_code
             == 400
         )
     response = browser.post(
         endpoint("hero-upload"),
-        {
-            "section": hero.pk,
-            "device": device,
-            "files[]": [upload((90, 120)), SimpleUploadedFile("bad.png", b"bad")],
-        },
+        cms_form_data(
+            endpoint("hero-upload"),
+            {
+                "section": hero.pk,
+                "device": device,
+                "files[]": [upload((90, 120)), SimpleUploadedFile("bad.png", b"bad")],
+            },
+        ),
     )
     assert response.status_code == 400
     assert "imagen" in response.json()["error"]
@@ -140,7 +160,10 @@ def test_hero_scope_and_invalid_upload(device: str) -> None:
         assert (
             browser.post(
                 endpoint("hero-reorder"),
-                {"section": hero.pk, "device": device, "ids": json.dumps(ids)},
+                cms_form_data(
+                    endpoint("hero-reorder"),
+                    {"section": hero.pk, "device": device, "ids": json.dumps(ids)},
+                ),
             ).status_code
             == 400
         )
@@ -151,7 +174,7 @@ def test_section_services_and_publish() -> None:
     HomeSection.objects.all().delete()
     first = HomeSection.objects.create(kind="statement")
     second = HomeSection.objects.create(kind="story", position=1)
-    services.publish_home(owner)
+    services.publish_home(owner, expected_version=cms_version())
     request = RequestFactory().get("/")
     request.user = owner
     model_admin = HomeSectionAdmin(HomeSection, admin.site)
@@ -161,7 +184,10 @@ def test_section_services_and_publish() -> None:
     ) as save:
         assert (
             browser.post(
-                endpoint("section-visibility"), {"section": first.pk, "visible": "false"}
+                endpoint("section-visibility"),
+                cms_form_data(
+                    endpoint("section-visibility"), {"section": first.pk, "visible": "false"}
+                ),
             ).status_code
             == 200
         )
@@ -172,7 +198,10 @@ def test_section_services_and_publish() -> None:
     ) as reorder:
         assert (
             browser.post(
-                endpoint("sections-reorder"), {"ids": json.dumps([second.pk, first.pk])}
+                endpoint("sections-reorder"),
+                cms_form_data(
+                    endpoint("sections-reorder"), {"ids": json.dumps([second.pk, first.pk])}
+                ),
             ).status_code
             == 200
         )
@@ -180,7 +209,10 @@ def test_section_services_and_publish() -> None:
     assert list(HomeSection.objects.values_list("pk", flat=True)) == [second.pk, first.pk]
     assert (
         browser.post(
-            endpoint("section-image"), {"section": second.pk, "file": upload((100, 120))}
+            endpoint("section-image"),
+            cms_form_data(
+                endpoint("section-image"), {"section": second.pk, "file": upload((100, 120))}
+            ),
         ).status_code
         == 200
     )
@@ -188,12 +220,20 @@ def test_section_services_and_publish() -> None:
     assert second.renditions
     assert (
         browser.post(
-            endpoint("section-image"), {"section": first.pk, "file": upload((100, 120))}
+            endpoint("section-image"),
+            cms_form_data(
+                endpoint("section-image"), {"section": first.pk, "file": upload((100, 120))}
+            ),
         ).status_code
         == 400
     )
-    response = browser.post(reverse("admin:cms-home-publish"), {"return_to": "editor"})
-    assert response["Location"] == reverse("visual-editor")
+    response = browser.post(
+        reverse("admin:cms-home-publish"),
+        cms_form_data(reverse("admin:cms-home-publish"), {"return_to": "editor"}),
+    )
+    assert response["Location"] == reverse("cms-review-publish", args=["home"])
+    assert model_admin.publication_context(request)["pending_home_changes"]
+    browser.post(response["Location"], {"expected_version": cms_version()})
     assert not model_admin.publication_context(request)["pending_home_changes"]
 
 
@@ -206,7 +246,10 @@ def test_taxonomy_cover() -> None:
         assert (
             browser.post(
                 endpoint("taxonomy-cover"),
-                {"model": "category", "id": category.pk, "file": upload((100, 120))},
+                cms_form_data(
+                    endpoint("taxonomy-cover"),
+                    {"model": "category", "id": category.pk, "file": upload((100, 120))},
+                ),
             ).status_code
             == 200
         )
@@ -216,7 +259,11 @@ def test_taxonomy_cover() -> None:
     response = browser.get(reverse("visual-editor"), {"tab": "taxonomy"})
     assert next(iter(category.cover_renditions["webp"].values())) in response.content.decode()
     assert (
-        browser.post(endpoint("taxonomy-cover"), {"model": "material", "id": 1}).status_code == 400
+        browser.post(
+            endpoint("taxonomy-cover"),
+            cms_form_data(endpoint("taxonomy-cover"), {"model": "material", "id": 1}),
+        ).status_code
+        == 400
     )
     group = Group.objects.get(name=CONTENIDO)
     group.permissions.remove(
@@ -225,7 +272,10 @@ def test_taxonomy_cover() -> None:
     assert (
         browser.post(
             endpoint("taxonomy-cover"),
-            {"model": "category", "id": category.pk, "file": upload((100, 120))},
+            cms_form_data(
+                endpoint("taxonomy-cover"),
+                {"model": "category", "id": category.pk, "file": upload((100, 120))},
+            ),
         ).status_code
         == 403
     )
@@ -251,7 +301,12 @@ def test_post_and_csrf(action: str) -> None:
     assert secure.post(endpoint(action)).status_code == 403
     page = secure.get(reverse("visual-editor"))
     token = page.cookies["csrftoken"].value
-    assert secure.post(endpoint(action), HTTP_X_CSRFTOKEN=token).status_code == 400
+    assert (
+        secure.post(
+            endpoint(action), {"expected_version": cms_version()}, HTTP_X_CSRFTOKEN=token
+        ).status_code
+        == 400
+    )
 
 
 def test_populated_home_uses_device_renditions_and_draft_order() -> None:
@@ -265,7 +320,10 @@ def test_populated_home_uses_device_renditions_and_draft_order() -> None:
         assert (
             browser.post(
                 endpoint("hero-upload"),
-                {"section": hero.pk, "device": device, "files[]": [upload((100, 120))]},
+                cms_form_data(
+                    endpoint("hero-upload"),
+                    {"section": hero.pk, "device": device, "files[]": [upload((100, 120))]},
+                ),
             ).status_code
             == 200
         )
@@ -282,7 +340,10 @@ def test_populated_home_uses_device_renditions_and_draft_order() -> None:
         assert (
             browser.post(
                 endpoint("hero-reorder"),
-                {"section": hero.pk, "device": device, "ids": json.dumps([other.pk])},
+                cms_form_data(
+                    endpoint("hero-reorder"),
+                    {"section": hero.pk, "device": device, "ids": json.dumps([other.pk])},
+                ),
             ).status_code
             == 400
         )

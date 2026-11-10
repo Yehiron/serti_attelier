@@ -3,6 +3,8 @@
   if (!root) return;
   const message = document.getElementById('ve-message');
   let busy = false;
+  const reload = document.getElementById('ve-reload');
+  reload.addEventListener('click', () => location.reload());
   function show(text) { message.textContent = text; message.hidden = false; message.focus(); }
   const warning = sessionStorage.getItem('serti-editor-warning');
   if (warning) { show(warning); sessionStorage.removeItem('serti-editor-warning'); }
@@ -12,6 +14,7 @@
     root.setAttribute('aria-busy', 'true');
     const data = new FormData();
     data.set('device', root.dataset.device);
+    data.set('expected_version', root.dataset.version);
     Object.entries(fields).forEach(([key, value]) => data.set(key, value));
     if (files) Array.from(files).forEach(file => data.append(action === 'hero-upload' ? 'files[]' : 'file', file));
     try {
@@ -20,6 +23,7 @@
         headers: {'X-CSRFToken': root.querySelector('[name=csrfmiddlewaretoken]').value}
       });
       const result = await response.json();
+      if (response.status === 409) reload.hidden = false;
       if (!response.ok) throw new Error(result.error || document.getElementById('ve-failure').textContent);
       if (result.warnings?.length) sessionStorage.setItem('serti-editor-warning', result.warnings.join(' '));
       location.reload();

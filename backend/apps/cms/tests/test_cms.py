@@ -27,6 +27,7 @@ from apps.cms import selectors, services
 from apps.cms.admin import HomeSectionAdmin, PageAdmin, PublicationAdmin
 from apps.cms.models import HomePublication, HomeSection, Page, PageRevision, PersonalizationService
 from apps.cms.preview import PreviewInvalid, make_token, verify_token
+from apps.cms.tests.helpers import cms_version
 from apps.core.api.base import PublicReadThrottle, PublicView
 from apps.core.routes import href
 from apps.core.selectors import get_solo
@@ -88,22 +89,36 @@ def test_routes(key: str, es: str, en: str) -> None:
 @pytest.mark.parametrize(
     "kind", ["hero", "statement", "stone_panels", "category_grid", "story", "personalize", "banner"]
 )
-def test_valid_section_kinds(kind: str) -> None:
-    services.save_section(HomeSection(kind=kind, title_es="Título"))
+def test_valid_section_kinds(cms_actor, kind: str) -> None:
+    services.save_section(
+        HomeSection(kind=kind, title_es="Título"),
+        expected_version=cms_version(HomeSection(kind=kind, title_es="Título")),
+        actor=cms_actor,
+    )
 
 
 @pytest.mark.parametrize("target", ["category", "stone", "collection", "piece", "page", "external"])
-def test_invalid_cta_target(target: str) -> None:
+def test_invalid_cta_target(cms_actor, target: str) -> None:
     with pytest.raises(ValidationError):
-        services.save_section(HomeSection(kind="hero", cta_kind=target, cta_label_es="Ver"))
+        services.save_section(
+            HomeSection(kind="hero", cta_kind=target, cta_label_es="Ver"),
+            expected_version=cms_version(
+                HomeSection(kind="hero", cta_kind=target, cta_label_es="Ver")
+            ),
+            actor=cms_actor,
+        )
 
 
-def test_rail_requires_collection() -> None:
+def test_rail_requires_collection(cms_actor) -> None:
     with pytest.raises(ValidationError):
-        services.save_section(HomeSection(kind="collection_rail"))
+        services.save_section(
+            HomeSection(kind="collection_rail"),
+            expected_version=cms_version(HomeSection(kind="collection_rail")),
+            actor=cms_actor,
+        )
 
 
-def test_cta_localized_and_external(actor: User, client: Client) -> None:
+def test_cta_localized_and_external(cms_actor, actor: User, client: Client) -> None:
     clean_home()
     category = Category.objects.create(name_es="Anillos", slug_es="anillos", slug_en="rings")
     section(cta_kind="category", cta_category=category, cta_label_es="Ver", cta_label_en="View")
@@ -113,7 +128,7 @@ def test_cta_localized_and_external(actor: User, client: Client) -> None:
         cta_external_url="https://example.com",
         cta_label_es="Visitar",
     )
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     data = get(client, "cms/home", locale="en").json()["sections"]
     assert data[0]["cta"] == {"label": "View", "href": "/en/jewelry/rings", "external": False}
     assert data[1]["cta"]["external"] is True
@@ -124,11 +139,20 @@ def test_cta_localized_and_external(actor: User, client: Client) -> None:
                 cta_kind="external",
                 cta_external_url="http://example.com",
                 cta_label_es="Ver",
-            )
+            ),
+            expected_version=cms_version(
+                HomeSection(
+                    kind="hero",
+                    cta_kind="external",
+                    cta_external_url="http://example.com",
+                    cta_label_es="Ver",
+                )
+            ),
+            actor=cms_actor,
         )
 
 
-def test_home_snapshot_restore_and_preview(actor: User, client: Client) -> None:
+def test_home_snapshot_restore_and_preview(cms_actor, actor: User, client: Client) -> None:
     clean_home()
     obj = section()
     section(is_visible=False, position=10)
@@ -137,19 +161,19 @@ def test_home_snapshot_restore_and_preview(actor: User, client: Client) -> None:
         "published_at": None,
         "preview": False,
     }
-    first = services.publish_home(actor, note="Inicial")
+    first = services.publish_home(actor, note="Inicial", expected_version=cms_version())
     obj.title_es = "Borrador nuevo"
-    services.save_section(obj)
+    services.save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert get(client, "cms/home").json()["sections"][0]["title"] == "Tierra"
     preview = get(client, "cms/home", preview=make_token(actor))
     assert preview.json()["preview"] is True
     assert preview.json()["sections"][0]["title"] == "Borrador nuevo"
     assert preview["Cache-Control"] == "private, no-store"
-    services.restore_home(first, actor)
+    services.restore_home(first, actor, expected_version=cms_version())
     assert HomeSection.objects.count() == 2
     assert HomeSection.objects.first().title_es == "Tierra"  # type: ignore[union-attr]
     assert HomePublication.objects.count() == 1
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     assert get(client, "cms/home").json()["sections"][0]["title"] == "Tierra"
     assert set(
         AuditLog.objects.filter(action__startswith="cms.home_").values_list("action", flat=True)
@@ -169,7 +193,7 @@ def test_live_rail_stones_and_bounded_queries(actor: User, client: Client) -> No
         CollectionPiece.objects.create(collection=collection, piece=obj)
     section(kind="collection_rail", collection=collection)
     section(kind="stone_panels", position=1)
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     Stone.objects.create(
         name_es="Diamante", name_en="Diamond", slug_es="diamante", slug_en="diamond"
     )
@@ -181,7 +205,7 @@ def test_live_rail_stones_and_bounded_queries(actor: User, client: Client) -> No
     for i in range(20):
         section(kind="collection_rail", collection=collection, position=i + 2)
         section(kind="stone_panels", position=i + 30)
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     with CaptureQueriesContext(connection) as many:
         response = get(client, "cms/home")
     assert len(one) == len(many)
@@ -205,7 +229,7 @@ def test_rail_order_and_limit(actor: User, client: Client) -> None:
         )
         CollectionPiece.objects.create(collection=collection, piece=piece, position=10 - i)
     section(kind="collection_rail", collection=collection)
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     cards = get(client, "cms/home").json()["sections"][0]["pieces"]
     assert len(cards) == 8
     assert cards[0]["sku"] == "CMS-9"
@@ -238,16 +262,16 @@ def test_preview_expired(actor: User) -> None:
         verify_token(token)
 
 
-def test_page_publication_restore_and_alternates(actor: User, client: Client) -> None:
+def test_page_publication_restore_and_alternates(cms_actor, actor: User, client: Client) -> None:
     page = Page.objects.get(kind="terms")
     assert get(client, "cms/pages/terminos").status_code == 404
     page.body_es = "## Términos\n\n**Texto**"
-    services.save_page(page)
-    first = services.publish_page(page, actor)
+    services.save_page(page, expected_version=cms_version(page), actor=cms_actor)
+    first = services.publish_page(page, actor, expected_version=cms_version(page))
     assert page.version == 1
     page.body_es = "Nuevo borrador"
     page.slug_es = "terminos-nuevos"
-    services.save_page(page)
+    services.save_page(page, expected_version=cms_version(page), actor=cms_actor)
     public = get(client, "cms/pages/terminos").json()
     assert public["body_html"] == "<h2>Términos</h2>\n<p><strong>Texto</strong></p>"
     assert public["alternates"] == {"es": "/es/legal/terminos", "en": "/en/legal/terms"}
@@ -256,9 +280,9 @@ def test_page_publication_restore_and_alternates(actor: User, client: Client) ->
         get(client, "cms/pages/terminos-nuevos", preview=make_token(actor)).json()["body_html"]
         == "<p>Nuevo borrador</p>"
     )
-    services.publish_page(page, actor)
+    services.publish_page(page, actor, expected_version=cms_version(page))
     assert page.version == 2
-    services.restore_page_revision(first, actor)
+    services.restore_page_revision(first, actor, expected_version=cms_version(first))
     page.refresh_from_db()
     assert page.slug_es == "terminos"
     assert page.version == 2
@@ -273,11 +297,11 @@ def test_page_publication_restore_and_alternates(actor: User, client: Client) ->
     ("kind", "path"),
     [("manufacturer", "/en/story"), ("contact", "/en/contact"), ("personalize", "/en/customize")],
 )
-def test_fixed_page_routes(kind: str, path: str, actor: User, client: Client) -> None:
+def test_fixed_page_routes(cms_actor, kind: str, path: str, actor: User, client: Client) -> None:
     page = Page.objects.get(kind=kind)
     page.slug_en = ""
-    services.save_page(page)
-    services.publish_page(page, actor)
+    services.save_page(page, expected_version=cms_version(page), actor=cms_actor)
+    services.publish_page(page, actor, expected_version=cms_version(page))
     payload = get(client, f"cms/pages/kind/{kind}", locale="en").json()
     assert payload["alternates"]["en"] == path
     assert payload["slug"] == page.slug_es
@@ -285,7 +309,11 @@ def test_fixed_page_routes(kind: str, path: str, actor: User, client: Client) ->
 
 @pytest.mark.parametrize("method", ["save", "delete", "update", "queryset_delete", "bulk_update"])
 def test_revisions_immutable(method: str, actor: User) -> None:
-    revision = services.publish_page(Page.objects.get(kind="privacy"), actor)
+    revision = services.publish_page(
+        Page.objects.get(kind="privacy"),
+        actor,
+        expected_version=cms_version(Page.objects.get(kind="privacy")),
+    )
     with pytest.raises(ValidationError):
         if method == "save":
             revision.save()
@@ -300,7 +328,7 @@ def test_revisions_immutable(method: str, actor: User) -> None:
 
 
 def test_home_publications_immutable(actor: User) -> None:
-    publication = services.publish_home(actor)
+    publication = services.publish_home(actor, expected_version=cms_version())
     with pytest.raises(ValidationError):
         publication.save()
     with pytest.raises(ValidationError):
@@ -348,13 +376,13 @@ def test_markdown_allowlist() -> None:
     assert "<strong>Bold</strong>" in result
 
 
-def test_personalization_and_settings(actor: User, client: Client) -> None:
+def test_personalization_and_settings(cms_actor, actor: User, client: Client) -> None:
     assert get(client, "cms/personalization").json() == {"services": []}
     service = PersonalizationService.objects.first()
     assert service is not None
     service.is_active = True
     service.whatsapp_message_es = "Quiero {service}. {url}"
-    services.save_personalization(service)
+    services.save_personalization(service, actor=cms_actor)
     assert get(client, "cms/personalization").json()["services"][0]["whatsapp_url"] is None
     config = get_solo()
     config.whatsapp_number = "573001234567"
@@ -366,7 +394,11 @@ def test_personalization_and_settings(actor: User, client: Client) -> None:
     message = parse_qs(urlparse(service_data["whatsapp_url"]).query)["text"][0]
     assert service.title in message and "/es/personaliza" in message
     for kind in ("cookies", "returns", "privacy", "terms", "shipping"):
-        services.publish_page(Page.objects.get(kind=kind), actor)
+        services.publish_page(
+            Page.objects.get(kind=kind),
+            actor,
+            expected_version=cms_version(Page.objects.get(kind=kind)),
+        )
     data = get(client, "site/settings", locale="en").json()
     assert data["social"] == [{"network": "instagram", "url": config.instagram_url}]
     assert data["support_email"] == "help@example.com"
@@ -384,10 +416,10 @@ def test_personalization_and_settings(actor: User, client: Client) -> None:
 @pytest.mark.parametrize(
     "template", ["{name}", "{service.__class__}", "{url[0]}", "{service!r}", "{service:20}", "{"]
 )
-def test_personalization_template_rejected(template: str) -> None:
+def test_personalization_template_rejected(cms_actor, template: str) -> None:
     service = PersonalizationService(title_es="Grabado", whatsapp_message_es=template)
     with pytest.raises(ValidationError):
-        services.save_personalization(service)
+        services.save_personalization(service, actor=cms_actor)
 
 
 @pytest.mark.parametrize("network", ["instagram", "facebook", "tiktok", "pinterest"])
@@ -421,15 +453,15 @@ def test_roles_and_service_permissions(role: str) -> None:
         )
     user.groups.add(group)
     for model in ("homesection", "page", "personalizationservice"):
-        assert user.has_perm(f"cms.view_{model}")
+        assert user.has_perm(f"cms.view_{model}") == (role != OPERACIONES)
         assert user.has_perm(f"cms.change_{model}") == (role != OPERACIONES)
         assert user.has_perm(f"cms.add_{model}") == (role != OPERACIONES)
-    assert user.has_perm("cms.publish_content") == (role != OPERACIONES)
-    if role == OPERACIONES:
+    assert user.has_perm("cms.publish_content") == (role == PROPIETARIO)
+    if role != PROPIETARIO:
         with pytest.raises(PermissionDenied):
-            services.publish_home(user)
+            services.publish_home(user, expected_version=cms_version())
     else:
-        services.publish_home(user)
+        services.publish_home(user, expected_version=cms_version())
 
 
 def test_admin_preview_and_actions(actor: User) -> None:
@@ -458,7 +490,7 @@ def test_admin_preview_and_actions(actor: User) -> None:
         home_admin.publish(request)
 
 
-def test_image_pipeline(actor: User, tmp_path: Path) -> None:
+def test_image_pipeline(cms_actor, actor: User, tmp_path: Path) -> None:
     output = BytesIO()
     Image.new("RGB", (1920, 1200), "red").save(output, "PNG")
     obj = HomeSection(
@@ -467,7 +499,7 @@ def test_image_pipeline(actor: User, tmp_path: Path) -> None:
         image_alt_es="Rojo",
         image_alt_en="Red",
     )
-    services.save_section(obj)
+    services.save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert (obj.width, obj.height) == (1920, 1080)
     assert set(obj.renditions["webp"]) == {"960", "1600", "1920"}  # source width kept
     assert obj.image.name and obj.image.name.endswith(".webp")
@@ -481,7 +513,7 @@ def test_image_pipeline(actor: User, tmp_path: Path) -> None:
     assert payload["src"].startswith("/media/")
     assert payload["alt"] == "Red"
     original = obj.image.name
-    services.save_section(obj)
+    services.save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert obj.image.name == original
     bad = HomeSection(
         kind="hero",
@@ -490,14 +522,14 @@ def test_image_pipeline(actor: User, tmp_path: Path) -> None:
         image_alt_en="SVG",
     )
     with pytest.raises(ValidationError):
-        services.save_section(bad)
+        services.save_section(bad, expected_version=cms_version(bad), actor=cms_actor)
 
 
 @pytest.mark.parametrize(
     "kind,size", [("hero", (1200, 675)), ("story", (960, 1200)), ("personalize", (960, 1200))]
 )
 def test_section_images_match_the_frame_they_are_shown_in(
-    actor: User, tmp_path: Path, kind: str, size: tuple[int, int]
+    cms_actor, actor: User, tmp_path: Path, kind: str, size: tuple[int, int]
 ) -> None:
     # The same square photo becomes landscape for the hero and portrait for editorial frames.
     output = BytesIO()
@@ -509,7 +541,7 @@ def test_section_images_match_the_frame_they_are_shown_in(
         image_alt_es="Rojo",
         image_alt_en="Red",
     )
-    services.save_section(obj)
+    services.save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert (obj.width, obj.height) == size
 
 
@@ -538,15 +570,15 @@ def test_draft_query_count(actor: User, client: Client) -> None:
     assert len(many) == len(one) == 4
 
 
-def test_empty_markdown_and_raw_source_restore(actor: User, client: Client) -> None:
+def test_empty_markdown_and_raw_source_restore(cms_actor, actor: User, client: Client) -> None:
     page = Page.objects.get(kind="contact")
     page.body_es = ""
     page.body_en = ""
     page.title_en = ""
-    services.save_page(page)
-    revision = services.publish_page(page, actor)
+    services.save_page(page, expected_version=cms_version(page), actor=cms_actor)
+    revision = services.publish_page(page, actor, expected_version=cms_version(page))
     assert get(client, "cms/pages/kind/contact", locale="en").json()["body_html"] == ""
-    services.restore_page_revision(revision, actor)
+    services.restore_page_revision(revision, actor, expected_version=cms_version(revision))
     page.refresh_from_db()
     assert page.title_en == ""
 
@@ -573,7 +605,13 @@ def test_admin_forms_reject_invalid_content() -> None:
     request.user = User(is_staff=True, is_superuser=True, is_active=True)
     form_class = model_admin.get_form(request)
     form = form_class(
-        data={"kind": "collection_rail", "position": 0, "is_visible": True, "cta_kind": "none"}
+        data={
+            "expected_version": cms_version(),
+            "kind": "collection_rail",
+            "position": 0,
+            "is_visible": True,
+            "cta_kind": "none",
+        }
     )
     assert not form.is_valid()
     assert "colección" in str(form.errors)
@@ -610,7 +648,7 @@ def test_schema_documents_cms_contract() -> None:
 
 @pytest.mark.postgres
 @pytest.mark.django_db(transaction=True)
-def test_concurrent_page_publications_have_distinct_versions(actor: User) -> None:
+def test_concurrent_page_publications_are_idempotent(actor: User) -> None:
     from concurrent.futures import ThreadPoolExecutor
     from threading import Barrier
 
@@ -628,21 +666,25 @@ def test_concurrent_page_publications_have_distinct_versions(actor: User) -> Non
             user = User.objects.get(pk=user_id)
             draft = Page.objects.get(pk=page_id)
             barrier.wait(timeout=10)
-            return services.publish_page(draft, user).version
+            return services.publish_page(draft, user, expected_version=cms_version(draft)).version
         finally:
             connection.close()
 
     with ThreadPoolExecutor(max_workers=2) as pool:
         versions = list(pool.map(publish, range(2)))
-    assert sorted(versions) == [initial_version + 1, initial_version + 2]
-    assert PageRevision.objects.filter(page_id=page_id).count() == initial_version + 2
+    assert versions[0] == versions[1]
+    assert PageRevision.objects.filter(page_id=page_id).count() <= initial_version + 1
 
 
 def test_publisher_can_be_deleted_and_history_keeps_their_name(actor: User) -> None:
     from apps.cms.models import HomePublication, Page, PageRevision
 
-    publication = services.publish_home(actor)
-    revision = services.publish_page(Page.objects.get(kind="terms"), actor)
+    publication = services.publish_home(actor, expected_version=cms_version())
+    revision = services.publish_page(
+        Page.objects.get(kind="terms"),
+        actor,
+        expected_version=cms_version(Page.objects.get(kind="terms")),
+    )
     username = actor.get_username()
     actor.delete()
     publication = HomePublication.objects.get(pk=publication.pk)

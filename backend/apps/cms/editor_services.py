@@ -11,6 +11,7 @@ from apps.audit.services import record
 from apps.catalog.images import validated_image
 
 from . import services
+from .documents import draft_mutation
 from .models import HeroSlide, HomeSection
 
 
@@ -21,9 +22,10 @@ def validate_order(actual: list[int], ordered: list[int]) -> None:
         )
 
 
+@draft_mutation(lambda *args: "home")
 @transaction.atomic
 def reorder_sections(ordered: list[int], actor=None, request=None) -> None:
-    rows = {row.pk: row for row in HomeSection.objects.select_for_update()}
+    rows = {row.pk: row for row in HomeSection.objects.select_for_update(of=("self",))}
     validate_order(list(rows), ordered)
     before = [str(row) for row in sorted(rows.values(), key=lambda row: (row.position, row.pk))]
     for position, pk in enumerate(ordered):
@@ -39,12 +41,15 @@ def reorder_sections(ordered: list[int], actor=None, request=None) -> None:
         )
 
 
+@draft_mutation(lambda *args: "home")
 @transaction.atomic
 def reorder_hero_slides(
     section: HomeSection, device: str, ordered: list[int], actor=None, request=None
 ) -> None:
-    HomeSection.objects.select_for_update().get(pk=section.pk)
-    rows = {row.pk: row for row in section.slides.select_for_update().filter(device=device)}
+    HomeSection.objects.select_for_update(of=("self",)).get(pk=section.pk)
+    rows = {
+        row.pk: row for row in section.slides.select_for_update(of=("self",)).filter(device=device)
+    }
     validate_order(list(rows), ordered)
     before = [str(row) for row in sorted(rows.values(), key=lambda row: (row.position, row.pk))]
     for position, pk in enumerate(ordered):
@@ -61,20 +66,22 @@ def reorder_hero_slides(
         )
 
 
+@draft_mutation(lambda *args: "home")
 @transaction.atomic
 def set_section_visibility(section: HomeSection, visible: bool, actor=None, request=None) -> None:
-    section = HomeSection.objects.select_for_update().get(pk=section.pk)
+    section = HomeSection.objects.select_for_update(of=("self",)).get(pk=section.pk)
     section.is_visible = visible
     services.save_section(section, actor=actor, request=request)
 
 
+@draft_mutation(lambda *args: "home")
 @transaction.atomic
 def replace_section_image(
     section: HomeSection, upload: UploadedFile[bytes], actor=None, request=None
 ) -> None:
     if section.kind not in {"story", "personalize", "banner"}:
         raise ValidationError(_("Esta sección no admite una foto."))
-    section = HomeSection.objects.select_for_update().get(pk=section.pk)
+    section = HomeSection.objects.select_for_update(of=("self",)).get(pk=section.pk)
     section.image = upload
     for locale in ("es", "en"):
         if not getattr(section, f"image_alt_{locale}"):
@@ -82,13 +89,14 @@ def replace_section_image(
     services.save_section(section, actor=actor, request=request)
 
 
+@draft_mutation(lambda *args: "home")
 @transaction.atomic
 def upload_hero_photos(
     section: HomeSection, device: str, uploads: list[UploadedFile[bytes]], actor=None, request=None
 ) -> list[str]:
     if section.kind != "hero" or device not in HeroSlide.Device.values or not uploads:
         raise ValidationError(_("Selecciona una portada, un dispositivo y al menos una foto."))
-    HomeSection.objects.select_for_update().get(pk=section.pk)
+    HomeSection.objects.select_for_update(of=("self",)).get(pk=section.pk)
     warnings = []
     # Validate the complete batch before generating any stored files.
     for upload in uploads:
@@ -113,7 +121,7 @@ def upload_hero_photos(
             alt_es=alt,
             alt_en=alt,
         )
-        services.save_hero_slide(slide, audit=False)
+        services.save_hero_slide(slide, actor=actor, request=request, audit=False)
     record(
         "cms.slides_uploaded",
         actor=actor,

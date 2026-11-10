@@ -1,0 +1,12 @@
+{% extends "admin/base_site.html" %}
+{% block content %}
+<div class="max-w-3xl">
+<h2>{{ document_title }}</h2>
+{% if error %}<p role="alert">{{ error }}</p><a href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a>{% endif %}
+{% if pending_count %}<p>{{ pending_count }} cambio{{ pending_count|pluralize:"s" }} sin publicar</p><ul>{% for change in changes %}<li>{{ change }}</li>{% endfor %}</ul>{% else %}<p>No hay cambios pendientes</p>{% endif %}
+<form method="post">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}">
+<label for="publication-note">Nota opcional</label><textarea id="publication-note" name="note" maxlength="300" class="block border rounded-default p-3 w-full">{{ note }}</textarea>
+<button class="bg-primary-600 text-white rounded-default px-4 py-3 mt-4" {% if not pending_count or error %}disabled aria-disabled="true" style="opacity:.4;cursor:not-allowed"{% endif %}>Publicar ahora</button>
+</form>
+</div>
+{% endblock %}

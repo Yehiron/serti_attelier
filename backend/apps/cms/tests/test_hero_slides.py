@@ -21,6 +21,7 @@ from apps.cms import selectors, services
 from apps.cms.admin import HeroSlideInline, HomeSectionAdmin, MobileHeroSlideInline
 from apps.cms.api.serializers import HeroSerializer
 from apps.cms.models import HeroSlide, HomeSection
+from apps.cms.tests.helpers import cms_form_data, cms_version
 
 pytestmark = pytest.mark.django_db
 
@@ -42,8 +43,12 @@ def upload(size: tuple[int, int]) -> ContentFile[bytes]:
 
 
 def slide(section: HomeSection, **kwargs: Any) -> HeroSlide:
+    cms_actor, _ = User.objects.get_or_create(
+        username="hero-helper",
+        defaults={"email": "hero-helper@example.com", "is_staff": True, "is_superuser": True},
+    )
     obj = HeroSlide(section=section, alt_es="Piedra", alt_en="Stone", **kwargs)
-    services.save_hero_slide(obj)
+    services.save_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     return obj
 
 
@@ -60,7 +65,7 @@ def test_validation() -> None:
         slide(hero, image=ContentFile(b"bad", name="bad.png"))
 
 
-def test_pipeline_and_clearing() -> None:
+def test_pipeline_and_clearing(cms_actor) -> None:
     hero = HomeSection.objects.create(kind="hero")
     obj = slide(hero, image=upload((1921, 900)))
     mobile = slide(hero, device="mobile", image=upload((1195, 1481)))
@@ -69,17 +74,17 @@ def test_pipeline_and_clearing() -> None:
     assert set(obj.renditions["webp"]) == {"960", "1600", "1921"}  # source width kept
     assert set(mobile.renditions["webp"]) == {"480", "960", "1195"}  # source width kept
     paths = file_paths(obj)
-    services.save_hero_slide(obj)
+    services.save_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert file_paths(obj) == paths
     obj.image = ""
     with pytest.raises(ValidationError, match="Agrega una imagen"):
-        services.save_hero_slide(obj)
+        services.save_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     capped = slide(hero, image=upload((3000, 1500)))
     assert (capped.width, capped.height) == (2400, 1200)
     assert set(capped.renditions["webp"]) == {"960", "1600", "2400"}
 
 
-def test_snapshot_api_restore_and_schema(actor: User, client: Client) -> None:
+def test_snapshot_api_restore_and_schema(cms_actor, actor: User, client: Client) -> None:
     from drf_spectacular.generators import SchemaGenerator
 
     HomeSection.objects.all().delete()
@@ -88,7 +93,7 @@ def test_snapshot_api_restore_and_schema(actor: User, client: Client) -> None:
     first = slide(hero, position=1, device="mobile", image=upload((750, 1000)))
     HeroSlide.objects.create(section=hero, image="unprocessed.png", alt_es="A", alt_en="A")
     # Unprocessed uploads are omitted from the public contract.
-    publication = services.publish_home(actor)
+    publication = services.publish_home(actor, expected_version=cms_version())
     payload = client.get("/api/v1/cms/home").json()["sections"][0]
     assert payload["slides"][0]["mobile_image"] is None
     assert payload["slides"][1]["image"] is None
@@ -99,16 +104,16 @@ def test_snapshot_api_restore_and_schema(actor: User, client: Client) -> None:
     assert HeroSerializer(payload).data["slides"] == payload["slides"]
     assert publication.snapshot["en"][0]["slides"][1]["mobile_image"]["alt"] == "Stone"
     first.alt_es = "Borrador"
-    services.save_hero_slide(first)
-    services.delete_hero_slide(second)
+    services.save_hero_slide(first, expected_version=cms_version(first), actor=cms_actor)
+    services.delete_hero_slide(second, expected_version=cms_version(second), actor=cms_actor)
     assert client.get("/api/v1/cms/home").json()["sections"][0] == payload
     assert selectors.home("es", preview=True)["sections"][0] != payload
-    services.restore_home(publication, actor)
+    services.restore_home(publication, actor, expected_version=cms_version())
     assert list(
         HeroSlide.objects.filter(section_id=hero.pk).values_list("position", flat=True)
     ) == [0, 1, 2]
     assert selectors.home("es", preview=True)["sections"][0] == payload
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     assert client.get("/api/v1/cms/home").json()["sections"][0] == payload
     schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]
     assert schema is not None
@@ -125,23 +130,23 @@ def test_compatibility_image() -> None:
 
 
 def test_cleanup_and_publication_protection(
-    actor: User, django_capture_on_commit_callbacks: Any
+    cms_actor, actor: User, django_capture_on_commit_callbacks: Any
 ) -> None:
     hero = HomeSection.objects.create(kind="hero")
     obj = slide(hero, image=upload((1000, 500)))
     paths = file_paths(obj)
     with django_capture_on_commit_callbacks(execute=True):
-        services.delete_hero_slide(obj)
+        services.delete_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert all(not default_storage.exists(path) for path in paths)
     obj = slide(hero, image=upload((1000, 500)))
     paths = file_paths(obj)
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     with django_capture_on_commit_callbacks(execute=True):
         obj.image = upload((1100, 550))
-        services.save_hero_slide(obj)
+        services.save_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert all(default_storage.exists(path) for path in paths)
     with django_capture_on_commit_callbacks(execute=True):
-        services.delete_hero_slide(obj)
+        services.delete_hero_slide(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert all(default_storage.exists(path) for path in paths)
 
 
@@ -175,8 +180,8 @@ def test_inline_renders_and_parent_permissions(actor: User, client: Client) -> N
 
 def test_restore_preserves_incomplete_hidden_drafts(actor: User) -> None:
     hidden = HomeSection.objects.create(kind="collection_rail", is_visible=False)
-    publication = services.publish_home(actor)
-    services.restore_home(publication, actor)
+    publication = services.publish_home(actor, expected_version=cms_version())
+    services.restore_home(publication, actor, expected_version=cms_version())
     assert not HomeSection.objects.get(pk=hidden.pk).is_visible
 
 
@@ -210,17 +215,23 @@ def test_admin_inline_upload_validation_save_and_delete(actor: User, client: Cli
     }
     response = client.post(
         url,
-        data
-        | {
-            "slides-0-image": ContentFile(b"bad", name="bad.png"),
-            "slides-2-0-image": upload((750, 1000)),
-        },
+        cms_form_data(
+            url,
+            data
+            | {
+                "slides-0-image": ContentFile(b"bad", name="bad.png"),
+                "slides-2-0-image": upload((750, 1000)),
+            },
+        ),
     )
     assert response.status_code == 200
     assert not hero.slides.exists()
     response = client.post(
         url,
-        data | {"slides-0-image": upload((1921, 900)), "slides-2-0-image": upload((750, 1000))},
+        cms_form_data(
+            url,
+            data | {"slides-0-image": upload((1921, 900)), "slides-2-0-image": upload((750, 1000))},
+        ),
     )
     assert response.status_code == 302
     obj = hero.slides.get(device="desktop")
@@ -229,15 +240,18 @@ def test_admin_inline_upload_validation_save_and_delete(actor: User, client: Cli
     assert set(mobile.renditions["webp"]) == {"480", "750"}
     response = client.post(
         url,
-        data
-        | {
-            "slides-INITIAL_FORMS": 1,
-            "slides-0-id": obj.pk,
-            "slides-0-DELETE": "on",
-            "slides-2-INITIAL_FORMS": 1,
-            "slides-2-0-id": mobile.pk,
-            "slides-2-0-DELETE": "on",
-        },
+        cms_form_data(
+            url,
+            data
+            | {
+                "slides-INITIAL_FORMS": 1,
+                "slides-0-id": obj.pk,
+                "slides-0-DELETE": "on",
+                "slides-2-INITIAL_FORMS": 1,
+                "slides-2-0-id": mobile.pk,
+                "slides-2-0-DELETE": "on",
+            },
+        ),
     )
     assert response.status_code == 302
     assert not hero.slides.exists()
@@ -276,7 +290,10 @@ def test_admin_reorders_each_device_through_services(actor: User, client: Client
                 }
             )
     with patch("apps.cms.admin.services.save_hero_slide", wraps=services.save_hero_slide) as save:
-        response = client.post(reverse("admin:cms_homesection_change", args=[hero.pk]), data)
+        response = client.post(
+            reverse("admin:cms_homesection_change", args=[hero.pk]),
+            cms_form_data(reverse("admin:cms_homesection_change", args=[hero.pk]), data),
+        )
     assert response.status_code == 302
     assert save.call_count == 4
     for device in ("desktop", "mobile"):

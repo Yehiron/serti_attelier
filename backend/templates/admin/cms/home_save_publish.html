@@ -1,2 +1,1 @@
-{% load i18n %}
-{% if can_publish %}<div class="mb-4"><button class="bg-primary-600 text-white rounded-default px-3 py-2" type="submit" name="_savepublish" value="1">{% translate "Guardar y publicar" %}</button></div>{% endif %}
+{% if can_publish %}<p><a class="inline-flex px-3 py-3" href="{{ review_url }}">Revisar y publicar</a></p>{% elif pending_home_changes %}<p>Cambios pendientes de publicar — la Propietaria puede publicarlos</p>{% endif %}

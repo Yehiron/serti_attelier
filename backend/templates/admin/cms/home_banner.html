@@ -3,6 +3,6 @@
 {% if pending_home_changes %}
 <strong>{% translate "Tienes cambios sin publicar en la página de inicio." %}</strong>
 {% if can_preview %}<a class="border rounded-default px-3 py-2" href="{% url 'admin:cms-home-preview' %}" target="_blank">{% translate "Vista previa" %}</a>{% endif %}
-{% if can_publish %}<form method="post" action="{% url 'admin:cms-home-publish' %}">{% csrf_token %}{% if original %}<input type="hidden" name="section_id" value="{{ original.pk }}">{% endif %}<button class="bg-primary-600 text-white rounded-default px-3 py-2" type="submit">{% translate "Publicar ahora" %}</button></form>{% endif %}
+{% if can_publish %}<a class="bg-primary-600 text-white rounded-default px-3 py-3" href="{{ review_url }}">Revisar y publicar</a>{% else %}<p>Cambios pendientes de publicar — la Propietaria puede publicarlos</p>{% endif %}
 {% else %}<span>{% translate "Publicado" %} · {% timezone "America/Bogota" %}{{ last_home_publication.published_at|date:"d/m/Y H:i" }}{% endtimezone %}</span>{% endif %}
 </div>

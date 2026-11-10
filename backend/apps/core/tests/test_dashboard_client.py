@@ -46,7 +46,7 @@ def staff(role: str) -> tuple[Client, User]:
     ("role", "areas"),
     [
         (PROPIETARIO, {"Pedidos", "Catálogo", "Página web", "Promociones", "Ajustes"}),
-        (OPERACIONES, {"Pedidos", "Catálogo", "Página web", "Promociones"}),
+        (OPERACIONES, {"Pedidos", "Catálogo", "Promociones"}),
         (CONTENIDO, {"Catálogo", "Página web"}),
         (
             "developer",
@@ -81,7 +81,7 @@ def test_navigation_and_index(role: str, areas: set[str]) -> None:
     if role != "developer":
         assert "Herramientas técnicas" not in html
     if role == CONTENIDO:
-        assert "Agregar pieza" not in html and "Publicar inicio" in html
+        assert "Agregar pieza" not in html and "Publicar inicio" not in html
         assert "Pedidos pendientes de pago" not in html
 
 
@@ -294,6 +294,12 @@ def test_sorting_uses_existing_save_service(model: str) -> None:
     for key, value in formset.management_form.initial.items():
         data[f"{formset.prefix}-{key}"] = value
     for form in formset.forms:
+        if model == "homesection":
+            data[f"{form.prefix}-expected_version"] = (
+                form.initial["expected_version"]
+                if "expected_version" in form.initial
+                else form.fields["expected_version"].initial
+            )
         data[f"{form.prefix}-id"] = form.instance.pk
         data[f"{form.prefix}-position"] = (
             17 if form.instance.pk == obj.pk else form.instance.position

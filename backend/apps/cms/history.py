@@ -12,11 +12,16 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
+from .documents import ContentConflict, get_document, require_capability
 from .models import HomePublication, Page, PageRevision
 from .services import restore_home, restore_page_revision
 
 
-def summary(current, previous, home=False):
+def summary(current, previous, home=False, current_source=None, previous_source=None):
+    if home and current_source is not None and previous_source is not None:
+        source_changes = home_source_summary(current_source, previous_source)
+        if source_changes:
+            return source_changes
     if previous is None:
         return ["Primera publicación guardada."]
     changes = []
@@ -41,21 +46,29 @@ def summary(current, previous, home=False):
         common = before.keys() & after.keys()
         if [key for key in before if key in common] != [key for key in after if key in common]:
             changes.append("Secciones reordenadas.")
-        if current.get("en") != previous.get("en") and not changes:
-            changes.append("Contenido en inglés actualizado.")
+        # Repeat the same semantic comparison for English, even when Spanish changed too.
+        if current.get("en") != previous.get("en"):
+            english = summary(
+                {"es": current.get("en", [])}, {"es": previous.get("en", [])}, home=True
+            )
+            changes.extend(
+                f"{item} (inglés)"
+                for item in english
+                if item != "Sin cambios visibles en la tienda."
+            )
     else:
         for locale, language in (("es", "español"), ("en", "inglés")):
             old, new = previous.get(locale, {}), current.get(locale, {})
-            for field, label in (
-                ("title", "Título"),
-                ("slug", "Dirección"),
-                ("body", "Contenido"),
-                ("process", "Pasos"),
-                ("faq", "Preguntas frecuentes"),
+            for field, label, state in (
+                ("title", "Título", "actualizado"),
+                ("slug", "Dirección", "actualizada"),
+                ("body", "Contenido", "actualizado"),
+                ("process", "Pasos", "actualizados"),
+                ("faq", "Preguntas frecuentes", "actualizadas"),
             ):
                 if old.get(field) != new.get(field):
                     changes.append(
-                        f"{label} en {language} actualizado"
+                        f"{label} en {language} {state}"
                         + (
                             f": {old.get(field, '')} → {new.get(field, '')}. "
                             if field == "title"
@@ -65,7 +78,55 @@ def summary(current, previous, home=False):
     return changes or ["Sin cambios visibles en la tienda."]
 
 
+def home_source_summary(current, previous):
+    """Editable source includes hidden sections, original translations and slide order."""
+    before = {row["id"]: row for row in previous}
+    after = {row["id"]: row for row in current}
+    changes = []
+    for key, row in after.items():
+        label = row.get("title_es") or row.get("title") or "Sección"
+        old = before.get(key)
+        if old is None:
+            suffix = " (oculta)" if not row.get("is_visible", True) else ""
+            changes.append(f"Sección añadida{suffix}: {label}.")
+            if row.get("image") or row.get("slides"):
+                changes.append(f"Fotos añadidas en {label}.")
+            continue
+        if old.get("is_visible", True) != row.get("is_visible", True):
+            state = "mostrada" if row.get("is_visible", True) else "oculta"
+            changes.append(f"Sección {state}: {label}.")
+        for locale, language in (("es", "español"), ("en", "inglés")):
+            title = f"title_{locale}"
+            if old.get(title) != row.get(title):
+                changes.append(
+                    f"Título en {language} cambiado en {label}: "
+                    f"{old.get(title) or 'Sin título'} → {row.get(title) or 'Sin título'}."
+                )
+            if any(
+                old.get(f"{field}_{locale}") != row.get(f"{field}_{locale}")
+                for field in ("body", "subtitle", "cta_label", "image_alt")
+            ):
+                changes.append(f"Textos en {language} cambiados en {label}.")
+        if any(old.get(field) != row.get(field) for field in ("image", "slides", "renditions")):
+            changes.append(f"Fotos cambiadas o reordenadas en {label}.")
+        destinations = {
+            field for field in row if field.startswith("cta_") and not field.startswith("cta_label")
+        } | {"collection_id"}
+        if any(old.get(field) != row.get(field) for field in destinations):
+            changes.append(f"Destino de enlaces o colección cambiado en {label}.")
+    for key, row in before.items():
+        if key not in after:
+            changes.append(
+                f"Sección retirada: {row.get('title_es') or row.get('title') or 'Sección'}."
+            )
+    common = before.keys() & after.keys()
+    if [key for key in before if key in common] != [key for key in after if key in common]:
+        changes.append("Secciones reordenadas.")
+    return changes
+
+
 def document(request):
+    require_capability(request.user, "edit")
     key = request.GET.get(
         "document",
         "home"
@@ -94,8 +155,15 @@ def history(request):
         "documents": Page.objects.only("id", "title_es")
         if request.user.has_perm("cms.view_pagerevision")
         else [],
-        "can_restore": request.user.has_perm("cms.publish_content"),
+        "can_restore": request.user.has_perm("cms.restore_content"),
     }
+    content_document = get_document(
+        "home" if key == "home" else f"page:{Page.objects.get(pk=key).kind}"
+    )
+    context["expected_version"] = content_document.draft_version
+    context["restorations"] = content_document.draft_revisions.select_related(
+        "restored_from_home", "restored_from_page"
+    )[:20]
     revision_id = request.GET.get("restore")
     if revision_id:
         if not context["can_restore"]:
@@ -107,12 +175,30 @@ def history(request):
         if request.method == "POST":
             if request.POST.get("confirm") != "yes":
                 raise PermissionDenied
-            if key == "home":
-                restore_home(revision, request.user, request)
+            try:
+                if key == "home":
+                    restore_home(
+                        revision,
+                        request.user,
+                        request,
+                        expected_version=request.POST.get("expected_version"),
+                    )
+                else:
+                    restore_page_revision(
+                        revision,
+                        request.user,
+                        request,
+                        expected_version=request.POST.get("expected_version"),
+                    )
+            except ContentConflict as exc:
+                context["conflict"] = " ".join(exc.messages)
+                context["current_url"] = reverse("cms-history") + f"?document={key}"
+                context["expected_version"] = request.POST.get("expected_version", "")
             else:
-                restore_page_revision(revision, request.user, request)
-            messages.success(request, "Versión restaurada como borrador. La tienda no ha cambiado.")
-            return HttpResponseRedirect(reverse("cms-history") + f"?document={key}")
+                messages.success(
+                    request, "Versión restaurada como borrador. La tienda no ha cambiado."
+                )
+                return HttpResponseRedirect(reverse("cms-history") + f"?document={key}")
         context.update(
             confirmation=(
                 f"Esto reemplaza tu borrador actual por la versión del {date}. "
@@ -137,8 +223,14 @@ def history(request):
                     if index + 1 < len(rows) or older
                     else None,
                     key == "home",
+                    current_source=getattr(row, "draft_snapshot", None),
+                    previous_source=getattr(
+                        rows[index + 1] if index + 1 < len(rows) else older, "draft_snapshot", None
+                    ),
                 ),
             }
             for index, row in enumerate(rows)
         ]
-    return TemplateResponse(request, "admin/cms/history.html", context)
+    return TemplateResponse(
+        request, "admin/cms/history.html", context, status=409 if context.get("conflict") else 200
+    )

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+from contextlib import nullcontext
 from typing import Any, cast
 
 from django.contrib import admin
@@ -23,6 +24,7 @@ from apps.catalog.models import Category, Collection, Piece, Stone
 
 from . import editor_services, services
 from .admin import HomeSectionAdmin
+from .documents import ContentConflict, edit_document, lock_document
 from .models import HeroSlide, HomeSection
 from .selectors import draft_sections, home_categories
 
@@ -30,9 +32,7 @@ TAXONOMIES = {"category": Category, "stone": Stone, "collection": Collection}
 
 
 def can_edit(request: HttpRequest) -> bool:
-    return request.user.has_perm("cms.change_homesection") or request.user.has_perm(
-        "catalog.change_category"
-    )
+    return request.user.is_active and request.user.has_perm("cms.edit_content")
 
 
 def thumbnail(renditions: dict[str, Any]) -> str:
@@ -68,9 +68,11 @@ def taxonomy_cards(model: Any, request: HttpRequest) -> list[dict[str, Any]]:
     return cards
 
 
+@transaction.atomic
 def editor(request: HttpRequest) -> HttpResponse:
     if not can_edit(request):
         raise PermissionDenied
+    lock_document("home")
     device = request.GET.get("device", "desktop")
     if device not in HeroSlide.Device.values:
         device = "desktop"
@@ -160,7 +162,7 @@ def editor(request: HttpRequest) -> HttpResponse:
             "taxonomy_tab": request.GET.get("tab") == "taxonomy",
             "can_change_home": request.user.has_perm("cms.change_homesection"),
         },
-    )
+    ).render()
 
 
 @require_POST
@@ -173,12 +175,19 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
                 {"error": _("Selecciona una categoría, piedra o colección válida.")}, status=400
             )
         permission = f"catalog.change_{model_name}"
-    if not request.user.has_perm(permission):
+    if not can_edit(request) or not request.user.has_perm(permission):
         return JsonResponse(
             {"error": _("No tienes permiso para realizar esta acción.")}, status=403
         )
     try:
-        with transaction.atomic():
+        with (
+            transaction.atomic(),
+            (
+                edit_document("home", request.user, request.POST.get("expected_version"))
+                if action != "taxonomy-cover"
+                else nullcontext()
+            ),
+        ):
             warnings: list[str] = []
             if action == "taxonomy-cover":
                 obj = get_object_or_404(TAXONOMIES[model_name], pk=int(request.POST["id"]))
@@ -240,6 +249,15 @@ def action(request: HttpRequest, action: str) -> JsonResponse:
                 else:
                     raise ValueError
         return JsonResponse({"ok": True, "warnings": warnings})
+    except ContentConflict as exc:
+        return JsonResponse(
+            {
+                "error": " ".join(exc.messages),
+                "conflict": True,
+                "current_url": reverse("visual-editor"),
+            },
+            status=409,
+        )
     except Http404:
         return JsonResponse({"error": _("No se encontró el contenido solicitado.")}, status=404)
     except ValidationError as exc:

@@ -2,13 +2,14 @@
 {% load i18n static client_actions %}
 {% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/editor.css' %}">{% endblock %}
 {% block content %}
-<div id="visual-editor" data-device="{{ device }}" data-action-url="{% url 'visual-editor-action' action='ACTION' %}">
+<div id="visual-editor" data-version="{{ draft_version }}" data-device="{{ device }}" data-action-url="{% url 'visual-editor-action' action='ACTION' %}">
   <form hidden>{% csrf_token %}</form>
   <nav class="ve-controls" aria-label="{% translate 'Editor visual' %}">
     <a href="?device={{ device }}" {% if not taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Página de inicio' %}</a>
     <a href="?tab=taxonomy&amp;device={{ device }}" {% if taxonomy_tab %}aria-current="page"{% endif %}>{% translate 'Categorías, piedras y colecciones' %}</a>
     <span class="ve-devices"><a href="?device=desktop{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'desktop' %}aria-current="page"{% endif %}>{% translate 'Computador' %}</a><a href="?device=mobile{% if taxonomy_tab %}&amp;tab=taxonomy{% endif %}" {% if device == 'mobile' %}aria-current="page"{% endif %}>{% translate 'Celular' %}</a></span>
   </nav>
+  <button type="button" id="ve-reload" hidden>Recargar versión actual</button>
   <p id="ve-message" role="alert" tabindex="-1" hidden></p>
   <span hidden id="ve-failure">{% translate 'No se pudo guardar. Revisa tu conexión e inténtalo de nuevo.' %}</span>
   {% if taxonomy_tab %}
@@ -28,9 +29,9 @@
     {% endfor %}
   {% else %}
     <div class="ve-publication">
-      {% if pending_home_changes %}<strong>{% translate 'Tienes cambios sin publicar' %}</strong>{% else %}<span>{% translate 'Publicado' %} · {{ last_home_publication.published_at|date:"d/m/Y H:i" }}</span>{% endif %}
+      {% if pending_home_changes %}<strong>{{ pending_count }} cambio{{ pending_count|pluralize:"s" }} sin publicar</strong>{% else %}<span>{% translate 'Publicado' %} · {{ last_home_publication.published_at|date:"d/m/Y H:i" }}</span>{% endif %}
       {% if can_preview %}<a href="{% url 'admin:cms-home-preview' %}" target="_blank" rel="noopener">{% translate 'Vista previa' %} ↗</a>{% endif %}
-      {% if can_publish and pending_home_changes %}<form method="post" action="{% url 'admin:cms-home-publish' %}">{% csrf_token %}<input type="hidden" name="return_to" value="editor"><button type="submit">{% translate 'Publicar ahora' %}</button></form>{% endif %}
+      {% if can_publish %}<a href="{{ review_url }}">Revisar y publicar</a>{% elif pending_home_changes %}<p>Cambios pendientes de publicar — la Propietaria puede publicarlos</p>{% endif %}
     </div>
     <div class="ve-frame {% if device == 'mobile' %}ve-mobile{% endif %}">
       <header class="ve-header"><img src="{% static 'core/brand/wordmark-wine.webp' %}" alt="SERTI"><span>{% translate 'Joyería' %} · {% translate 'Piedras' %} · {% translate 'Nuestra historia' %}</span></header>

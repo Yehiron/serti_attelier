@@ -20,6 +20,8 @@ else:
 
 
 class ContentForm(BaseContentForm):
+    expected_version = forms.IntegerField(min_value=0, required=False, widget=forms.HiddenInput)
+
     def _post_clean(self) -> None:
         super()._post_clean()  # type: ignore[misc]  # Private Django hook is absent from stubs.
         if self.errors:

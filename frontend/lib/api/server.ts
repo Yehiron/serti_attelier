@@ -62,7 +62,9 @@ async function cmsRead<T>(path: string, locale: Locale) {
   // The home response resolves category cards live. There is no save-time cache
   // invalidation from Django, so sharing this response would hide recent categories.
   if (token) return request<T>(path, locale, '', token);
-  if (path === 'cms/home') {
+  // Published pages are read live too: a publish in the dashboard must show on the next visit.
+  // (Phase 8 replaces these live reads with tag invalidation triggered by publishing.)
+  if (path === 'cms/home' || path.startsWith('cms/pages/')) {
     await connection();
     return request<T>(path, locale);
   }
@@ -71,7 +73,7 @@ async function cmsRead<T>(path: string, locale: Locale) {
 export const getHome = cache((locale: Locale) => cmsRead<Home>('cms/home', locale));
 // Published reads for sitemap generation never touch request cookies.
 export const getPublishedPage = (locale: Locale, slug: string) => cachedRead<CmsPage>(`cms/pages/${encodeURIComponent(slug)}`, locale, '', 'cms');
-export const getPage = (locale: Locale, slug: string, byKind = false) => cmsRead<CmsPage>(`cms/pages/${byKind ? 'kind/' : ''}${encodeURIComponent(slug)}`, locale);
+export const getPage = cache((locale: Locale, slug: string, byKind = false) => cmsRead<CmsPage>(`cms/pages/${byKind ? 'kind/' : ''}${encodeURIComponent(slug)}`, locale));
 // Deduplicate within a render, without retaining an outdated menu across requests.
 export const getTaxonomy = cache(async (locale: Locale) => {
   await connection();

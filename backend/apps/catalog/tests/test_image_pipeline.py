@@ -26,6 +26,7 @@ from apps.cms.forms import ContentForm
 from apps.cms.models import HomePublication, HomeSection, PersonalizationService
 from apps.cms.selectors import resolve_live
 from apps.cms.services import save_personalization, save_section
+from apps.cms.tests.helpers import cms_version
 
 from .conftest import image_file
 
@@ -108,9 +109,17 @@ def test_cover_contract_and_cap(model: Any) -> None:
 
 
 @pytest.mark.parametrize("model", [HomeSection, PersonalizationService])
-def test_cms_cap_replacement_and_clear(model: Any, django_capture_on_commit_callbacks: Any) -> None:
+def test_cms_cap_replacement_and_clear(
+    model: Any, django_capture_on_commit_callbacks: Any, cms_actor: Any
+) -> None:
     kwargs = {"kind": "hero"} if model is HomeSection else {"title_es": "Servicio"}
-    save = save_section if model is HomeSection else save_personalization
+
+    def save(obj):
+        if model is HomeSection:
+            save_section(obj, actor=cms_actor, expected_version=cms_version(obj))
+        else:
+            save_personalization(obj, actor=cms_actor)
+
     obj = model(
         **kwargs, image=image_file(size=(3000, 3000)), image_alt_es="Foto", image_alt_en="Photo"
     )
@@ -189,9 +198,9 @@ def test_piece_deletion_and_replacement(
     assert all(not default_storage.exists(path) for path in old)
 
 
-def test_publication_preserves_files(django_capture_on_commit_callbacks: Any) -> None:
+def test_publication_preserves_files(cms_actor, django_capture_on_commit_callbacks: Any) -> None:
     obj = HomeSection(kind="hero", image=image_file(), image_alt_es="Foto", image_alt_en="Photo")
-    save_section(obj)
+    save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     paths = {obj.image.name, *obj.renditions["webp"].values()}
     HomePublication.objects.create(
         snapshot={"es": [{"srcset": ", ".join(f"{default_storage.url(p)} 960w" for p in paths)}]},
@@ -199,7 +208,7 @@ def test_publication_preserves_files(django_capture_on_commit_callbacks: Any) ->
     )
     obj.image = image_file(size=(500, 500))
     with django_capture_on_commit_callbacks(execute=True):
-        save_section(obj)
+        save_section(obj, expected_version=cms_version(obj), actor=cms_actor)
     assert all(default_storage.exists(path) for path in paths)
 
 

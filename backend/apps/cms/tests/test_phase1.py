@@ -2,7 +2,6 @@ from importlib import import_module
 
 import pytest
 from django.contrib import admin
-from django.contrib.auth.models import Group
 from django.core.exceptions import ValidationError
 from django.db import connection
 from django.test import Client, RequestFactory
@@ -11,13 +10,13 @@ from django.urls import reverse
 
 from apps.accounts.models import User
 from apps.accounts.roles import CONTENIDO, OPERACIONES, PROPIETARIO
-from apps.accounts.services import sync_roles
 from apps.audit.models import AuditLog
 from apps.cms import editor_services, selectors, services
 from apps.cms.admin import HomeSectionAdmin, PageAdmin
 from apps.cms.api.serializers import CategoryGridSerializer, PageSerializer
 from apps.cms.history import summary
 from apps.cms.models import FaqItem, HomePublication, HomeSection, Page, PageRevision, ProcessStep
+from apps.cms.tests.helpers import cms_form_data, cms_version
 
 pytestmark = pytest.mark.django_db
 
@@ -72,19 +71,19 @@ def test_markdown_safety():
     assert 'href="//' not in services.render_markdown("[malo](//evil.example)")
 
 
-def test_publish_restore_and_old_snapshot(page, actor):
+def test_publish_restore_and_old_snapshot(cms_actor, page, actor):
     faq = page.faq_items.first()
     faq.answer_es, faq.answer_en = "Respuesta nueva", "New answer"
-    services.save_page_item(faq, actor=actor)
-    revision = services.publish_page(page, actor)
+    services.save_page_item(faq, actor=actor, expected_version=cms_version(faq))
+    revision = services.publish_page(page, actor, expected_version=cms_version(page))
     assert revision.snapshot["en"]["faq"]["items"][0]["answer_html"] == "<p>New answer</p>"
     faq.answer_es = "Borrador posterior"
-    services.save_page_item(faq)
+    services.save_page_item(faq, expected_version=cms_version(faq), actor=cms_actor)
     assert (
         selectors.page_payload(page, "es", revision)["faq"]["items"][0]["answer_html"]
         == "<p>Respuesta nueva</p>"
     )
-    services.restore_page_revision(revision, actor)
+    services.restore_page_revision(revision, actor, expected_version=cms_version(revision))
     assert page.faq_items.first().answer_es == "Respuesta nueva"
     assert page.faq_items.first().answer_en == "New answer"
     payload = selectors.page_payload(page, "es", revision)
@@ -102,7 +101,7 @@ def test_publish_restore_and_old_snapshot(page, actor):
     }
     old = PageRevision.objects.create(page=page, version=revision.version + 1, snapshot=snapshot)
     assert "faq" not in selectors.page_payload(page, "es", old)
-    services.restore_page_revision(old, actor)
+    services.restore_page_revision(old, actor, expected_version=cms_version(old))
     assert page.faq_items.count() == 4
 
 
@@ -117,7 +116,13 @@ def test_seed_idempotent_and_reverse(page):
         .apps
     )
     editor = connection.schema_editor()
+    from apps.cms.models import ContentDocument
+
+    ContentDocument.objects.update(page_revision=None)
     migration.unseed(historical, editor)
+    from apps.cms.models import ContentDocument
+
+    ContentDocument.objects.update(page_revision=None)
     migration.unseed(historical, editor)
     count = page.revisions.count()
     migration.seed(historical, editor)
@@ -126,6 +131,9 @@ def test_seed_idempotent_and_reverse(page):
     assert page.faq_items.count() == 4
     assert page.revisions.count() == count + 1
     assert "/es/legal/devoluciones" in page.faq_items.all()[2].answer_es
+    from apps.cms.models import ContentDocument
+
+    ContentDocument.objects.update(page_revision=None)
     migration.unseed(historical, editor)
     assert page.process_steps.count() == 0
     assert page.faq_items.count() == 0
@@ -144,7 +152,7 @@ def test_history_roles(role, status):
 
 
 def test_history_confirmation_csrf_and_queries(page, actor):
-    revision = services.publish_page(page, actor)
+    revision = services.publish_page(page, actor, expected_version=cms_version(page))
     from django_otp import DEVICE_ID_SESSION_KEY
     from django_otp.plugins.otp_totp.models import TOTPDevice
 
@@ -159,11 +167,18 @@ def test_history_confirmation_csrf_and_queries(page, actor):
     url = reverse("cms-history") + f"?document={page.pk}&restore={revision.pk}"
     response = client.get(url)
     assert "La tienda no cambia hasta que publiques." in response.content.decode()
-    assert client.post(url, {"confirm": "yes"}).status_code == 403
+    assert client.post(url, cms_form_data(url, {"confirm": "yes"})).status_code == 403
     token = client.cookies["csrftoken"].value
-    assert client.post(url, {"confirm": "yes", "csrfmiddlewaretoken": token}).status_code == 302
-    for _ in range(22):
-        services.publish_page(page, actor)
+    assert (
+        client.post(
+            url, cms_form_data(url, {"confirm": "yes", "csrfmiddlewaretoken": token})
+        ).status_code
+        == 302
+    )
+    for index in range(22):
+        page.title_es = f"Publicación {index}"
+        services.save_page(page, actor=actor, expected_version=cms_version(page))
+        services.publish_page(page, actor, expected_version=cms_version(page))
     with CaptureQueriesContext(connection) as queries:
         response = client.get(reverse("cms-history") + f"?document={page.pk}")
     assert response.status_code == 200
@@ -189,23 +204,29 @@ def test_audit_save_and_visibility_reorder(page, actor):
     request = RequestFactory().post("/", HTTP_USER_AGENT="CMS prueba")
     faq = page.faq_items.first()
     faq.question_es = "¿Qué cambió?"
-    services.save_page_item(faq, actor=actor, request=request)
+    services.save_page_item(faq, actor=actor, request=request, expected_version=cms_version(faq))
     event = AuditLog.objects.latest("pk")
     assert event.actor == actor and event.user_agent == "CMS prueba"
     assert any("¿Qué cambió?" in values for values in event.diff.values())
     page.title_es = "Personaliza conmigo"
-    services.save_page(page, actor=actor, request=request)
+    services.save_page(page, actor=actor, request=request, expected_version=cms_version(page))
     section = HomeSection.objects.create(kind="statement", title_es="Antes")
     section.title_es = "Después"
-    services.save_section(section, actor=actor, request=request)
+    services.save_section(
+        section, actor=actor, request=request, expected_version=cms_version(section)
+    )
     event = AuditLog.objects.latest("pk")
     assert any(values == ["Antes", "Después"] for values in event.diff.values())
     start = AuditLog.objects.count()
-    editor_services.set_section_visibility(section, False, actor=actor, request=request)
+    editor_services.set_section_visibility(
+        section, False, actor=actor, request=request, expected_version=cms_version()
+    )
     assert AuditLog.objects.count() == start + 1
     rows = list(HomeSection.objects.values_list("pk", flat=True))
     start = AuditLog.objects.count()
-    editor_services.reorder_sections(list(reversed(rows)), actor=actor, request=request)
+    editor_services.reorder_sections(
+        list(reversed(rows)), actor=actor, request=request, expected_version=cms_version()
+    )
     assert AuditLog.objects.count() == start + 1
     assert AuditLog.objects.latest("pk").actor == actor
 
@@ -229,7 +250,7 @@ def test_home_hidden_vs_unpublished(actor):
     QuerySet(model=HomePublication).delete()
     assert selectors.home("es")["published_at"] is None
     HomeSection.objects.all().update(is_visible=False)
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     data = selectors.home("es")
     assert data["sections"] == [] and data["published_at"] is not None
 
@@ -250,7 +271,7 @@ def test_home_api_matches_category_schema(actor):
     HomeSection.objects.all().update(is_visible=False)
     HomeSection.objects.create(kind="category_grid", is_visible=True, title_es="Categorías")
     Category.objects.get_or_create(slug_es="fase1", defaults={"name_es": "Categoría de prueba"})
-    services.publish_home(actor)
+    services.publish_home(actor, expected_version=cms_version())
     response = Client().get(reverse("cms-home"), {"locale": "es"})
     assert response.status_code == 200
     data = response.json()
@@ -280,7 +301,9 @@ def test_photo_and_slide_audits(actor, settings, tmp_path):
     section = HomeSection.objects.create(kind="story", title_es="Historia")
     for _ in range(2):
         before = AuditLog.objects.count()
-        editor_services.replace_section_image(section, photo(), actor=actor, request=request)
+        editor_services.replace_section_image(
+            section, photo(), actor=actor, request=request, expected_version=cms_version()
+        )
         assert AuditLog.objects.count() == before + 1
         assert AuditLog.objects.latest("pk").actor == actor
     event = AuditLog.objects.latest("pk")
@@ -288,22 +311,36 @@ def test_photo_and_slide_audits(actor, settings, tmp_path):
     hero = HomeSection.objects.create(kind="hero", title_es="Portada")
     before = AuditLog.objects.count()
     editor_services.upload_hero_photos(
-        hero, "desktop", [photo(), photo()], actor=actor, request=request
+        hero,
+        "desktop",
+        [photo(), photo()],
+        actor=actor,
+        request=request,
+        expected_version=cms_version(),
     )
     assert AuditLog.objects.count() == before + 1
     slides = list(hero.slides.all())
     before = AuditLog.objects.count()
     editor_services.reorder_hero_slides(
-        hero, "desktop", [s.pk for s in reversed(slides)], actor=actor, request=request
+        hero,
+        "desktop",
+        [s.pk for s in reversed(slides)],
+        actor=actor,
+        request=request,
+        expected_version=cms_version(),
     )
     assert AuditLog.objects.count() == before + 1
     slide = HeroSlide.objects.get(pk=slides[0].pk)
     slide.alt_es = "Foto nueva"
     before = AuditLog.objects.count()
-    services.save_hero_slide(slide, actor=actor, request=request)
+    services.save_hero_slide(
+        slide, actor=actor, request=request, expected_version=cms_version(slide)
+    )
     assert AuditLog.objects.count() == before + 1
     before = AuditLog.objects.count()
-    services.delete_hero_slide(slide, actor=actor, request=request)
+    services.delete_hero_slide(
+        slide, actor=actor, request=request, expected_version=cms_version(slide)
+    )
     assert AuditLog.objects.count() == before + 1
 
 
@@ -331,18 +368,24 @@ def test_seed_preserves_unrelated_draft_and_reverse_keeps_edited_rows(page, acto
         .apps
     )
     editor = connection.schema_editor()
+    from apps.cms.models import ContentDocument
+
+    ContentDocument.objects.update(page_revision=None)
     migration.unseed(historical, editor)
     page.refresh_from_db()
-    published = services.publish_page(page, actor)
+    published = services.publish_page(page, actor, expected_version=cms_version(page))
     page.title_es = "Título que todavía no quiero publicar"
-    services.save_page(page, actor=actor)
+    services.save_page(page, actor=actor, expected_version=cms_version(page))
     migration.seed(historical, editor)
     page.refresh_from_db()
     assert page.title_es == "Título que todavía no quiero publicar"
     assert page.revisions.first().snapshot["es"]["title"] == published.snapshot["es"]["title"]
     faq = page.faq_items.first()
     faq.answer_es = "Respuesta editada después de migrar"
-    services.save_page_item(faq, actor=actor)
+    services.save_page_item(faq, actor=actor, expected_version=cms_version(faq))
+    from apps.cms.models import ContentDocument
+
+    ContentDocument.objects.update(page_revision=None)
     migration.unseed(historical, editor)
     assert FaqItem.objects.filter(pk=faq.pk, answer_es=faq.answer_es).exists()
     assert page.faq_items.count() == 1
@@ -352,7 +395,9 @@ def test_delete_faq_and_step_audits(page, actor):
     request = RequestFactory().post("/")
     for row in [page.faq_items.first(), page.process_steps.first()]:
         count = AuditLog.objects.count()
-        services.delete_page_item(row, actor=actor, request=request)
+        services.delete_page_item(
+            row, actor=actor, request=request, expected_version=cms_version(row)
+        )
         assert AuditLog.objects.count() == count + 1
         event = AuditLog.objects.latest("pk")
         assert event.actor == actor

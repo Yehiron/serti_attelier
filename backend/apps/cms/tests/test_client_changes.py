@@ -4,6 +4,7 @@ from apps.catalog.models import Category, Piece
 from apps.cms import selectors, services
 from apps.cms.api.serializers import SiteSettingsSerializer
 from apps.cms.models import HomeSection
+from apps.cms.tests.helpers import cms_version
 from apps.core.selectors import get_solo
 
 pytestmark = pytest.mark.django_db
@@ -21,7 +22,7 @@ def test_settings_serializer_numeric_scales(scale):
     assert isinstance(data["title_scale"], float)
 
 
-def test_category_grid_live_counts_and_localization():
+def test_category_grid_live_counts_and_localization(cms_actor):
     Category.objects.all().delete()
     root = Category.objects.create(
         name_es="Anillos", name_en="Rings", slug_es="anillos", slug_en="rings"
@@ -42,12 +43,14 @@ def test_category_grid_live_counts_and_localization():
     section = HomeSection(
         kind="category_grid", title_es="Comprar por categoría", title_en="Shop by category"
     )
-    services.save_section(section)
+    services.save_section(section, expected_version=cms_version(section), actor=cms_actor)
     rendered = selectors.render_sections([section], "en")
     assert rendered[0]["title"] == "Shop by category"
     assert rendered[0]["subtitle"] == ""
     data = selectors.resolve_live(rendered, "en")[0]["categories"]
-    assert data == [{"name": "Rings", "slug": "rings", "href": "/en/jewelry/rings", "count": 2, "image": None}]
+    assert data == [
+        {"name": "Rings", "slug": "rings", "href": "/en/jewelry/rings", "count": 2, "image": None}
+    ]
 
 
 def test_category_conversion_preserves_publication_until_publish():

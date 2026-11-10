@@ -11,6 +11,7 @@ from apps.accounts.roles import CONTENIDO, PROPIETARIO
 from apps.cms import services
 from apps.cms.admin import HomeSectionAdmin
 from apps.cms.models import HeroSlide, HomePublication, HomeSection
+from apps.cms.tests.helpers import cms_form_data, cms_version
 from apps.core.tests.test_dashboard_client import staff
 
 pytestmark = pytest.mark.django_db
@@ -35,7 +36,9 @@ def test_fields_and_owner_permissions() -> None:
         section = HomeSection(kind=kind)
         fields = flatten_fieldsets(model_admin.get_fieldsets(request, section))
         assert "kind" in model_admin.get_readonly_fields(request, section)
-        assert ("subtitle_es" in fields) == (kind in {"hero", "stone_panels", "collection_rail"})
+        assert ("subtitle_es" in fields) == (
+            kind in {"hero", "stone_panels", "collection_rail", "category_grid"}
+        )
         assert ("body_es" in fields) == (kind in {"statement", "story", "personalize", "banner"})
         assert ("image" in fields) == (kind in {"story", "personalize", "banner"})
         assert ("cta_kind" in fields) == (kind in {"hero", "story", "personalize", "banner"})
@@ -50,7 +53,7 @@ def test_banner_and_publish_from_section() -> None:
     browser, owner = staff(PROPIETARIO)
     HomeSection.objects.all().delete()
     section = HomeSection.objects.create(kind="statement", title_es="Antes")
-    services.publish_home(owner)
+    services.publish_home(owner, expected_version=cms_version())
     url = reverse("admin:cms_homesection_change", args=[section.pk])
     assert "Tienes cambios sin publicar" not in browser.get(url).content.decode()
     data = {
@@ -62,7 +65,7 @@ def test_banner_and_publish_from_section() -> None:
         "body_en": "Text",
         "_continue": "1",
     }
-    assert browser.post(url, data).status_code == 302
+    assert browser.post(url, cms_form_data(url, data)).status_code == 302
     section.refresh_from_db()
     assert section.title_es == "Después"
     assert "Tienes cambios sin publicar" in browser.get(url).content.decode()
@@ -70,19 +73,22 @@ def test_banner_and_publish_from_section() -> None:
         "Tienes cambios sin publicar"
         in browser.get(reverse("admin:cms_homesection_changelist")).content.decode()
     )
-    response = browser.post(reverse("admin:cms-home-publish"), {"section_id": section.pk})
-    assert response.status_code == 302
-    assert response["Location"] == url
-    html = browser.get(url).content.decode()
-    assert "Tienes cambios sin publicar" not in html
-    assert "Publicado" in html
     before = HomePublication.objects.count()
-    response = browser.post(url, data | {"title_es": "Publicado ahora", "_savepublish": "1"})
+    response = browser.get(reverse("admin:cms-home-publish"))
+    review = reverse("cms-review-publish", args=["home"])
+    assert response.status_code == 302 and response["Location"] == review
+    assert HomePublication.objects.count() == before
+    assert "Revisar y publicar" in browser.get(review).content.decode()
+    response = browser.post(review, {"expected_version": cms_version()})
     assert response.status_code == 302
-    assert response["Location"] == url
     assert HomePublication.objects.count() == before + 1
-    assert HomePublication.objects.first().snapshot["es"][0]["title"] == "Publicado ahora"  # type: ignore[union-attr]
     assert "Tienes cambios sin publicar" not in browser.get(url).content.decode()
+    response = browser.post(
+        url, cms_form_data(url, data | {"title_es": "Para revisar", "_savepublish": "1"})
+    )
+    assert response.status_code == 302 and response["Location"] == review
+    assert HomePublication.objects.count() == before + 1
+    assert HomePublication.objects.first().snapshot["es"][0]["title"] == "Después"
 
 
 def test_editor_without_publish_permission() -> None:
@@ -98,11 +104,16 @@ def test_editor_without_publish_permission() -> None:
     assert "Publicar ahora" not in html
     assert "Guardar y publicar" not in html
     assert (
-        browser.post(reverse("admin:cms-home-publish"), {"section_id": section.pk}).status_code
+        browser.post(
+            reverse("admin:cms-home-publish"),
+            cms_form_data(reverse("admin:cms-home-publish"), {"section_id": section.pk}),
+        ).status_code
         == 403
     )
     assert (
-        browser.post(url, {"position": 0, "is_visible": "on", "_savepublish": "1"}).status_code
+        browser.post(
+            url, cms_form_data(url, {"position": 0, "is_visible": "on", "_savepublish": "1"})
+        ).status_code
         == 403
     )
     assert not HomePublication.objects.exists()
@@ -138,7 +149,7 @@ def test_legacy_publication_restore_splits_slides() -> None:
     publication = HomePublication.objects.create(
         snapshot={}, draft_snapshot=[source], published_by=owner
     )
-    services.restore_home(publication, owner)
+    services.restore_home(publication, owner, expected_version=cms_version())
     assert set(HeroSlide.objects.values_list("device", "image")) == {
         ("desktop", "old-desktop.webp"),
         ("mobile", "old-phone.webp"),

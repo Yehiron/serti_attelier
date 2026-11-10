@@ -55,17 +55,16 @@ for role in (PROPIETARIO, OPERACIONES):
 ROLE_PERMISSIONS[PROPIETARIO].update({"core.view_sitesettings", "core.change_sitesettings"})
 
 
-for role in (PROPIETARIO, CONTENIDO, OPERACIONES):
-    cms_actions = ("view",) if role == OPERACIONES else ("add", "change", "view")
+for role in (PROPIETARIO, CONTENIDO):
+    cms_actions = ("add", "change", "view")
     ROLE_PERMISSIONS[role].update(
         f"cms.{action}_{model}"
         for model in ("homesection", "page", "personalizationservice")
         for action in cms_actions
     )
-    if role != OPERACIONES:
-        ROLE_PERMISSIONS[role].update({"cms.view_homepublication", "cms.view_pagerevision"})
-    if role != OPERACIONES:
-        ROLE_PERMISSIONS[role].add("cms.publish_content")
+    ROLE_PERMISSIONS[role].update({"cms.view_homepublication", "cms.view_pagerevision"})
+    ROLE_PERMISSIONS[role].update({"cms.edit_content", "cms.preview_content"})
+ROLE_PERMISSIONS[PROPIETARIO].update({"cms.publish_content", "cms.restore_content"})
 
 for role in (PROPIETARIO, OPERACIONES):
     ROLE_PERMISSIONS[role].update(

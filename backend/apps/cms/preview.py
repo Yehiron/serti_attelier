@@ -16,7 +16,7 @@ class PreviewInvalid(DomainError):
 
 
 def make_token(user: User) -> str:
-    if not user.is_active or not user.is_staff:
+    if not user.is_active or not user.is_staff or not user.has_perm("cms.preview_content"):
         raise PreviewInvalid()
     return signing.TimestampSigner(salt="cms-preview").sign(str(user.pk))
 
@@ -27,6 +27,8 @@ def verify_token(token: str) -> User:
         user = User.objects.get(pk=int(value), is_active=True, is_staff=True)
     except (signing.BadSignature, ValueError, User.DoesNotExist) as exc:
         raise PreviewInvalid() from exc
+    if not user.has_perm("cms.preview_content"):
+        raise PreviewInvalid()
     return user
 
 

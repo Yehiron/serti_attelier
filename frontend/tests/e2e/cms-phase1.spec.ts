@@ -25,8 +25,8 @@ test('Personaliza guarda un borrador, publica ambos idiomas y protege el preview
       await expect(page.locator('.faq-section summary').first()).toHaveText(original);
     }
     await page.goto(`${adminRoot}cms/page/${initial.id}/change/`);
-    await page.getByRole('link', { name: 'Publicar', exact: true }).click();
-    await page.getByRole('button', { name: 'Confirmar', exact: true }).click();
+    await page.getByRole('link', { name: 'Revisar y publicar', exact: true }).click();
+    await page.getByRole('button', { name: 'Publicar ahora', exact: true }).click();
     for (const [path, question] of [['/es/personaliza', es], ['/en/customize', initial.en]]) {
       await page.goto(path);
       await expect(page.locator('.faq-section summary').first()).toHaveText(question);
@@ -39,8 +39,8 @@ test('Personaliza guarda un borrador, publica ambos idiomas y protege el preview
     }, en);
     await page.locator('[name="_save"]').click();
     await page.goto(`${adminRoot}cms/page/${initial.id}/change/`);
-    await page.getByRole('link', { name: 'Publicar', exact: true }).click();
-    await page.getByRole('button', { name: 'Confirmar', exact: true }).click();
+    await page.getByRole('link', { name: 'Revisar y publicar', exact: true }).click();
+    await page.getByRole('button', { name: 'Publicar ahora', exact: true }).click();
     for (const [path, question] of [['/es/personaliza', es], ['/en/customize', en]]) {
       await page.goto(path);
       await expect(page.locator('.faq-section summary').first()).toHaveText(question);
@@ -58,6 +58,6 @@ test('Personaliza guarda un borrador, publica ambos idiomas y protege el preview
     }
   } finally {
     // Development stack only: restore the original published content after the scenario.
-    manage('shell', '-c', `from apps.cms.models import PageRevision; from apps.cms.services import restore_page_revision,publish_page; from apps.accounts.models import User; r=PageRevision.objects.get(pk=${initial.revision}); u=User.objects.filter(is_staff=True,groups__name='Propietario').first(); restore_page_revision(r,u); publish_page(r.page,u)`);
+    manage('shell', '-c', `from apps.cms.models import PageRevision; from apps.cms.services import restore_page_revision,publish_page; from apps.accounts.models import User; r=PageRevision.objects.get(pk=${initial.revision}); u=User.objects.filter(is_staff=True,groups__name='Propietario').first(); from apps.cms.documents import get_document; k="page:"+r.page.kind; restore_page_revision(r,u,expected_version=get_document(k).draft_version); publish_page(r.page,u,expected_version=get_document(k).draft_version)`);
   }
 });

@@ -1,1 +1,2 @@
-{% load i18n %}<p>{% if pending_page_changes %}{% translate "Cambios sin publicar" %}{% else %}{% translate "Publicado" %}{% endif %}</p>
+<p>{% if pending_page_changes %}Cambios sin publicar: {{ pending_count }}{% else %}Publicado{% endif %}</p>
+{% if pending_page_changes and not can_publish %}<p>Cambios pendientes de publicar — la Propietaria puede publicarlos</p>{% endif %}

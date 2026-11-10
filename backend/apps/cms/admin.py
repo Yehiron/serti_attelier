@@ -3,9 +3,11 @@ from __future__ import annotations
 from typing import Any, ClassVar
 from urllib.parse import urlencode
 
+from django import forms
 from django.conf import settings
 from django.contrib import admin, messages
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import QuerySet
 from django.http import HttpRequest, HttpResponse, HttpResponseRedirect
 from django.urls import path, reverse
@@ -17,9 +19,17 @@ from unfold.decorators import action
 
 from apps.core.admin import ReadOnlyAdmin
 from apps.core.admin_presentation import ClientPresentationMixin
-from apps.core.exceptions import DomainError
 
 from . import services
+from .documents import (
+    ContentConflict,
+    admin_batch,
+    document_key,
+    get_document,
+    lock_document,
+    require_capability,
+    validate_admin_version,
+)
 from .forms import ContentForm, DesktopSlideForm, MobileSlideForm, PhotoInput
 from .models import (
     FaqItem,
@@ -32,10 +42,12 @@ from .models import (
     ProcessStep,
 )
 from .preview import make_token
-from .selectors import draft_sections, page_path, render_sections
+from .publishing import pending_changes
+from .selectors import page_path
 
 
 def preview_redirect(request: HttpRequest, target: str) -> HttpResponseRedirect:
+    require_capability(request.user, "preview")
     query = urlencode({"token": make_token(request.user), "path": target})  # type: ignore[arg-type]
     return HttpResponseRedirect(f"{settings.PUBLIC_SITE_URL}/preview?{query}")
 
@@ -44,8 +56,91 @@ class ContentAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAd
     form: Any = ContentForm
     readonly_fields: ClassVar[tuple[str, ...]] = ("created_at", "updated_at")
 
+    def has_module_permission(self, request):
+        return request.user.has_perm("cms.edit_content") and super().has_module_permission(request)
+
+    def has_view_permission(self, request, obj=None):
+        return request.user.has_perm("cms.edit_content") and super().has_view_permission(
+            request, obj
+        )
+
+    def has_change_permission(self, request, obj=None):
+        return request.user.has_perm("cms.edit_content") and super().has_change_permission(
+            request, obj
+        )
+
+    def has_add_permission(self, request):
+        return request.user.has_perm("cms.edit_content") and super().has_add_permission(request)
+
+    def _changeform_view(self, request, object_id, form_url, extra_context):
+        if "_savepublish" in request.POST:
+            require_capability(request.user, "publish")
+        with transaction.atomic(), admin_batch():
+            if self.model in (HomeSection, Page):
+                if self.model is HomeSection:
+                    key = "home"
+                else:
+                    kind = (
+                        Page.objects.filter(pk=object_id).values_list("kind", flat=True).first()
+                        if object_id
+                        else request.POST.get("kind", "contact")
+                    )
+                    key = f"page:{kind}"
+                lock_document(key)
+            response = super()._changeform_view(request, object_id, form_url, extra_context)
+            # Inline querysets and widgets must be evaluated under the same lock as the version.
+            if hasattr(response, "render"):
+                response.render()
+            return response
+
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        base = super().get_form(request, obj, change=change, **kwargs)
+        if self.model not in (HomeSection, Page):
+            return base
+        return self.versioned_form(request, base, obj)
+
+    def versioned_form(self, request, base, obj=None):
+        key = (
+            document_key(obj)
+            if obj
+            else (
+                "home"
+                if self.model is HomeSection
+                else "page:" + request.POST.get("kind", "contact")
+            )
+        )
+        version = get_document(key).draft_version
+        url = request.path
+
+        class VersionedForm(base):
+            expected_version = forms.IntegerField(
+                min_value=0, initial=version, widget=forms.HiddenInput
+            )
+
+            def clean(self):
+                data = super().clean()
+                if self.is_bound and "expected_version" in data:
+                    try:
+                        validate_admin_version(key, data["expected_version"])
+                    except ContentConflict as exc:
+                        self.add_error(
+                            None,
+                            format_html(
+                                '{} <a href="{}" target="_blank" rel="noopener">'
+                                "Ver versión actual</a>",
+                                " ".join(exc.messages),
+                                url,
+                            ),
+                        )
+                return data
+
+        return VersionedForm
+
     def has_publish_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
         return request.user.has_perm("cms.publish_content")
+
+    def has_preview_permission(self, request, object_id=None):
+        return request.user.has_perm("cms.preview_content")
 
     def has_delete_permission(self, request: HttpRequest, obj: Any = None) -> bool:
         return False
@@ -129,7 +224,7 @@ class HomeSectionAdmin(ContentAdmin):
 
     def get_fieldsets(self, request: HttpRequest, obj: HomeSection | None = None) -> Any:
         kind = obj.kind if obj else "hero"
-        fields = ["kind", "is_visible", "title"]
+        fields = ["expected_version", "kind", "is_visible", "title"]
         if kind in {"hero", "stone_panels", "collection_rail", "category_grid"}:
             fields.append("subtitle")
         if kind in {"statement", "story", "personalize", "banner"}:
@@ -170,17 +265,18 @@ class HomeSectionAdmin(ContentAdmin):
 
     def publication_context(self, request: HttpRequest) -> dict[str, Any]:
         latest = HomePublication.objects.first()
-        sections = list(draft_sections())
-        snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
+        pending = pending_changes("home", previous=latest)
         return {
-            "pending_home_changes": latest is None
-            or latest.snapshot != snapshot
-            or latest.draft_snapshot != [services.section_source(section) for section in sections],
+            "pending_home_changes": bool(pending["count"]),
+            "pending_count": pending["count"],
+            "draft_version": get_document("home").draft_version,
             "last_home_publication": latest,
-            "can_preview": self.has_change_permission(request),
+            "can_preview": request.user.has_perm("cms.preview_content"),
             "can_publish": self.has_publish_permission(request),
+            "review_url": reverse("cms-review-publish", args=["home"]),
         }
 
+    @transaction.atomic
     def change_view(
         self,
         request: HttpRequest,
@@ -188,6 +284,7 @@ class HomeSectionAdmin(ContentAdmin):
         form_url: str = "",
         extra_context: dict[str, Any] | None = None,
     ) -> Any:
+        lock_document("home")
         return super().change_view(
             request,
             object_id,
@@ -199,16 +296,9 @@ class HomeSectionAdmin(ContentAdmin):
             },
         )
 
-    def response_change(self, request: HttpRequest, obj: HomeSection) -> HttpResponse:
+    def response_change(self, request, obj):
         if "_savepublish" in request.POST:
-            if not self.has_publish_permission(request):
-                raise PermissionDenied
-            try:
-                services.publish_home(request.user, request)
-                self.message_user(request, _("Inicio publicado."), messages.SUCCESS)
-            except (ValidationError, DomainError) as exc:
-                self.message_user(request, str(exc), messages.ERROR)
-            return HttpResponseRedirect(reverse("admin:cms_homesection_change", args=[obj.pk]))
+            return HttpResponseRedirect(reverse("cms-review-publish", args=["home"]))
         return super().response_change(request, obj)
 
     def get_inlines(
@@ -232,38 +322,45 @@ class HomeSectionAdmin(ContentAdmin):
         ]
 
     def preview(self, request: HttpRequest) -> HttpResponse:
-        if not self.has_change_permission(request):
-            raise PermissionDenied
+        require_capability(request.user, "preview")
         return preview_redirect(request, "/es")
 
     def publish(self, request: HttpRequest) -> HttpResponse:
-        if request.method != "POST" or not self.has_publish_permission(request):
-            raise PermissionDenied
-        try:
-            services.publish_home(request.user, request)
-            self.message_user(request, _("Inicio publicado."), messages.SUCCESS)
-        except (ValidationError, DomainError) as exc:
-            self.message_user(request, str(exc), messages.ERROR)
-        if request.POST.get("return_to") == "editor":
-            return HttpResponseRedirect(reverse("visual-editor"))
-        section_id = request.POST.get("section_id", "")
-        if section_id.isdecimal() and HomeSection.objects.filter(pk=section_id).exists():
-            return HttpResponseRedirect(reverse("admin:cms_homesection_change", args=[section_id]))
-        return HttpResponseRedirect(reverse("admin:cms_homesection_changelist"))
+        require_capability(request.user, "publish")
+        return HttpResponseRedirect(reverse("cms-review-publish", args=["home"]))
 
+    def get_changelist_form(self, request, **kwargs):
+        base = super().get_changelist_form(request, **kwargs)
+        return self.versioned_form(request, base)
+
+    @transaction.atomic
     def changelist_view(
         self, request: HttpRequest, extra_context: dict[str, Any] | None = None
     ) -> Any:
-        return super().changelist_view(
-            request,
-            {
-                **(extra_context or {}),
-                **self.publication_context(request),
-            },
-        )
+        with admin_batch():
+            lock_document("home")
+            response = super().changelist_view(
+                request,
+                {
+                    **(extra_context or {}),
+                    **self.publication_context(request),
+                },
+            )
+            if hasattr(response, "render"):
+                response.render()
+            return response
 
     def save_model(self, request: HttpRequest, obj: HomeSection, form: Any, change: bool) -> None:
-        services.save_section(obj, actor=request.user, request=request)
+        services.save_section(
+            obj,
+            actor=request.user,
+            request=request,
+            **(
+                {"expected_version": form.cleaned_data.get("expected_version")}
+                if form is not None
+                else {}
+            ),
+        )
 
 
 class PageItemInline(TranslationTabularInline, TabularInline):
@@ -317,7 +414,7 @@ class PageAdmin(ContentAdmin):
         return (FaqItemInline,) if obj else ()
 
     def get_fieldsets(self, request, obj=None):
-        fields = ["kind", "title", "slug"]
+        fields = ["expected_version", "kind", "title", "slug"]
         description = ""
         if obj and obj.kind == "personalize":
             fields += ["process_title", "faq_title"]
@@ -326,7 +423,13 @@ class PageAdmin(ContentAdmin):
             fields += ["body", "faq_title"]
         return [
             (None, {"fields": self.replace_orig_field(fields), "description": description}),
-            ("Publicación", {"fields": ["status", "version", "published_at", "preview_link"]}),
+            (
+                "Publicación",
+                {
+                    "fields": ["status", "version", "published_at"]
+                    + (["preview_link"] if request.user.has_perm("cms.preview_content") else [])
+                },
+            ),
         ]
 
     def save_formset(self, request, form, formset, change):
@@ -337,6 +440,7 @@ class PageAdmin(ContentAdmin):
             services.save_page_item(obj, actor=request.user, request=request)
         formset.save_m2m()
 
+    @transaction.atomic
     def change_view(
         self,
         request: HttpRequest,
@@ -345,52 +449,39 @@ class PageAdmin(ContentAdmin):
         extra_context: dict[str, Any] | None = None,
     ) -> Any:
         page = self.get_object(request, object_id)
-        revision = page.revisions.first() if page else None
-        pending = bool(
-            page
-            and (
-                not revision
-                or {lang: revision.snapshot[lang] for lang in ("es", "en")}
-                != services.page_snapshot(page)
-            )
-        )
+        if page:
+            lock_document(document_key(page))
+        pending = pending_changes(document_key(page)) if page else {"count": 0}
         return super().change_view(
-            request, object_id, form_url, {**(extra_context or {}), "pending_page_changes": pending}
+            request,
+            object_id,
+            form_url,
+            {
+                **(extra_context or {}),
+                "pending_page_changes": bool(pending["count"]),
+                "pending_count": pending["count"],
+                "can_publish": self.has_publish_permission(request),
+                "review_url": reverse("cms-review-publish", args=[document_key(page)])
+                if page
+                else "",
+            },
         )
 
     @action(
         description=_("Vista previa"),
-        permissions=["change"],
+        permissions=["preview"],
         attrs={"target": "_blank", "rel": "noopener"},
     )  # type: ignore[untyped-decorator]
     def detail_preview(self, request: HttpRequest, object_id: str) -> HttpResponse:
         return self.preview(request, int(object_id))
 
-    @action(description=_("Publicar"), permissions=["publish", "change"])  # type: ignore[untyped-decorator]
+    @action(description=_("Revisar y publicar"), permissions=["publish", "change"])  # type: ignore[untyped-decorator]
     def detail_publish(self, request: HttpRequest, object_id: str) -> HttpResponse:
+        require_capability(request.user, "publish")
         page = self.get_object(request, object_id)
-        if page is None or not self.has_change_permission(request, page):
+        if page is None:
             raise PermissionDenied
-        back_url = reverse("admin:cms_page_change", args=[object_id])
-        if request.method != "POST":
-            from django.template.response import TemplateResponse
-
-            return TemplateResponse(
-                request,
-                "admin/cms/confirm_publish_page.html",
-                {
-                    **self.admin_site.each_context(request),
-                    "title": _("Publicar"),
-                    "original": page,
-                    "back_url": back_url,
-                },
-            )
-        try:
-            services.publish_page(page, request.user, request, note=request.POST.get("note", ""))
-            self.message_user(request, _("Página publicada."), messages.SUCCESS)
-        except (DomainError, ValidationError) as exc:
-            self.message_user(request, str(exc), messages.ERROR)
-        return HttpResponseRedirect(back_url)
+        return HttpResponseRedirect(reverse("cms-review-publish", args=[document_key(page)]))
 
     def get_urls(self) -> list[Any]:
         return [
@@ -403,17 +494,14 @@ class PageAdmin(ContentAdmin):
         ]
 
     def preview(self, request: HttpRequest, object_id: int) -> HttpResponse:
+        require_capability(request.user, "preview")
         obj = self.get_object(request, str(object_id))
-        if obj is None or not self.has_change_permission(request, obj):
+        if obj is None:
             raise PermissionDenied
         return preview_redirect(request, page_path(obj.kind, "es", obj.slug_es, obj.slug_en))
 
     def get_readonly_fields(self, request: HttpRequest, obj: Page | None = None) -> tuple[str, ...]:
-        return (
-            self.readonly_fields
-            if self.has_change_permission(request, obj)
-            else tuple(field for field in self.readonly_fields if field != "preview_link")
-        )
+        return (*self.readonly_fields, "kind") if obj else self.readonly_fields
 
     @admin.display(description=_("Vista previa"))
     def preview_link(self, obj: Page) -> str:
@@ -426,12 +514,28 @@ class PageAdmin(ContentAdmin):
         )
 
     def save_model(self, request: HttpRequest, obj: Page, form: Any, change: bool) -> None:
-        services.save_page(obj, actor=request.user, request=request)
+        services.save_page(
+            obj,
+            actor=request.user,
+            request=request,
+            **(
+                {"expected_version": form.cleaned_data.get("expected_version")}
+                if form is not None
+                else {}
+            ),
+        )
 
-    @admin.action(description=_("Publicar"), permissions=["publish"])
-    def publish(self, request: HttpRequest, queryset: QuerySet[Page]) -> None:
-        for page in queryset:
-            services.publish_page(page, request.user, request)
+    @admin.action(description=_("Revisar y publicar"), permissions=["publish"])
+    def publish(self, request: HttpRequest, queryset: QuerySet[Page]) -> HttpResponse:
+        require_capability(request.user, "publish")
+        if queryset.count() != 1:
+            self.message_user(
+                request, _("Selecciona una sola página para revisar."), messages.ERROR
+            )
+            return HttpResponseRedirect(request.path)
+        return HttpResponseRedirect(
+            reverse("cms-review-publish", args=[document_key(queryset.get())])
+        )
 
 
 @admin.register(PersonalizationService)
@@ -444,7 +548,7 @@ class PersonalizationAdmin(ContentAdmin):
     def save_model(
         self, request: HttpRequest, obj: PersonalizationService, form: Any, change: bool
     ) -> None:
-        services.save_personalization(obj)
+        services.save_personalization(obj, actor=request.user)
 
 
 @admin.register(HomePublication, PageRevision)
@@ -458,13 +562,14 @@ class PublicationAdmin(ReadOnlyAdmin):
     def has_publish_permission(self, request: HttpRequest, object_id: Any = None) -> bool:
         return request.user.has_perm("cms.publish_content")
 
-    @admin.action(description=_("Restaurar como borrador"), permissions=["publish"])
+    def has_restore_permission(self, request, object_id=None):
+        return request.user.has_perm("cms.restore_content")
+
+    @admin.action(description=_("Restaurar como borrador"), permissions=["restore"])
     def restore(self, request: HttpRequest, queryset: QuerySet[Any]) -> None:
         if queryset.count() != 1:
             self.message_user(request, _("Selecciona una sola publicación."), messages.ERROR)
             return
         obj = queryset.get()
-        if isinstance(obj, HomePublication):
-            services.restore_home(obj, request.user, request)
-        else:
-            services.restore_page_revision(obj, request.user, request)
+        key = "home" if isinstance(obj, HomePublication) else str(obj.page_id)
+        return HttpResponseRedirect(reverse("cms-history") + f"?document={key}&restore={obj.pk}")

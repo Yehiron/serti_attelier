@@ -243,7 +243,12 @@ class HomeSection(Illustrated):
         verbose_name = _("sección de la página de inicio")
         verbose_name_plural = _("Página de inicio")
         ordering = ["position", "pk"]
-        permissions = [("publish_content", "Puede publicar y restaurar contenido")]
+        permissions = [
+            ("publish_content", "Puede publicar contenido"),
+            ("edit_content", "Puede editar contenido"),
+            ("preview_content", "Puede previsualizar contenido"),
+            ("restore_content", "Puede restaurar contenido"),
+        ]
 
     def __str__(self) -> str:
         return self.title or self.kind
@@ -400,3 +405,97 @@ class PersonalizationService(Illustrated):
 
     def __str__(self) -> str:
         return self.title
+
+
+class ContentDocument(models.Model):
+    key = models.CharField(_("Identificador del documento"), max_length=50, unique=True)
+    draft_version = models.PositiveBigIntegerField(_("Versión del borrador"), default=0)
+    updated_at = models.DateTimeField(_("Actualizado el"), auto_now=True)
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        verbose_name=_("Actualizado por"),
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
+    )
+    published_version = models.BigIntegerField(_("Versión publicada del borrador"), null=True)
+    home_publication = models.ForeignKey(
+        HomePublication,
+        verbose_name=_("Publicación del inicio"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    page_revision = models.ForeignKey(
+        PageRevision,
+        verbose_name=_("Publicación de la página"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+
+    class Meta:
+        verbose_name = _("documento de contenido")
+        verbose_name_plural = _("documentos de contenido")
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(draft_version__gte=0), name="cms_document_version_nonnegative"
+            )
+        ]
+
+    def __str__(self):
+        return self.key
+
+
+class DraftRevision(ImmutableSnapshot):
+    document = models.ForeignKey(
+        ContentDocument,
+        verbose_name=_("Documento"),
+        on_delete=models.PROTECT,
+        related_name="draft_revisions",
+    )
+    draft_version = models.PositiveBigIntegerField(_("Versión del borrador"))
+    kind = models.CharField(
+        _("Tipo de revisión"),
+        max_length=10,
+        default="restore",
+        choices=[("restore", "Restauración")],
+    )
+    restored_from_home = models.ForeignKey(
+        HomePublication,
+        verbose_name=_("Publicación del inicio"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    restored_from_page = models.ForeignKey(
+        PageRevision,
+        verbose_name=_("Publicación de la página"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    objects = ImmutableQuerySet["DraftRevision"].as_manager()
+
+    class Meta(ImmutableSnapshot.Meta):
+        verbose_name = _("revisión de borrador")
+        verbose_name_plural = _("revisiones de borrador")
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document", "draft_version"], name="cms_draft_revision_version_unique"
+            ),
+            models.CheckConstraint(
+                condition=(
+                    models.Q(restored_from_home__isnull=False, restored_from_page__isnull=True)
+                    | models.Q(restored_from_home__isnull=True, restored_from_page__isnull=False)
+                ),
+                name="cms_restore_one_origin",
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.document_id} · {self.draft_version}"
+
+    @property
+    def restored_from(self):
+        return self.restored_from_home or self.restored_from_page

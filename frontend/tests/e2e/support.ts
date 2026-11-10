@@ -81,8 +81,8 @@ export function localRedirect(redirectUrl: string, baseURL: string): string {
   return new URL(target.pathname + target.search, baseURL).toString();
 }
 
-export function adminSession(): { name: string; value: string; admin_url: string } {
-  return JSON.parse(manage('e2e_admin_session').trim().split('\n').pop() ?? '{}');
+export function adminSession(role: 'Propietario' | 'Contenido' | 'Operaciones' = 'Propietario'): { name: string; value: string; admin_url: string } {
+  return JSON.parse(manage('e2e_admin_session', '--role', role).trim().split('\n').pop() ?? '{}');
 }
 
 export function advanceOrder(reference: string, target: 'preparing' | 'shipped'): void {

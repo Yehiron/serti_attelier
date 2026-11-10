@@ -11,12 +11,17 @@ from django.core.management.base import BaseCommand, CommandError
 from django.urls import reverse
 
 from apps.accounts.models import User
-from apps.accounts.roles import PROPIETARIO
+from apps.accounts.roles import CONTENIDO, OPERACIONES, PROPIETARIO
 from apps.accounts.services import sync_roles
 
 
 class Command(BaseCommand):
     help = "Crea cuenta y cookie de panel efímeras para E2E (solo DEBUG)."
+
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--role", choices=[PROPIETARIO, CONTENIDO, OPERACIONES], default=PROPIETARIO
+        )
 
     def handle(self, *args, **options):
         if not settings.DEBUG:
@@ -29,7 +34,7 @@ class Command(BaseCommand):
         user = User.objects.create_user(
             username=username, email=f"{username}@e2e.invalid", is_staff=True
         )
-        user.groups.add(Group.objects.get(name=PROPIETARIO))
+        user.groups.add(Group.objects.get(name=options["role"]))
         session = SessionStore()
         session[SESSION_KEY] = str(user.pk)
         session[BACKEND_SESSION_KEY] = "django.contrib.auth.backends.ModelBackend"

@@ -6,6 +6,7 @@ from django.core.management import call_command
 from django.core.management.base import CommandError
 from django.test import override_settings
 
+from apps.cms.tests.helpers import cms_version
 from apps.core import health
 from apps.core.management.commands.check_production import wompi_coherent
 
@@ -66,7 +67,7 @@ def test_production_can_pass_with_warnings() -> None:
     TOTPDevice.objects.create(user=user, confirmed=True)
     for kind in ("terms", "privacy"):
         page = Page.objects.get(kind=kind)
-        publish_page(page, actor=user)
+        publish_page(page, actor=user, expected_version=cms_version(page))
     out = StringIO()
     with (
         patch.object(health, "check_database", return_value=True),

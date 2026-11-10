@@ -9,11 +9,12 @@
 </style>
 <div class="cms-history">
 {% if confirmation %}
-<p>{{ confirmation }}</p>
-<form method="post">{% csrf_token %}<button name="confirm" value="yes" class="bg-primary-600 text-white rounded-default"><span class="material-symbols-outlined" aria-hidden="true">restore</span>Restaurar como borrador</button><a href="?document={{ document }}">Cancelar</a></form>
+<p>{{ confirmation }}</p>{% if conflict %}<p role="alert">{{ conflict }}</p><a href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a>{% endif %}
+<form method="post">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}"><button name="confirm" value="yes" class="bg-primary-600 text-white rounded-default"><span class="material-symbols-outlined" aria-hidden="true">restore</span>Restaurar como borrador</button><a href="?document={{ document }}">Cancelar</a></form>
 {% else %}
 <form method="get"><label for="document">Documento</label><select id="document" name="document">{% if show_home %}<option value="home" {% if document == 'home' %}selected{% endif %}>Inicio</option>{% endif %}{% for doc in documents %}<option value="{{ doc.pk }}" {% if document == doc.pk|stringformat:'s' %}selected{% endif %}>{{ doc.title_es }}</option>{% endfor %}</select><button>Ver publicaciones</button></form>
 <h2>{{ document_title }}</h2>
+{% for revision in restorations %}<article><p>Restaurado desde la publicación del {{ revision.restored_from.published_at|date:"d/m/Y H:i" }}</p><p>{{ revision.published_by_repr }} · {{ revision.published_at|date:"d/m/Y H:i" }}</p><p>Guardado como borrador; no se publicó.</p></article>{% endfor %}
 {% for row in rows %}<article><h3>{{ row.date|date:"d/m/Y H:i" }} · Bogotá</h3><p>Publicado por {{ row.publication.published_by_repr|default:"Equipo SERTI" }}</p><p>Nota: {{ row.publication.note|default:"Sin nota" }}</p><ul>{% for change in row.changes %}<li>{{ change }}</li>{% endfor %}</ul>{% if can_restore %}<a href="?document={{ document }}&amp;restore={{ row.publication.pk }}"><span class="material-symbols-outlined" aria-hidden="true">restore</span>Restaurar como borrador</a>{% endif %}</article>{% empty %}<p>Aún no hay publicaciones de este documento.</p>{% endfor %}
 <nav aria-label="Páginas del historial">{% if page_obj.has_previous %}<a href="?document={{ document }}&amp;page={{ page_obj.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>{% if page_obj.has_next %}<a href="?document={{ document }}&amp;page={{ page_obj.next_page_number }}">Siguiente</a>{% endif %}</nav>
 {% endif %}
