@@ -1,0 +1,11 @@
+{% extends "admin/base_site.html" %}{% load static %}
+{% block extrahead %}{{ block.super }}
+<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}">
+<link rel="stylesheet" href="{% static 'cms/vendor/cropperjs-1.6.2/cropper.min.css' %}">
+<link rel="stylesheet" href="{% static 'cms/media-library.css' %}">
+<script src="{% static 'cms/vendor/cropperjs-1.6.2/cropper.min.js' %}" defer></script>
+<script src="{% static 'cms/media-library.js' %}" defer></script>
+{% endblock %}
+{% block content %}
+<div id="cms-media-page" class="cms-workspace" data-api="{{ media_api }}">{% csrf_token %}</div>
+{% endblock %}

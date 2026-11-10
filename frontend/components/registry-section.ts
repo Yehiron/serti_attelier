@@ -1,4 +1,5 @@
-import { createElement as h } from 'react';
+import { createElement as h, type CSSProperties } from 'react';
+import { focalPosition } from '../lib/cms-focal.ts';
 import type { Section } from '../lib/api/sections.generated.ts';
 
 export type RegistrySectionData = Extract<Section, { kind: 'image_text' | 'faq' | 'process' }>;
@@ -16,7 +17,7 @@ export function RegistrySection({ section }: { section: RegistrySectionData }) {
   return h('section', { className: `editorial-section cms-image-text image-${section.image_position}` },
     h('picture', { className: 'cms-section-photo' },
       mobile ? h('source', { media: '(max-width: 760px)', srcSet: mobile.srcset || mobile.src, width: mobile.width, height: mobile.height }) : null,
-      h('img', { src: image.src, srcSet: image.srcset || undefined, width: image.width, height: image.height,
+      h('img', { className: 'cms-focal-responsive', style: { '--cms-focal': focalPosition(image) || '50% 50%', '--cms-mobile-focal': focalPosition(mobile || image) || '50% 50%' } as CSSProperties, src: image.src, srcSet: image.srcset || undefined, width: image.width, height: image.height,
         sizes: '(max-width: 760px) 100vw, 50vw', alt: image.alt, loading: 'lazy' })),
     h('div', { className: 'cms-section-copy' }, section.eyebrow ? h('p', { className: 'eyebrow' }, section.eyebrow) : null,
       h('h2', null, section.title), h('div', { className: 'body-copy' }, section.body.split(/\n\s*\n/).map((paragraph, index) => h('p', { key: index }, paragraph))),

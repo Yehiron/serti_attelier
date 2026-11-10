@@ -53,6 +53,7 @@ class ImageSlot:
     desktop: str = "4:5 · 1600 x 2000 px"
     mobile: str = "4:5 · 1080 x 1350 px"
     alt_required: tuple[str, ...] = ("es", "en")
+    ratios: tuple[str, ...] = ("16:9", "4:5", "1:1")
 
 
 @dataclass(frozen=True)
@@ -340,6 +341,10 @@ def validate_cta(value):
 
 
 def validate_image(value):
+    if isinstance(value, dict) and "asset" in value:
+        from .media import validate_reference
+
+        return validate_reference(value)
     if not isinstance(value, dict) or set(value) != {"src", "srcset", "width", "height", "alt"}:
         raise ValidationError("La imagen debe incluir archivo, medidas y texto alternativo ES/EN.")
     for name in ("src", "srcset"):
@@ -490,6 +495,14 @@ def typescript_contract():
     lines = [
         "// Generado por manage.py export_section_registry --typescript. No editar.",
         "import type { Image, Cta, HeroSlide, Named, StonePanel, PieceCard } from './types';",
+        "export type MediaReference = { asset: number; crop: "
+        + " | ".join(
+            repr(ratio)
+            for ratio in dict.fromkeys(
+                ratio for spec in REGISTRY.values() for slot in spec.slots for ratio in slot.ratios
+            )
+        )
+        + "; version: number };",
         "export type Section = { id: string | number; schema_version: 1 } & (",
     ]
     for spec in REGISTRY.values():
@@ -514,6 +527,12 @@ def editorial_props(kind, props):
                 for i, row in enumerate(value):
                     visit(field.fields, row, f"{label} {i + 1} · ")
             elif field.type == "image":
+                if value and "asset" in value:
+                    result[label] = (
+                        f"Foto de biblioteca {value['asset']} · {value['crop']} "
+                        f"· versión {value['version']}"
+                    )
+                    continue
                 result[label] = value["src"] if value else "Sin foto"
                 for lang, name in (("es", "español"), ("en", "inglés")):
                     result[f"{label} · Texto alternativo ({name})"] = (

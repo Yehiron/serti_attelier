@@ -25,6 +25,9 @@ class Timestamped(models.Model):
 
 
 class Illustrated(Timestamped):
+    image_reference = models.JSONField(
+        _("Foto de biblioteca"), default=dict, blank=True, editable=False
+    )
     image = models.ImageField(verbose_name=_("Imagen"), upload_to="cms/", blank=True)
     image_alt = models.CharField(verbose_name=_("Texto alternativo"), max_length=300, blank=True)
     renditions = models.JSONField(
@@ -257,6 +260,9 @@ class HomeSection(Illustrated):
 
 
 class HeroSlide(Timestamped):
+    image_reference = models.JSONField(
+        _("Foto de biblioteca"), default=dict, blank=True, editable=False
+    )
     if TYPE_CHECKING:
         alt_es: str
         alt_en: str
@@ -303,7 +309,7 @@ class HeroSlide(Timestamped):
         super().clean()
         if self.section_id and self.section.kind != "hero":
             raise ValidationError(_("Las diapositivas solo pertenecen a una portada."))
-        if not self.image:
+        if not self.image and not self.image_reference:
             raise ValidationError(_("Agrega una imagen."))
         if any(not getattr(self, f"alt_{locale}", "") for locale in ("es", "en")):
             raise ValidationError(_("Escribe el texto alternativo en español e inglés."))
@@ -501,3 +507,65 @@ class DraftRevision(ImmutableSnapshot):
     @property
     def restored_from(self):
         return self.restored_from_home or self.restored_from_page
+
+
+class MediaAsset(Timestamped):
+    """CMS pixels only; catalog PieceImage has an independent lifecycle."""
+
+    original = models.FileField(
+        _("Original sin metadatos"), upload_to="cms/library/originals/", max_length=300
+    )
+    width = models.PositiveIntegerField(_("Ancho"), default=0)
+    height = models.PositiveIntegerField(_("Alto"), default=0)
+    media_type = models.CharField(_("Tipo de archivo"), max_length=30, default="image/webp")
+    size = models.PositiveBigIntegerField(_("Peso en bytes"), default=0)
+    sha256 = models.CharField(
+        _("Huella SHA-256"), max_length=64, unique=True, null=True, blank=True
+    )
+    alt_es = models.CharField(_("Texto alternativo en español"), max_length=300, blank=True)
+    alt_en = models.CharField(_("Texto alternativo en inglés"), max_length=300, blank=True)
+    title = models.CharField(_("Título interno"), max_length=200, blank=True)
+    tags = models.CharField(_("Etiquetas"), max_length=300, blank=True)
+    author = models.ForeignKey(
+        settings.AUTH_USER_MODEL, verbose_name=_("Subida por"), null=True, on_delete=models.SET_NULL
+    )
+    focal_x = models.FloatField(_("Punto horizontal"), default=0.5)
+    focal_y = models.FloatField(_("Punto vertical"), default=0.5)
+    crops = models.JSONField(_("Recortes"), default=dict, blank=True)
+    version = models.PositiveIntegerField(_("Versión de la foto"), default=1)
+    state = models.CharField(
+        _("Estado"),
+        max_length=12,
+        default="processing",
+        choices=[
+            ("processing", "Preparando"),
+            ("ready", "Lista"),
+            ("failed", "No se pudo preparar"),
+        ],
+    )
+    archived = models.BooleanField(_("Archivada"), default=False)
+    # Append-only generations: existing references and published URLs never change.
+    versions = models.JSONField(
+        _("Versiones conservadas"), default=dict, blank=True, editable=False
+    )
+    legacy_key = models.CharField(_("Archivo anterior"), max_length=300, blank=True, db_index=True)
+
+    legacy_fingerprint = models.CharField(
+        _("Identificador de importación"), max_length=64, unique=True, null=True, blank=True
+    )
+
+    class Meta:
+        verbose_name = _("foto de biblioteca")
+        verbose_name_plural = _("Fotos de biblioteca")
+        ordering = ["-created_at", "-pk"]
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(focal_x__gte=0, focal_x__lte=1), name="cms_media_focal_x_range"
+            ),
+            models.CheckConstraint(
+                condition=models.Q(focal_y__gte=0, focal_y__lte=1), name="cms_media_focal_y_range"
+            ),
+        ]
+
+    def __str__(self):
+        return self.title or self.alt_es or f"Foto {self.pk}"

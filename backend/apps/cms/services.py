@@ -99,6 +99,10 @@ def require_publish(actor: User | AnonymousUser) -> User:
 
 
 def validate_section(obj: HomeSection) -> None:
+    if obj.image_reference:
+        from .media import validate_reference
+
+        validate_reference(obj.image_reference)
     from .section_validation import reject_irrelevant_columns, validate_instance
 
     reject_irrelevant_columns(obj)
@@ -120,7 +124,7 @@ def validate_section(obj: HomeSection) -> None:
         raise ValidationError(_("Escribe un enlace HTTPS."))
     if obj.cta_kind != "none" and not obj.cta_label:
         raise ValidationError(_("Escribe el texto del enlace."))
-    if obj.image:
+    if obj.image and not obj.image_reference:
         for locale in ("es", "en"):
             if not getattr(obj, f"image_alt_{locale}", ""):
                 raise ValidationError(_("Escribe el texto alternativo en español e inglés."))
@@ -136,12 +140,16 @@ def display_ratio(obj: HomeSection | PersonalizationService) -> tuple[int, int] 
     return None
 
 
-def process_image(obj: HomeSection | PersonalizationService) -> None:
+def process_image(obj: HomeSection | PersonalizationService, actor=None, request=None) -> None:
     if not obj.image:
+        _library_changed_alt(obj, actor)
         obj.renditions, obj.width, obj.height = {}, 0, 0
         return
     if getattr(obj.image, "_committed", True):
+        _library_changed_alt(obj, actor)
         return
+    asset = _library_original(obj.image, actor, request)
+    obj.image_reference = {}
     image = validated_image(obj.image)
     if ratio := display_ratio(obj):
         image = crop_to_ratio(image, *ratio)
@@ -150,16 +158,86 @@ def process_image(obj: HomeSection | PersonalizationService) -> None:
     obj.image.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
     paths = build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", (960, 1600, 2400))
     obj.renditions = {"webp": paths}
+    _library_processed(obj, asset)
 
 
-def process_slide_images(obj: HeroSlide) -> None:
+def process_slide_images(obj: HeroSlide, actor=None, request=None) -> None:
     if not obj.image or getattr(obj.image, "_committed", True):
+        _library_changed_alt(obj, actor)
         return
+    asset = _library_original(obj.image, actor, request)
+    obj.image_reference = {}
     image = cap_master(validated_image(obj.image))
     widths = (480, 960, 1600) if obj.device == HeroSlide.Device.MOBILE else (960, 1600, 2400)
     obj.width, obj.height = image.size
     obj.image.save(f"{uuid.uuid4().hex}.webp", encode_webp(image), save=False)
     obj.renditions = {"webp": build_renditions(image, f"cms/renditions/{uuid.uuid4().hex}", widths)}
+    _library_processed(obj, asset)
+
+
+def _library_original(file, actor, request):
+    # Compatibility forms keep their synchronous outputs, but preserve the full
+    # uncropped source in the same library as new editor uploads.
+    if actor is None:
+        return None
+    from .media import upload
+
+    return upload(file, actor, request, audit=False)[0]
+
+
+def _library_changed_alt(obj, actor):
+    ref = obj.image_reference
+    if not ref or not obj.pk or actor is None:
+        return
+    previous = type(obj).objects.filter(pk=obj.pk).first()
+    field = "alt" if isinstance(obj, HeroSlide) else "image_alt"
+    names = [f"{field}_{lang}" for lang in ("es", "en")]
+    if (
+        not previous
+        or previous.image_reference != ref
+        or all(getattr(previous, name) == getattr(obj, name) for name in names)
+    ):
+        return
+    from copy import deepcopy
+
+    from .models import MediaAsset
+    from .registry import text, validate_fields
+
+    alt = {lang: getattr(obj, f"{field}_{lang}") or "" for lang in ("es", "en")}
+    validate_fields((text("alt", "Texto alternativo", 300, required=True),), {"alt": alt})
+    asset = MediaAsset.objects.select_for_update(of=("self",)).get(pk=ref["asset"])
+    payload = deepcopy(asset.versions[str(ref["version"])][ref["crop"]])
+    payload["alt"] = alt
+    asset.version += 1
+    asset.versions = {**asset.versions, str(asset.version): {ref["crop"]: payload}}
+    asset.alt_es, asset.alt_en, asset.state = alt["es"], alt["en"], "ready"
+    asset.save(update_fields=["version", "versions", "alt_es", "alt_en", "state"])
+    obj.image_reference = {**ref, "version": asset.version}
+
+
+def _library_processed(obj, asset):
+    if asset is None:
+        return
+    from .models import MediaAsset
+    from .selectors import image_data
+
+    asset = MediaAsset.objects.select_for_update(of=("self",)).get(pk=asset.pk)
+    payloads = [image_data(obj, lang) for lang in ("es", "en")]
+    payload = {
+        **payloads[0],
+        "alt": {lang: payloads[i]["alt"] for i, lang in enumerate(("es", "en"))},
+    }
+    ratio = (
+        "16:9"
+        if (getattr(obj, "kind", "") == "hero" or getattr(obj, "device", "") == "desktop")
+        else "4:5"
+    )
+    asset.version += 1
+    asset.versions = {**asset.versions, str(asset.version): {ratio: payload}}
+    asset.alt_es, asset.alt_en = payload["alt"]["es"], payload["alt"]["en"]
+    asset.state = "ready"
+    asset.save(update_fields=["version", "versions", "alt_es", "alt_en", "state"])
+    obj.image_reference = {"asset": asset.pk, "crop": ratio, "version": asset.version}
 
 
 def editorial_values(obj):
@@ -189,7 +267,14 @@ def editorial_values(obj):
                 key = f"Contenido · {label}" if label in values else label
                 values[key] = prop_value
             continue
-        if field.name == "image":
+        if field.name == "image_reference":
+            value = (
+                f"Foto de biblioteca {value['asset']} · {value['crop']} "
+                f"· versión {value['version']}"
+                if value
+                else "Sin foto de biblioteca"
+            )
+        elif field.name == "image":
             value = "Foto cargada" if value else "Sin foto"
         elif field.is_relation:
             value = str(value) if value else "Sin seleccionar"
@@ -227,8 +312,13 @@ def save_hero_slide(obj: HeroSlide, actor=None, request=None, *, audit: bool = T
     """Single save path for slides; bulk callers pass audit=False and record one event."""
     before = editorial_before(obj)
     image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
+    if obj.pk and not obj.image:
+        previous = HeroSlide.objects.get(pk=obj.pk)
+        if previous.image and previous.image_reference == obj.image_reference:
+            # Clearing an upload also clears its automatically attached reference.
+            obj.image_reference = {}
     obj.full_clean()
-    process_slide_images(obj)
+    process_slide_images(obj, actor, request)
     obj.save()
     if audit:
         audit_editorial(obj, before, actor, request, image_changed=image_changed)
@@ -253,7 +343,7 @@ def save_section(obj: HomeSection, actor=None, request=None) -> None:
     before = editorial_before(obj)
     image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
     validate_section(obj)
-    process_image(obj)
+    process_image(obj, actor, request)
     obj.save()
     audit_editorial(obj, before, actor, request, image_changed=image_changed)
 
@@ -289,7 +379,7 @@ def validate_personalization(obj: PersonalizationService) -> None:
 def save_personalization(obj: PersonalizationService, actor=None) -> None:
     require_capability(actor, "edit")
     validate_personalization(obj)
-    process_image(obj)
+    process_image(obj, actor)
     obj.save()
 
 
@@ -338,12 +428,13 @@ def publish_home(
                 slide.full_clean()
     source = [section_source(section) for section in sections]
     snapshot = {locale: render_sections(sections, locale) for locale in ("es", "en")}
+    from .review_changes import equivalent
     from .section_adapters import home_snapshot, section_sources
 
     if (
         latest
-        and home_snapshot(latest.snapshot) == snapshot
-        and section_sources(latest.draft_snapshot) == source
+        and equivalent(home_snapshot(latest.snapshot), snapshot)
+        and equivalent(section_sources(latest.draft_snapshot), source)
     ):
         document.home_publication = latest
         document.published_version = document.draft_version

@@ -6,6 +6,7 @@ from django.contrib import admin
 from django.urls import URLPattern, URLResolver, include, path
 from drf_spectacular.views import SpectacularAPIView
 
+from apps.cms import media_views
 from apps.cms.editor import action
 from apps.cms.editor_api import document as editor_document
 from apps.cms.editor_api import editor
@@ -16,6 +17,11 @@ from apps.cms.registry_view import section_registry
 from apps.notifications import views as notification_views
 
 urlpatterns: list[URLPattern | URLResolver] = [
+    path(settings.ADMIN_URL + "biblioteca/", media_views.library, name="cms-media"),
+    path(settings.ADMIN_URL + "biblioteca/api/", media_views.assets, name="cms-media-api"),
+    path(
+        settings.ADMIN_URL + "biblioteca/api/<int:pk>/", media_views.detail, name="cms-media-detail"
+    ),
     path(
         settings.ADMIN_URL + "notifications/unread/",
         notification_views.unread,

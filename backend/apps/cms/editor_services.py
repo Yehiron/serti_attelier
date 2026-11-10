@@ -146,7 +146,7 @@ def upload_editor_image(upload, alt, actor=None, request=None):
 
     validate_fields((text("alt", "Texto alternativo", 300, required=True),), {"alt": alt})
     holder = HomeSection(kind="image_text", image=upload)
-    services.process_image(holder)
+    services.process_image(holder, actor, request)
     image = {
         "src": holder.image.url,
         "srcset": "",

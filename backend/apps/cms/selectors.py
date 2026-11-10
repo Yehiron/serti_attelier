@@ -44,6 +44,10 @@ def draft_sections() -> QuerySet[HomeSection]:
 def image_data(
     obj: HomeSection | PersonalizationService | HeroSlide, locale: str, mobile: bool = False
 ) -> dict[str, Any] | None:
+    if getattr(obj, "image_reference", None):
+        from .media import resolve
+
+        return resolve(obj.image_reference, locale)
     image = obj.image
     prefix = ""
     if not image:
@@ -112,7 +116,7 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
             for slide in sorted(
                 obj.slides.all(), key=lambda row: (row.device != "desktop", row.position, row.pk)
             ):
-                if slide.width and slide.height and slide.image:
+                if slide.image_reference or (slide.width and slide.height and slide.image):
                     image = image_data(slide, locale)
                     slides.append(
                         {

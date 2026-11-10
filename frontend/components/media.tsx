@@ -1,7 +1,8 @@
+import { focalPosition } from '@/lib/cms-focal';
 /* eslint-disable @next/next/no-img-element -- API supplies responsive image renditions. */
 import type { Image as ApiImage } from '@/lib/api/types';
 export function Media({ image, className = '', priority = false, sizes = '(max-width: 700px) 100vw, 50vw' }: { image: ApiImage; className?: string; priority?: boolean; sizes?: string }) {
-  return <img className={className} src={image.src} srcSet={image.srcset || undefined} sizes={sizes} width={image.width || 960} height={image.height || 1200} alt={image.alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} />;
+  return <img className={className} style={{ objectPosition: focalPosition(image) }} src={image.src} srcSet={image.srcset || undefined} sizes={sizes} width={image.width || 960} height={image.height || 1200} alt={image.alt} loading={priority ? 'eager' : 'lazy'} fetchPriority={priority ? 'high' : undefined} />;
 }
 /* Official logo files (docs/marca.md). Wine is for light backgrounds and gold for wine/dark
    ones: both are rendered and CSS shows the one that fits; a hidden lazy image is never fetched. */

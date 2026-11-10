@@ -702,3 +702,6 @@ html { scrollbar-gutter: stable; }
   .cms-image-text.image-right .cms-section-photo { order: initial; }
 }
 .cms-faq details, .cms-process li { border-color: color-mix(in srgb, currentColor 35%, transparent); }
+
+.cms-focal-responsive { object-position: var(--cms-focal, 50% 50%); }
+@media (max-width: 760px) { .cms-focal-responsive { object-position: var(--cms-mobile-focal, var(--cms-focal, 50% 50%)); } }

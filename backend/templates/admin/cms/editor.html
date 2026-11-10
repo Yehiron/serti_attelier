@@ -1,7 +1,7 @@
 {% extends "admin/base_site.html" %}{% load static %}
-{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}"><script src="{% static 'cms/visual-editor.js' %}" defer></script>{% endblock %}
+{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}"><link rel="stylesheet" href="{% static 'cms/vendor/cropperjs-1.6.2/cropper.min.css' %}"><link rel="stylesheet" href="{% static 'cms/media-library.css' %}"><script src="{% static 'cms/vendor/cropperjs-1.6.2/cropper.min.js' %}" defer></script><script src="{% static 'cms/media-library.js' %}" defer></script><script src="{% static 'cms/visual-editor.js' %}" defer></script>{% endblock %}
 {% block content %}
-<div id="cms-editor" class="cms-workspace" data-api="{{ api_url }}" data-publish="{{ can_publish|yesno:'true,false' }}">
+<div id="cms-editor" class="cms-workspace" data-api="{{ api_url }}" data-media="{% url 'cms-media-api' %}" data-publish="{{ can_publish|yesno:'true,false' }}">
 {% csrf_token %}<template id="cms-photo-widget">{{ photo_widget }}</template>
 <header class="cms-toolbar"><label>Página <select id="cms-document" aria-label="Página"></select></label><a href="{{ history_url }}">Historial</a><span class="cms-draft-label">Borrador · solo tú y tu equipo lo ven</span></header>
 <div id="cms-conflict" role="alert" hidden>Otra persona guardó cambios en esta página <button id="cms-reload">Ver sus cambios (recargar)</button><button id="cms-copy">Copiar mis textos</button><textarea id="cms-copy-text" aria-label="Mis textos para copiar" hidden readonly></textarea></div>

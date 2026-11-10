@@ -64,8 +64,13 @@ def localize_props(kind, props, locale):
                 result[field.key + "_html"] = render_markdown(value)
                 continue
             if field.type == "image" and value:
-                value = deepcopy(value)
-                value["alt"] = value["alt"].get(locale) or value["alt"]["es"]
+                if "asset" in value:
+                    from .media import resolve
+
+                    value = resolve(value, locale)
+                else:
+                    value = deepcopy(value)
+                    value["alt"] = value["alt"].get(locale) or value["alt"]["es"]
             if field.type == "cta" and value:
                 target = None
                 if value["kind"] in {"category", "collection", "piece", "stone", "page"}:

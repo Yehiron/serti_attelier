@@ -51,18 +51,28 @@ def values(section):
             )
         elif field.type == "image":
             result[field.key] = (
-                {"alt": translations(section, "image_alt"), "src": section.image.url}
-                if section.image
-                else None
+                deepcopy(section.image_reference)
+                if section.image_reference
+                else (
+                    {"alt": translations(section, "image_alt"), "src": section.image.url}
+                    if section.image
+                    else None
+                )
             )
     if section.kind == "hero":
         from .editor import thumbnail
+        from .media import resolve
 
         result["slides"] = [
             {
                 "id": str(slide.pk),
                 "device": slide.device,
-                "thumbnail": thumbnail(slide.renditions),
+                "thumbnail": (
+                    resolve(slide.image_reference, "es")["src"]
+                    if slide.image_reference
+                    else thumbnail(slide.renditions)
+                ),
+                "reference": slide.image_reference,
                 "alt": translations(slide, "alt"),
             }
             for slide in section.slides.all()
@@ -172,6 +182,11 @@ def write_values(section, data):
                     value.get("target") if value and value["kind"] == kind else None,
                 )
         elif field.type == "image" and value:
+            if "asset" in value:
+                from .media import validate_reference
+
+                section.image_reference = validate_reference(value)
+                continue
             for lang in ("es", "en"):
                 new = value.get("alt", {}).get(lang, "")
                 if (getattr(section, f"image_alt_{lang}") or "") != (new or ""):
@@ -265,7 +280,34 @@ def mutate(key, action, data, actor, request):
         return str(section.pk)
     section = get_object_or_404(HomeSection, pk=data["id"])
     spec = get_type(section.kind)
-    if action.startswith("hero-"):
+    if action == "media-select":
+        from .media import resolve, validate_reference
+
+        ref = validate_reference(data["reference"], selecting=True)
+        slot = data.get("slot", "image")
+        image_slot = next((slot_ for slot_ in spec.slots if slot_.key == slot), None)
+        if not image_slot or ref["crop"] not in image_slot.ratios:
+            raise ValidationError("Esta foto no corresponde a esta sección.")
+        if slot.startswith("slides.") and section.kind == "hero":
+            device = slot.split(".")[1]
+            image = resolve(ref, "es")
+            slide = (
+                get_object_or_404(section.slides, pk=data["slide"], device=device)
+                if data.get("slide")
+                else HeroSlide(section=section, device=device)
+            )
+            slide.image_reference = ref
+            slide.width, slide.height = image["width"], image["height"]
+            slide.alt_es, slide.alt_en = resolve(ref, "es")["alt"], resolve(ref, "en")["alt"]
+            if not slide.pk:
+                slide.position = section.slides.filter(device=device).count()
+            # Keep legacy source intact for history; reference takes precedence.
+            services.save_hero_slide(slide, actor=actor, request=request)
+        else:
+            write_values(section, {slot: ref})
+            services.save_section(section, actor=actor, request=request)
+        record("cms.media_selected", actor=actor, obj=section, request=request)
+    elif action.startswith("hero-"):
         device = data.get("device")
         if section.kind != "hero" or device not in HeroSlide.Device.values:
             raise ValidationError("Selecciona una portada y un dispositivo válidos.")

@@ -1,5 +1,6 @@
 // Generado por manage.py export_section_registry --typescript. No editar.
 import type { Image, Cta, HeroSlide, Named, StonePanel, PieceCard } from './types';
+export type MediaReference = { asset: number; crop: '16:9' | '4:5' | '1:1'; version: number };
 export type Section = { id: string | number; schema_version: 1 } & (
   | { kind: 'hero'; title: string; subtitle: string; image: Image | null; cta: Cta | null; slides?: HeroSlide[] }
   | { kind: 'statement'; title: string; body: string }

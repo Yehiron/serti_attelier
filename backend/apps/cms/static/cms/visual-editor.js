@@ -24,6 +24,18 @@
     const el = element('button', text, { type: 'button' });
     el.disabled = disabled; el.onclick = action; return el;
   }
+  function pickMedia(slot, set, slide) {
+    if (busy || blocked || queue.length || uploadBusy) { announce('Espera a que se guarden los cambios.'); return; }
+    if (dirty && selected !== 'new') { flush(); announce('Espera a que se guarden los textos y vuelve a elegir la foto.'); return; }
+    if(failed && selected!=='new'){announce('Corrige y guarda los textos antes de elegir la foto.');return;}
+    clearTimeout(timer);
+    const imageSlot=spec(row()).slots?.find(s=>s.key===slot);
+    const recommendation=(slot.includes('mobile')?imageSlot?.mobile:imageSlot?.desktop)||'4:5 · 1600 x 2000 px';
+    window.CmsMediaLibrary.open({api:root.dataset.media,csrf,recommendation,crop:slot==='slides.desktop'||row().kind==='hero'&&slot==='image'?'16:9':'4:5',onChoose:reference=>{
+      if(selected==='new'){set(reference);properties();}
+      else {if(!slot.startsWith('slides.'))row().values[slot]=reference;enqueue({action:'media-select',id:selected,slot,reference,slide});}
+    }});
+  }
   let photoSequence = 0;
   function photoControl(label, onFile, multiple = false) {
     const control = $('photo-widget').content.firstElementChild.cloneNode(true);
@@ -140,7 +152,7 @@
     const current = row();
     if (failed && !blocked) { failed = null; $('retry').hidden = true; }
     const previous = state.sections.find(s=>s.id===current.id)?.values || {};
-    const values = Object.fromEntries(Object.entries(current.values).filter(([key,value])=>key!=='slides' && !(key==='image' && !previous[key] && !value?.src && !value?.alt?.es && !value?.alt?.en) && (current.id==='new' || JSON.stringify(value)!==JSON.stringify(previous[key]))));
+    const values = Object.fromEntries(Object.entries(current.values).filter(([key,value])=>key!=='slides' && !(key==='image' && !previous[key] && !value?.asset && !value?.src && !value?.alt?.es && !value?.alt?.en) && (current.id==='new' || JSON.stringify(value)!==JSON.stringify(previous[key]))));
     if(!Object.keys(values).length && current.id!=='new'){current.changed=false;status('Guardado');updateBar();return;}
     enqueue({action:current.id === 'new' ? 'create':'update', id:current.id, kind:current.kind, values});
   }
@@ -238,15 +250,21 @@
           if(state.choices[value.kind]) {const target=element('select','',{'aria-label':'Destino'});target.append(element('option','Selecciona…',{value:''}),...state.choices[value.kind].map(o=>element('option',o.name,{value:o.id})));target.value=value.target||'';target.onchange=()=>{value.target=Number(target.value);changed();};wrap.append(target);}
         }
       } else if (field.type === 'image') {
+        wrap.append(button('Elegir de la biblioteca',()=>pickMedia(field.key,set)),button('Subir nueva',()=>pickMedia(field.key,set)));
+        if(value?.asset){
+          const image=element('img','',{alt:'Foto elegida de la biblioteca',width:'160'});wrap.append(image,element('p',`Foto de biblioteca · recorte ${value.crop}`,{class:'cms-help'}));
+          fetch(`${root.dataset.media}${value.asset}/`).then(r=>r.json()).then(a=>{if(a.thumbnail)image.src=a.thumbnail;}).catch(()=>{});
+          wrap.append(button('Ajustar foto y recorte',()=>pickMedia(field.key,set)));return;
+        }
         const slot = spec(row()).slots?.find(s=>s.key===field.key);wrap.append(element('p',`Recomendación: ${slot?.desktop || '4:5 · 1600 × 2000 px'}. Celular: ${slot?.mobile || '4:5 · 1080 × 1350 px'}. Texto alternativo obligatorio en ES y EN.`,{class:'cms-help'}));
         if(value?.src) wrap.append(element('img','',{src:value.src,alt:'Foto elegida',width:'160'}));
         if (spec(row()).storage === 'columns') {
           if(!value){value={alt:{es:'',en:''}};values[field.key]=value;} fields([{key:'alt',type:'short_text',label:'Texto alternativo',translated:true,max:300}],value,wrap,path+'.');
-          wrap.append(photoControl('Subir foto',file=>uploadPhoto(file,'image')));
+
         } else {
           if(!value) { wrap.append(button('Elegir una foto',()=>{set({src:'',srcset:'',width:1600,height:2000,alt:{es:'',en:''}});properties();})); return; }
           fields([{key:'alt',type:'short_text',label:'Texto alternativo',translated:true,max:300}],value,wrap,path+'.');
-          wrap.append(photoControl(`Subir ${field.label}`,file=>uploadPhoto(file,field.key)));
+
           if(!field.required) wrap.append(button('Quitar imagen',()=>{set(null);properties();}));
         }
       }
@@ -272,7 +290,8 @@
         card.ondragover=e=>e.preventDefault();card.ondrop=e=>{e.preventDefault();moveSlide(e.dataTransfer.getData('text/plain'),index);};
         if(slide.thumbnail)card.append(element('img','',{src:slide.thumbnail,alt:slide.alt[language] || 'Foto de portada',width:'160',loading:'lazy'}));
         card.append(element('p',`Foto ${index+1}`));
-        for(const [lang,label] of [['es','ES'],['en','EN']]) {
+        if(slide.reference?.asset)card.append(button('Ajustar foto y recorte',()=>pickMedia(`slides.${device}`,null,slide.id)));
+        for(const [lang,label] of (slide.reference?.asset ? [] : [['es','ES'],['en','EN']])) {
           const input=element('input','',{'aria-label':`Texto alternativo foto ${index+1} (${label})`,maxlength:'300'});input.value=slide.alt[lang] || '';
           input.oninput=()=>{
             slide.alt[lang]=input.value;
@@ -282,13 +301,15 @@
           input.onchange=flush;
           card.append(element('label',`Texto alternativo (${label})`),input);
         }
-        card.append(button('Subir',()=>moveSlide(slide.id,index-1),index===0),button('Bajar',()=>moveSlide(slide.id,index+1),index===slides.length-1),button('Eliminar foto',()=>confirmAction('¿Eliminar esta foto del carrusel?',()=>{flush();enqueue({action:'hero-delete',id:selected,device,slide:slide.id});})));
-        card.querySelectorAll('button').forEach((control,i)=>{
-          control.setAttribute('aria-label',`${['Subir','Bajar','Eliminar'][i]} foto ${index+1}`);
-        });
+        const up=button('Subir',()=>moveSlide(slide.id,index-1),index===0);
+        const down=button('Bajar',()=>moveSlide(slide.id,index+1),index===slides.length-1);
+        const remove=button('Eliminar foto',()=>confirmAction('¿Eliminar esta foto del carrusel?',()=>{flush();enqueue({action:'hero-delete',id:selected,device,slide:slide.id});}));
+        for(const [control,label] of [[up,'Subir'],[down,'Bajar'],[remove,'Eliminar']])control.setAttribute('aria-label',`${label} foto ${index+1}`);
+        card.append(up,down,remove);
         group.append(card);
       });
-      group.append(photoControl(`Añadir fotos para ${device==='mobile'?'celular':'computador'}`,files=>uploadPhoto(files,null,device),true));
+      group.append(button('Elegir de la biblioteca',()=>pickMedia(`slides.${device}`)),button('Subir nueva',()=>pickMedia(`slides.${device}`)));
+
       container.append(group);
     }
   }

@@ -1,5 +1,6 @@
 import { test, expect } from './fixtures';
 import { resolve } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { adminSession, manage } from './support';
 
 const initialState = () => JSON.parse(manage('shell','-c',`import json
@@ -122,12 +123,27 @@ save_section(HomeSection(kind='hero',title_es='${tag}',title_en='Test cover',pos
     const state=await (await context.request.get(api)).json();
     heroId=state.sections.find((s: {values:{title?:{es:string}}})=>s.values.title?.es===tag).id;
     const mobile=page.locator('[data-carousel="mobile"]');
-    await mobile.getByLabel('Añadir fotos para celular',{exact:true}).setInputFiles(resolve(__dirname,'fixtures/cms-carousel-mobile.png'));
+    await mobile.getByRole('button',{name:'Elegir de la biblioteca',exact:true}).click();
+    const library=page.getByRole('dialog',{name:'Elegir de la biblioteca'});
+    const [upload] = await Promise.all([
+      page.waitForResponse(response=>response.url().endsWith('/biblioteca/api/') && response.request().method()==='POST'),
+      library.getByLabel('Subir nuevas fotos').setInputFiles({name:'portada.png',mimeType:'image/png',buffer:Buffer.concat([readFileSync(resolve(__dirname,'fixtures/cms-carousel-mobile.png')),Buffer.from(tag)])}),
+    ]);
+    expect(upload.ok()).toBe(true);
+    const assetId=(await upload.json()).items[0].asset.id;
+    await expect.poll(async ()=>(await (await context.request.get(`${root}biblioteca/api/${assetId}/`,{timeout:5000})).json()).state,{timeout:45000}).toBe('ready');
+    // The ready poll redraws the fields; fill only after that redraw completes.
+    await expect(library.getByRole('button',{name:'Usar esta foto',exact:true})).toBeEnabled({timeout:10000});
+    await library.getByLabel('Texto alternativo (ES)',{exact:true}).fill(tag);
+    await library.getByLabel('Texto alternativo (EN)',{exact:true}).fill('Workshop photo');
+    await expect(library.getByRole('button',{name:'Usar esta foto',exact:true})).toBeEnabled({timeout:60000});
+    await library.getByRole('button',{name:'Usar esta foto',exact:true}).click();
+    await expect(library).not.toBeVisible({timeout:60000});
     await expect(mobile.locator('[data-slide]')).toHaveCount(1);
     await expect(page.locator('#cms-save-status')).toHaveText('Guardado');
     const thumbnail=mobile.locator('img');
     await expect(thumbnail).toHaveAttribute('src',/\.webp$/);
-    const alt=await mobile.getByLabel('Texto alternativo foto 1 (ES)',{exact:true}).inputValue();
+    const alt=tag;
     await page.locator('#cms-device').selectOption('390');
     const image=page.frameLocator('#cms-frame').locator(`[data-cms-section="${heroId}"] .hero-slide--mobile img`);
     await expect(image).toHaveAttribute('alt',alt);
@@ -142,16 +158,17 @@ save_section(HomeSection(kind='hero',title_es='${tag}',title_en='Test cover',pos
     expect(cleaned.sections.find((s:{id:string})=>s.id===heroId).values.slides).toHaveLength(0);
   } finally {
     // Also delete through the versioned API if an assertion interrupted the UI cleanup.
-    if(heroId) {
-      const state=await (await context.request.get(api)).json();
-      const hero=state.sections.find((s:{id:string})=>s.id===heroId);
-      let version=state.version;
-      const csrf=await page.locator('[name=csrfmiddlewaretoken]').first().inputValue();
-      for(const slide of hero?.values.slides || []) {
-        const result=await context.request.post(api,{headers:{'X-CSRFToken':csrf},data:{action:'hero-delete',id:heroId,slide:slide.id,device:slide.device,expected_version:version}});
-        expect(result.status()).toBe(200);version=(await result.json()).version;
+    try {
+      if(heroId) {
+        const state=await (await context.request.get(api,{timeout:5000})).json();
+        const hero=state.sections.find((s:{id:string})=>s.id===heroId);
+        let version=state.version;
+        const csrf=(await context.cookies()).find(cookie=>cookie.name==='csrftoken')?.value || '';
+        for(const slide of hero?.values.slides || []) {
+          const result=await context.request.post(api,{timeout:5000,headers:{'X-CSRFToken':csrf},data:{action:'hero-delete',id:heroId,slide:slide.id,device:slide.device,expected_version:version}});
+          expect(result.status()).toBe(200);version=(await result.json()).version;
+        }
       }
-    }
-    restore(initial.publication);
+    } finally { restore(initial.publication); }
   }
 });

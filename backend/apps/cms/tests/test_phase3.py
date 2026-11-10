@@ -303,13 +303,19 @@ def test_migration_preserves_public_bytes_idempotent_and_safe_reverse():
         with connection.schema_editor() as editor:
             normalization.normalize(current, editor)
             normalization.normalize(current, editor)
-        assert all(row.schema_version == 1 and row.props == {} for row in HomeSection.objects.all())
+        assert all(
+            row.schema_version == 1 and row.props == {}
+            for row in current.get_model("cms", "HomeSection").objects.all()
+        )
         for url in urls:
             for locale in ("es", "en"):
                 assert Client().get(url, {"locale": locale}).content == baseline[url, locale]
         # Compare with the historical model: the runtime model's modeltranslation manager
         # rewrites `title` to `title_<active language>`, which depends on earlier tests.
-        assert list(current.get_model("cms", "HomeSection").objects.values(*sources[0].keys())) == sources
+        assert (
+            list(current.get_model("cms", "HomeSection").objects.values(*sources[0].keys()))
+            == sources
+        )
         # Baseline adapters add schema_version; excluding that one additive field,
         # the frozen historical content also remains byte-identical.
         for locale in ("es", "en"):

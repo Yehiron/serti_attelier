@@ -10,6 +10,16 @@ def comparable(value):
     if value is None or value == "":
         return None
     if isinstance(value, dict):
+        if "asset" in value and value.get("version") == 0:
+            from .models import MediaAsset
+
+            asset = MediaAsset.objects.get(pk=value["asset"])
+            return comparable(asset.versions["0"][value["crop"]])
+        value = {
+            k: v
+            for k, v in value.items()
+            if k != "image_reference" or (v and v.get("version") != 0)
+        }
         return {
             key: normalized
             for key, item in value.items()
@@ -33,8 +43,8 @@ def display(value):
 
 
 def home_groups(current, previous):
-    before = {row["id"]: row for row in previous}
-    after = {row["id"]: row for row in current}
+    before = {row["id"]: comparable(row) for row in previous}
+    after = {row["id"]: comparable(row) for row in current}
     groups = []
     for key in dict.fromkeys((*after, *before)):
         row, old = after.get(key), before.get(key)
@@ -75,7 +85,11 @@ def home_groups(current, previous):
                 right = editorial_props(spec.kind, row.get("props", {}))
                 for label in dict.fromkeys((*left, *right)):
                     add(label, left.get(label), right.get(label))
-            for field, label in (("image", "Foto de respaldo"), ("slides", "Fotos del carrusel")):
+            for field, label in (
+                ("image", "Foto de respaldo"),
+                ("image_reference", "Foto y recorte"),
+                ("slides", "Fotos del carrusel"),
+            ):
                 if not equivalent(old.get(field), row.get(field)):
                     if field == "slides":
 

@@ -101,6 +101,9 @@ NAVIGATION: list[dict[str, Any]] = [
                     request.user.has_perm("cms.edit_content")
                 ),
             },
+            {"title": _("Biblioteca de fotos"), "icon": "photo_library",
+             "link": reverse_lazy("cms-media"),
+             "permission": lambda request: request.user.has_perm("cms.edit_content")},
             item("Página de inicio", "web", "cms.homesection"),
             item("Páginas", "article", "cms.page"),
             {

@@ -7,6 +7,7 @@ test('generated section contract matches the committed registry export', () => {
   const lines = [
     '// Generado por manage.py export_section_registry --typescript. No editar.',
     "import type { Image, Cta, HeroSlide, Named, StonePanel, PieceCard } from './types';",
+    `export type MediaReference = { asset: number; crop: ${[...new Set(registry.sections.flatMap((s: {slots: {ratios: string[]}[]}) => s.slots.flatMap(slot => slot.ratios)))].map(r => `'${r}'`).join(' | ')}; version: number };`,
     'export type Section = { id: string | number; schema_version: 1 } & (',
   ];
   const sections = registry.sections as { kind: string; public_fields: [string, string][] }[];

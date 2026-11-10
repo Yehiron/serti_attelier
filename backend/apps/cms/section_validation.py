@@ -26,7 +26,7 @@ def validate_instance(obj):
                     }
                 },
             )
-        elif field.type == "image" and obj.image:
+        elif field.type == "image" and obj.image and not obj.image_reference:
             from .registry import text
 
             validate_fields(

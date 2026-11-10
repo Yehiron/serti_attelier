@@ -1,4 +1,4 @@
-export type Image = { src: string; srcset: string; width: number; height: number; alt: string };
+export type Image = { src: string; srcset: string; width: number; height: number; alt: string; focal?: { x: number; y: number } };
 export type Money = { amount_cents: number; currency: 'COP' };
 export type Named = { slug: string; name: string };
 export type Taxon = Named & { cover_image: string | null; cover?: Image | null };

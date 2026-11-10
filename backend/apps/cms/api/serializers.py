@@ -8,7 +8,13 @@ from rest_framework import serializers
 from apps.catalog.api.serializers import PieceListSerializer
 
 
+class CmsFocalSerializer(serializers.Serializer):
+    x = serializers.FloatField(min_value=0, max_value=1)
+    y = serializers.FloatField(min_value=0, max_value=1)
+
+
 class CmsImageSerializer(serializers.Serializer[Any]):
+    focal = CmsFocalSerializer(required=False)
     src = serializers.CharField()
     srcset = serializers.CharField()
     width = serializers.IntegerField()
