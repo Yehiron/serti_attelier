@@ -1,4 +1,440 @@
 {
+  "brand_document": {
+    "kind": "brand",
+    "name": "Identidad de marca",
+    "icon": "palette",
+    "fields": [
+      {
+        "key": "wine",
+        "type": "color",
+        "label": "Color principal",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#651c32",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "crimson",
+        "type": "color",
+        "label": "Acento",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#8a1538",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "cream",
+        "type": "color",
+        "label": "Fondo",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#ead9cb",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "paper",
+        "type": "color",
+        "label": "Superficie",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#dfc9b8",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "ink",
+        "type": "color",
+        "label": "Texto",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#330414",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "olive",
+        "type": "color",
+        "label": "Oliva",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#7a7256",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "olive-deep",
+        "type": "color",
+        "label": "Oliva oscuro",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "#58513d",
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "title_font",
+        "type": "select",
+        "label": "Fuente de títulos",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "",
+        "options": [
+          "ninna",
+          "cormorant"
+        ],
+        "fields": [],
+        "sortable": false,
+        "option_labels": [
+          [
+            "ninna",
+            "Ninna (oficial)"
+          ],
+          [
+            "cormorant",
+            "Cormorant Garamond"
+          ]
+        ]
+      },
+      {
+        "key": "text_font",
+        "type": "select",
+        "label": "Fuente del texto",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "",
+        "options": [
+          "inter"
+        ],
+        "fields": [],
+        "sortable": false,
+        "option_labels": [
+          [
+            "inter",
+            "Inter"
+          ]
+        ]
+      },
+      {
+        "key": "title_scale",
+        "type": "select",
+        "label": "Tamaño de los títulos",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "",
+        "options": [
+          90,
+          100,
+          110,
+          120
+        ],
+        "fields": [],
+        "sortable": false,
+        "option_labels": [
+          [
+            "90",
+            "90 %"
+          ],
+          [
+            "100",
+            "100 %"
+          ],
+          [
+            "110",
+            "110 %"
+          ],
+          [
+            "120",
+            "120 %"
+          ]
+        ]
+      },
+      {
+        "key": "text_scale",
+        "type": "select",
+        "label": "Tamaño del texto",
+        "help": "",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": "",
+        "options": [
+          90,
+          100,
+          110,
+          120
+        ],
+        "fields": [],
+        "sortable": false,
+        "option_labels": [
+          [
+            "90",
+            "90 %"
+          ],
+          [
+            "100",
+            "100 %"
+          ],
+          [
+            "110",
+            "110 %"
+          ],
+          [
+            "120",
+            "120 %"
+          ]
+        ]
+      },
+      {
+        "key": "logo_light",
+        "type": "image",
+        "label": "Logotipo para fondo claro",
+        "help": "Logo original o PNG/WebP transparente. SVG no se admite: puede contener scripts. No deformar, recolorear ni añadir sombras. Deja espacio libre de una 's'. Logotipo mínimo 32 px de alto; monograma 24 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "logo_dark",
+        "type": "image",
+        "label": "Logotipo para fondo oscuro",
+        "help": "Logo original o PNG/WebP transparente. SVG no se admite: puede contener scripts. No deformar, recolorear ni añadir sombras. Deja espacio libre de una 's'. Logotipo mínimo 32 px de alto; monograma 24 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "monogram_light",
+        "type": "image",
+        "label": "Monograma para fondo claro",
+        "help": "Logo original o PNG/WebP transparente. SVG no se admite: puede contener scripts. No deformar, recolorear ni añadir sombras. Deja espacio libre de una 's'. Logotipo mínimo 32 px de alto; monograma 24 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "monogram_dark",
+        "type": "image",
+        "label": "Monograma para fondo oscuro",
+        "help": "Logo original o PNG/WebP transparente. SVG no se admite: puede contener scripts. No deformar, recolorear ni añadir sombras. Deja espacio libre de una 's'. Logotipo mínimo 32 px de alto; monograma 24 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "footer",
+        "type": "image",
+        "label": "Monograma con lema (pie)",
+        "help": "Logo original o PNG/WebP transparente. SVG no se admite: puede contener scripts. No deformar, recolorear ni añadir sombras. Deja espacio libre de una 's'. Logotipo mínimo 32 px de alto; monograma 24 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "icon",
+        "type": "image",
+        "label": "Ícono del sitio",
+        "help": "Cuadrado de al menos 512 x 512 px.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      },
+      {
+        "key": "sharing",
+        "type": "image",
+        "label": "Imagen por defecto al compartir",
+        "help": "Foto para compartir, proporción 1.91:1.",
+        "required": false,
+        "translated": false,
+        "min": null,
+        "max": null,
+        "default": null,
+        "options": [],
+        "fields": [],
+        "sortable": false,
+        "option_labels": []
+      }
+    ],
+    "slots": [
+      {
+        "key": "logo_light",
+        "label": "Logotipo para fondo claro",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "logo_dark",
+        "label": "Logotipo para fondo oscuro",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "monogram_light",
+        "label": "Monograma para fondo claro",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "monogram_dark",
+        "label": "Monograma para fondo oscuro",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "footer",
+        "label": "Monograma con lema (pie)",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "icon",
+        "label": "Ícono del sitio",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1:1"
+        ]
+      },
+      {
+        "key": "sharing",
+        "label": "Imagen por defecto al compartir",
+        "desktop": "4:5 · 1600 x 2000 px",
+        "mobile": "4:5 · 1080 x 1350 px",
+        "alt_required": [
+          "es",
+          "en"
+        ],
+        "ratios": [
+          "1.91:1"
+        ]
+      }
+    ],
+    "multiple": false,
+    "can_hide": false,
+    "can_reorder": false
+  },
   "registry_version": 1,
   "locales": [
     "es",

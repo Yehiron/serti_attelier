@@ -93,6 +93,15 @@ def values(section):
 
 
 def read_sections(key):
+    if key == "brand:identity":
+        return [
+            {
+                "id": "brand",
+                "kind": "brand",
+                "visible": True,
+                "values": deepcopy(ContentDocument.objects.get(key=key).brand_identity),
+            }
+        ]
     if key.startswith("menu:"):
         return [
             {
@@ -136,6 +145,10 @@ def read_sections(key):
 
 
 def applicable_registry(key):
+    if key == "brand:identity":
+        from .brand import registry
+
+        return registry()
     specs = [asdict(spec) for spec in REGISTRY.values() if key in spec.documents]
     if key.startswith("menu:"):
         from .registry import CTA, Field
@@ -258,6 +271,27 @@ def write_values(section, data):
 
 def mutate(key, action, data, actor, request):
     """Caller holds edit_document, including version check, before reading any rows."""
+    if key == "brand:identity":
+        from .brand import SLOTS, validate
+
+        document = ContentDocument.objects.get(key=key)
+        before = deepcopy(document.brand_identity)
+        if action == "media-select" and data.get("slot") in SLOTS:
+            patch = {data["slot"]: data["reference"]}
+        elif action == "update" and data.get("id") == "brand":
+            patch = data["values"]
+        else:
+            raise ValidationError("Guarda los campos de identidad de marca.")
+        document.brand_identity = validate({**before, **patch}, selecting=True)
+        document.save(update_fields=["brand_identity"])
+        record(
+            "cms.brand_saved",
+            actor=actor,
+            obj=document,
+            request=request,
+            diff={"Identidad de marca": [before, document.brand_identity]},
+        )
+        return
     if action == "translation-equal":
         from .phase6_views import missing_pairs
 

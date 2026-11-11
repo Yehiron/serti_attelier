@@ -15,6 +15,7 @@ from django.core.exceptions import ValidationError
 from django.core.validators import URLValidator
 
 FieldType = Literal[
+    "color",
     "short_text",
     "long_text",
     "markdown",
@@ -457,7 +458,10 @@ def validate_props(kind, props, schema_version=1, document="home"):
 
 
 def export_registry():
+    from .brand import registry as brand_registry
+
     return {
+        "brand_document": brand_registry()[0],
         "registry_version": 1,
         "locales": ["es", "en"],
         "sections": [asdict(spec) for spec in REGISTRY.values()],
@@ -509,7 +513,9 @@ def typescript_contract():
         + " | ".join(
             repr(ratio)
             for ratio in dict.fromkeys(
-                ratio for spec in REGISTRY.values() for slot in spec.slots for ratio in slot.ratios
+                ratio
+                for slot in [SEO_SLOT, *(slot for spec in REGISTRY.values() for slot in spec.slots)]
+                for ratio in slot.ratios
             )
         )
         + "; version: number };",

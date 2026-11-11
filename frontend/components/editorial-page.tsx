@@ -1,3 +1,4 @@
+import { brandMetadata, originalBrand } from '@/lib/cms-brand';
 import { applyCmsSeo } from '@/lib/cms-seo';
 import { siteUrl } from '@/lib/api/server';
 import { draftMode } from 'next/headers';
@@ -8,7 +9,7 @@ import { PersonalizeContent } from './personalize-content';
 import { locale } from 'next/root-params';
 import { notFound } from 'next/navigation';
 import { getDictionary } from '@/app/[locale]/dictionaries';
-import { ApiError, getPage, getSettings, optionalPage } from '@/lib/api/server';
+import { ApiError, getBrand, getPage, getSettings, optionalPage } from '@/lib/api/server';
 import { isLocale } from '@/lib/i18n';
 import { href } from '@/lib/routes';
 import { whatsappUrl } from '@/lib/api/format';
@@ -28,7 +29,8 @@ async function context(kind: EditorialKind, slug?: string) {
 }
 export async function editorialMetadata(kind: EditorialKind, slug?: string) {
   const { current, dict, page, title, alternates } = await context(kind, slug);
-  return applyCmsSeo(pageMetadata(title, dict.meta.description, current, alternates), page?.seo, siteUrl, (await draftMode()).isEnabled);
+  const brand = await getBrand(current).catch(() => originalBrand);
+  return applyCmsSeo(brandMetadata({...brand, icon: null}, pageMetadata(title, dict.meta.description, current, alternates)), page?.seo, siteUrl, (await draftMode()).isEnabled);
 }
 export async function EditorialPage({ kind, slug }: { kind: EditorialKind; slug?: string }) {
   const { current, dict, page, title, alternates } = await context(kind, slug);

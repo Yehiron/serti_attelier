@@ -159,6 +159,25 @@ def render(asset_id, version):
             "alt": {"es": asset.alt_es, "en": asset.alt_en},
             "focal": {"x": asset.focal_x, "y": asset.focal_y},
         }
+    # Freeze uncropped pixels for logos; never recolor or distort the official pieces.
+    payloads["brand_original"] = asset.original.name
+    if image.width == image.height and image.width >= 512:
+        from io import BytesIO
+
+        from django.core.files.base import ContentFile
+
+        paths = {}
+        prefix = f"cms/library/icons/{uuid.uuid4().hex}"
+        for size in (32, 180, 192, 512):
+            output = BytesIO()
+            image.resize((size, size), Image.Resampling.LANCZOS).save(output, format="PNG")
+            paths[str(size)] = default_storage.save(
+                f"{prefix}/{size}.png", ContentFile(output.getvalue())
+            )
+        output = BytesIO()
+        image.save(output, format="ICO", sizes=[(16, 16), (32, 32), (48, 48)])
+        paths["ico"] = default_storage.save(f"{prefix}/favicon.ico", ContentFile(output.getvalue()))
+        payloads["brand_icons"] = paths
     asset.versions = {**asset.versions, str(version): payloads}
     asset.state = "ready"
     asset.save(update_fields=["versions", "state", "updated_at"])
@@ -195,8 +214,8 @@ def validate_reference(value, *, selecting=False):
     return deepcopy(value)
 
 
-def resolve(ref, locale):
-    asset = MediaAsset.objects.get(pk=ref["asset"])
+def resolve(ref, locale, *, asset=None):
+    asset = asset if asset is not None else MediaAsset.objects.get(pk=ref["asset"])
     data = deepcopy(asset.versions[str(ref["version"])][ref["crop"]])
     if "paths" in data:
         paths = data.pop("paths")
@@ -235,10 +254,10 @@ def all_usage():
                 row.snapshot,
             )
         )
-    from django.db.models import CharField, JSONField, Value
+    from django.db.models import CharField, F, JSONField, Q, Value
     from django.db.models.functions import Cast
 
-    from .models import ContentDocument
+    from .models import BrandPublication, ContentDocument
 
     restored = (
         DraftRevision.objects.order_by()
@@ -246,17 +265,44 @@ def all_usage():
         .values_list("usage_key", "snapshot", "seo", "usage_kind")
     )
     drafts = (
-        ContentDocument.objects.exclude(seo={})
+        ContentDocument.objects.filter(~Q(seo={}) | ~Q(brand_identity={}))
         .order_by()
-        .annotate(usage_snapshot=Value({}, output_field=JSONField()), usage_kind=Value("draft"))
+        .annotate(usage_snapshot=F("brand_identity"), usage_kind=Value("draft"))
         .values_list("key", "usage_snapshot", "seo", "usage_kind")
     )
-    for key, snapshot, seo, kind in restored.union(drafts, all=True):
-        sources.append(
-            ("Historial", f"Restauración {key}", [snapshot, seo])
-            if kind == "restore"
-            else ("Borrador", key, seo)
+    identities = (
+        BrandPublication.objects.order_by()
+        .annotate(
+            usage_key=Cast("pk", CharField()),
+            usage_seo=Value({}, output_field=JSONField()),
+            usage_kind=Value("brand"),
         )
+        .values_list("usage_key", "snapshot", "usage_seo", "usage_kind")
+    )
+    usage_rows = list(restored.union(drafts, identities, all=True))
+    latest_brand = max(
+        (int(key) for key, _, _, kind in usage_rows if kind == "brand"), default=None
+    )
+    from .brand import SLOTS
+
+    for key, snapshot, seo, kind in usage_rows:
+        if kind == "brand" or (kind == "draft" and key == "brand:identity"):
+            for slot, ref in snapshot.items():
+                if isinstance(ref, dict):
+                    state = (
+                        "Borrador"
+                        if kind == "draft"
+                        else "Publicado"
+                        if int(key) == latest_brand
+                        else "Historial"
+                    )
+                    sources.append((state, f"Identidad de marca · {SLOTS.get(slot, slot)}", ref))
+        else:
+            sources.append(
+                ("Historial", f"Restauración {key}", [snapshot, seo])
+                if kind == "restore"
+                else ("Borrador", key, seo)
+            )
     # Personalization services are CMS images but independent from home documents.
     from .models import PersonalizationService
 

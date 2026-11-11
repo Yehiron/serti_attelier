@@ -55,6 +55,27 @@ def item(title: str, icon: str, model: str) -> dict[str, Any]:
     }
 
 
+def web_active(route: str, section: str = "") -> Callable[[HttpRequest], bool]:
+    """Match the editor section explicitly: Unfold otherwise ignores the query string."""
+
+    def active(request: HttpRequest) -> bool:
+        if request.path != str(reverse_lazy(route)):
+            return False
+        if route != "visual-editor":
+            return True
+        document = request.GET.get("document", "")
+        current = (
+            "menus"
+            if document.startswith("menu:")
+            else "brand"
+            if document == "brand:identity"
+            else "editor"
+        )
+        return current == section
+
+    return active
+
+
 NAVIGATION: list[dict[str, Any]] = [
     {
         "items": [
@@ -98,6 +119,7 @@ NAVIGATION: list[dict[str, Any]] = [
                 "title": _("Editor visual"),
                 "icon": "preview",
                 "link": reverse_lazy("visual-editor"),
+                "active": web_active("visual-editor", "editor"),
                 "permission": lambda request: request.user.has_perm("cms.edit_content"),
             },
             {
@@ -110,18 +132,28 @@ NAVIGATION: list[dict[str, Any]] = [
                 "title": _("Menús"),
                 "icon": "menu",
                 "link": format_lazy("{}?document=menu:main", reverse_lazy("visual-editor")),
+                "active": web_active("visual-editor", "menus"),
                 "permission": lambda request: request.user.has_perm("cms.edit_content"),
+            },
+            {
+                "title": _("Identidad de marca"),
+                "icon": "palette",
+                "link": format_lazy("{}?document=brand:identity", reverse_lazy("visual-editor")),
+                "active": web_active("visual-editor", "brand"),
+                "permission": permission("cms.edit_content"),
             },
             {
                 "title": _("Redirecciones"),
                 "icon": "alt_route",
                 "link": reverse_lazy("cms-redirect-management"),
+                "active": web_active("cms-redirect-management"),
                 "permission": lambda request: request.user.has_perm("cms.edit_content"),
             },
             {
                 "title": _("Traducciones pendientes"),
                 "icon": "translate",
                 "link": reverse_lazy("cms-translations"),
+                "active": web_active("cms-translations"),
                 "permission": lambda request: request.user.has_perm("cms.edit_content"),
             },
             item("Página de inicio", "web", "cms.homesection"),

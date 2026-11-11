@@ -289,3 +289,13 @@ Los menús admiten `preview=<token>` para leer el borrador, con `private, no-sto
 Las escrituras del panel usan sesión, CSRF y `expected_version`, con HTTP 409 si otra persona guardó antes. No hay escrituras editoriales públicas. Las redirecciones manuales aceptan únicamente direcciones internas normalizadas ES/EN y comprueban que su destino exista. Inicio se representa como `/es` o `/en`; también se acepta escribir la barra final en el formulario. No se cuentan visitas redirigidas en esta fase.
 
 Las páginas añaden también `body_visible` (booleano). Personaliza conserva oculto el cuerpo general de sus publicaciones históricas; una edición explícita del cuerpo lo habilita en el borrador y al publicar. Las otras páginas muestran el cuerpo como antes. Restaurar una publicación recupera ese comportamiento.
+
+### CMS — Identidad de marca (Fase 7)
+
+`GET /api/v1/cms/brand?locale=es|en` devuelve la identidad publicada. `preview=<token>` devuelve el borrador, con autorización editorial vigente y `private, no-store`. Lectura viva en Next mediante `cmsRead`/`connection()`, sin invalidación por tags en esta fase.
+
+Campos aditivos en un endpoint nuevo: `wine`, `crimson`, `cream`, `paper`, `ink`, `olive`, `olive-deep` (hex `#rrggbb`); `title_font: ninna|cormorant`, `text_font: inter`; `title_scale`, `text_scale` (90/100/110/120, porcentajes). `logo_light`, `logo_dark`, `monogram_light`, `monogram_dark`, `footer` son `null` (archivo original) o `{src,width,height}`. `icon` es `null` o mapa de URLs con claves `32`, `180`, `192`, `512`, `ico`. `sharing` es `null` o la imagen pública CMS habitual, recorte 1.91:1. No expone referencias de biblioteca ni responsables.
+
+El editor admite `document=brand:identity`, sección `brand`, acciones `update`, `media-select` y `discard`, con `expected_version` obligatorio; conserva 409, sesión, CSRF y capacidades editoriales. El registro añade `brand_document` sin modificar las once secciones. En el almacenamiento las imágenes conservan `{asset,crop,version}`; logos se sirven completos, sin aplicar el recorte fotográfico.
+
+`site/settings.title_scale/text_scale` conserva sus campos numéricos históricos para clientes anteriores; la tienda usa exclusivamente las escalas publicadas del documento de identidad. Las columnas antiguas dejan de aparecer en Configuración del sitio.

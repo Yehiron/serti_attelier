@@ -243,7 +243,10 @@ CELERY_BEAT_SCHEDULE["cleanup-carts"] = {
     "schedule": 86400.0,
 }
 
-SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {"PaymentChannelEnum": ["wompi", "manual"]}
+SPECTACULAR_SETTINGS["ENUM_NAME_OVERRIDES"] = {
+    "PaymentChannelEnum": ["wompi", "manual"],
+    "BrandScaleEnum": [(n, n) for n in (90, 100, 110, 120)],
+}
 
 INSTALLED_APPS.append("apps.payments")
 PRIVATE_MEDIA_ROOT = env.path("DJANGO_PRIVATE_MEDIA_ROOT", default=BASE_DIR / "private_media")

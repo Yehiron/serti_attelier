@@ -64,12 +64,13 @@ async function cmsRead<T>(path: string, locale: Locale) {
   if (token) return request<T>(path, locale, '', token);
   // Published pages are read live too: a publish in the dashboard must show on the next visit.
   // (Phase 8 replaces these live reads with tag invalidation triggered by publishing.)
-  if (path === 'cms/home' || (path.startsWith('cms/pages/') || path.startsWith('cms/menus/'))) {
+  if (path === 'cms/brand' || path === 'cms/home' || (path.startsWith('cms/pages/') || path.startsWith('cms/menus/'))) {
     await connection();
     return request<T>(path, locale);
   }
   return cachedRead<T>(path, locale, '', 'cms');
 }
+export const getBrand = cache((locale: Locale) => cmsRead<import('../cms-brand').BrandIdentity>('cms/brand', locale));
 export const getMenu = cache((locale: Locale, menu: 'main' | 'footer') => cmsRead<CmsMenu>(`cms/menus/${menu}`, locale));
 export const getPublishedPageByKind = (locale: Locale, kind: string) => request<CmsPage>(`cms/pages/kind/${kind}`, locale);
 export const getHome = cache((locale: Locale) => cmsRead<Home>('cms/home', locale));

@@ -12,9 +12,12 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.csrf import csrf_protect
 
+from .brand import KEY as BRAND_KEY
+from .brand import groups as brand_groups
+from .brand import restore as restore_brand
 from .documents import ContentConflict, get_document, require_capability
 from .menus import MENU_KEYS, menu_groups, restore_menu
-from .models import HomePublication, MenuPublication, Page, PageRevision
+from .models import BrandPublication, HomePublication, MenuPublication, Page, PageRevision
 from .page_options import seo_groups
 from .review_changes import equivalent, home_groups, page_groups
 from .services import restore_home, restore_page_revision
@@ -214,6 +217,8 @@ def document(request):
         if request.user.has_perm("cms.view_homepublication")
         else str(Page.objects.order_by("pk").values_list("pk", flat=True).first() or "0"),
     )
+    if key == BRAND_KEY:
+        return key, "Identidad de marca", BrandPublication.objects.all()
     if key in MENU_KEYS:
         return (
             key,
@@ -245,7 +250,9 @@ def history(request):
         "can_restore": request.user.has_perm("cms.restore_content"),
     }
     content_document = get_document(
-        key if key in MENU_KEYS or key == "home" else f"page:{Page.objects.get(pk=key).kind}"
+        key
+        if key in MENU_KEYS or key in ("home", BRAND_KEY)
+        else f"page:{Page.objects.get(pk=key).kind}"
     )
     context["editor_url"] = reverse("visual-editor") + f"?document={content_document.key}"
     from .publishing import preview_url
@@ -253,7 +260,7 @@ def history(request):
     context["preview_url"] = preview_url(request, content_document.key)
     context["expected_version"] = content_document.draft_version
     context["restorations"] = content_document.draft_revisions.select_related(
-        "restored_from_home", "restored_from_page", "restored_from_menu"
+        "restored_from_home", "restored_from_page", "restored_from_menu", "restored_from_brand"
     )[:20]
     revision_id = request.GET.get("restore")
     if revision_id:
@@ -267,7 +274,14 @@ def history(request):
             if request.POST.get("confirm") != "yes":
                 raise PermissionDenied
             try:
-                if key in MENU_KEYS:
+                if key == BRAND_KEY:
+                    restore_brand(
+                        revision,
+                        request.user,
+                        request,
+                        expected_version=request.POST.get("expected_version"),
+                    )
+                elif key in MENU_KEYS:
                     restore_menu(
                         revision,
                         request.user,
@@ -315,7 +329,9 @@ def history(request):
             {
                 "publication": row,
                 "date": timezone.localtime(row.published_at, ZoneInfo("America/Bogota")),
-                "changes": ["Enlaces del menú actualizados."]
+                "changes": ["Identidad de marca actualizada."]
+                if key == BRAND_KEY
+                else ["Enlaces del menú actualizados."]
                 if key in MENU_KEYS
                 else summary(
                     row.snapshot,
@@ -334,7 +350,9 @@ def history(request):
         for index, item in enumerate(context["rows"]):
             prior = rows[index + 1] if index + 1 < len(rows) else older
             item["change_groups"] = (
-                menu_groups(item["publication"].snapshot, prior.snapshot if prior else [])
+                brand_groups(item["publication"].snapshot, prior.snapshot if prior else {})
+                if key == BRAND_KEY
+                else menu_groups(item["publication"].snapshot, prior.snapshot if prior else [])
                 if key in MENU_KEYS
                 else home_groups(item["publication"].draft_snapshot, prior.draft_snapshot)
                 if key == "home"
@@ -349,7 +367,7 @@ def history(request):
             )
         for index, item in enumerate(context["rows"]):
             prior = rows[index + 1] if index + 1 < len(rows) else older
-            if key not in MENU_KEYS:
+            if key not in MENU_KEYS and key != BRAND_KEY:
                 current_seo = (
                     item["publication"].seo
                     if key == "home"

@@ -1,7 +1,8 @@
 import { draftMode } from "next/headers";
-import { Suspense, type CSSProperties } from "react";
+import { Suspense } from "react";
 import { Header, Footer, PreviewBar } from "@/components/site-shell";
-import { siteUrl, getSettings, emptySettings } from "@/lib/api/server";
+import { siteUrl, getBrand } from "@/lib/api/server";
+import { brandStyle, brandMetadata, originalBrand } from "@/lib/cms-brand";
 import type { Metadata } from "next";
 import { Cormorant_Garamond, Inter } from "next/font/google";
 import { notFound } from "next/navigation";
@@ -37,7 +38,9 @@ export function generateStaticParams() {
 
 export async function generateMetadata(): Promise<Metadata> {
   const dict = await getDictionary();
-  return {
+  const current = await locale(); if (!isLocale(current)) notFound();
+  const brand = await getBrand(current).catch(() => originalBrand);
+  return brandMetadata(brand, {
     ...((await draftMode()).isEnabled ? { robots: { index: false, follow: false }, referrer: "no-referrer" as const } : {}),
     metadataBase: new URL(siteUrl),
     title: { default: dict.meta.title, template: "%s | SERTI" },
@@ -52,7 +55,7 @@ export async function generateMetadata(): Promise<Metadata> {
       apple: "/apple-touch-icon.png",
     },
     alternates: { languages: { es: "/es", en: "/en" } },
-  };
+  });
 }
 
 export default async function RootLayout({ children }: LayoutProps<"/[locale]">) {
@@ -64,10 +67,10 @@ export default async function RootLayout({ children }: LayoutProps<"/[locale]">)
 
 // Settings are request-time data: suspend the document until its typography is known.
 async function SiteDocument({ current, dict, children }: { current: "es" | "en"; dict: Awaited<ReturnType<typeof getDictionary>>; children: React.ReactNode }) {
-  const settings = await getSettings(current).catch(() => emptySettings);
+  const brand = await getBrand(current).catch(() => originalBrand);
 
   return (
-    <html lang={current} className={`${serif.variable} ${sans.variable}`} style={{ "--title-scale": settings.title_scale ?? 1, "--text-scale": settings.text_scale ?? 1 } as CSSProperties}>
+    <html lang={current} className={`${serif.variable} ${sans.variable}`} style={brandStyle(brand)}>
       <body>
         <a className="skip-link" href="#main">
           {dict.nav.skip}

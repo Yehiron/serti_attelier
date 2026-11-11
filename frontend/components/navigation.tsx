@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import type { BrandIdentity } from '@/lib/cms-brand';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState, type ReactNode, Fragment } from 'react';
 import type { Dictionary } from '@/app/[locale]/dictionaries';
@@ -12,7 +13,7 @@ import { BrandLogo, Wordmark } from './media';
 import { Heart } from './heart';
 import { Flag } from './flag';
 import { QuickSearch } from './quick-search';
-export function Navigation({ locale, dict, taxonomy, whatsapp, items }: { locale: Locale; dict: Dictionary; taxonomy: Taxonomy; whatsapp?: string | null; items?: CmsMenuItem[] }) {
+export function Navigation({ locale, dict, taxonomy, whatsapp, items, brand }: { brand?: BrandIdentity; locale: Locale; dict: Dictionary; taxonomy: Taxonomy; whatsapp?: string | null; items?: CmsMenuItem[] }) {
   const routePathname = usePathname();
   // Normalize both the SSR internal path and the public browser path identically.
   const decision = routeDecision(routePathname);
@@ -76,9 +77,9 @@ export function Navigation({ locale, dict, taxonomy, whatsapp, items }: { locale
       : <Link href={item.href} aria-current={current(item.href)}>{item.label}</Link>}
   </Fragment>)}</>;
   return <header className={`site-header ${home && !scrolled ? 'over-hero' : ''}`}>
-    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><BrandLogo /></Link>
+    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><BrandLogo brand={brand} /></Link>
     <nav ref={desktopNav} className="desktop-nav" aria-label={dict.nav.menu}>{links}</nav>
     <div className="utilities">{process.env.NEXT_PUBLIC_CART_ENABLED === 'true' && <CartUtility locale={locale} dict={dict} whatsapp={whatsapp} />}<QuickSearch locale={locale} dict={dict} taxonomy={taxonomy} /><Link className="wishlist-utility" href={href('wishlist', locale)} aria-label={`${dict.nav.wishlist} (${wishes.length})`}><Heart filled={wishes.length > 0} /><small>{wishes.length || ''}</small></Link><a href={alternate} hrefLang={locale === 'es' ? 'en' : 'es'} className="lang-link" aria-label={`${locale.toUpperCase()} · ${dict.nav.language}: ${dict.nav.otherLanguage}`}><Flag locale={locale} />{locale.toUpperCase()}</a><button className="menu-trigger" onClick={() => dialog.current?.showModal()} aria-label={dict.nav.menu}>☰</button></div>
-    <dialog ref={dialog} className="menu-dialog" aria-label={dict.nav.menu} onClose={() => setOpenMenu(null)} onClick={event => { if ((event.target as HTMLElement).closest('a')) dialog.current?.close(); }}><div className="menu-top"><Wordmark /><button onClick={() => dialog.current?.close()}>{dict.nav.close} ×</button></div><nav aria-label={dict.nav.menu}>{links}</nav><a className="lang-link" href={alternate}><Flag locale={locale} />{locale.toUpperCase()} · {dict.nav.otherLanguage}</a></dialog>
+    <dialog ref={dialog} className="menu-dialog" aria-label={dict.nav.menu} onClose={() => setOpenMenu(null)} onClick={event => { if ((event.target as HTMLElement).closest('a')) dialog.current?.close(); }}><div className="menu-top"><Wordmark brand={brand} /><button onClick={() => dialog.current?.close()}>{dict.nav.close} ×</button></div><nav aria-label={dict.nav.menu}>{links}</nav><a className="lang-link" href={alternate}><Flag locale={locale} />{locale.toUpperCase()} · {dict.nav.otherLanguage}</a></dialog>
   </header>;
 }

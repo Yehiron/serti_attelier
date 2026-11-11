@@ -1,3 +1,4 @@
+import { brandMetadata, originalBrand } from '@/lib/cms-brand';
 import { applyCmsSeo } from '@/lib/cms-seo';
 import { siteUrl } from '@/lib/api/server';
 import { draftMode } from 'next/headers';
@@ -7,7 +8,7 @@ import { supportedSections } from '@/lib/section-compat';
 import { needsHomeFallback } from '@/lib/cms-preview';
 import { locale } from 'next/root-params';
 import { getDictionary } from './dictionaries';
-import { getHome, getCatalog, getTaxonomy } from '@/lib/api/server';
+import { getBrand, getHome, getCatalog, getTaxonomy } from '@/lib/api/server';
 import type { Section } from '@/lib/api/types';
 import { isLocale } from '@/lib/i18n';
 import { notFound } from 'next/navigation';
@@ -21,7 +22,8 @@ export const instant = false;
 export async function generateMetadata() {
   const current = await locale(); if (!isLocale(current)) notFound(); const dict = await getDictionary();
   const home = await getHome(current);
-  return applyCmsSeo(pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' }), home.seo, siteUrl, (await draftMode()).isEnabled);
+  const brand = await getBrand(current).catch(() => originalBrand);
+  return applyCmsSeo(brandMetadata({...brand, icon: null}, pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' })), home.seo, siteUrl, (await draftMode()).isEnabled);
 }
 export default async function Home() {
   const current = await locale(); if (!isLocale(current)) notFound();

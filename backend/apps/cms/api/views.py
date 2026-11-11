@@ -13,6 +13,7 @@ from .. import selectors
 from ..models import Page
 from ..preview import expires_at, verify_token
 from .serializers import (
+    BrandSerializer,
     HomeSerializer,
     MenuSerializer,
     PageSerializer,
@@ -148,6 +149,18 @@ class MenuView(PublicView):
             raise PageNotFound()
         preview = is_preview(request)
         response = Response(public_menu("menu:" + menu, self.locale, preview))
+        if preview:
+            response["Cache-Control"] = "private, no-store"
+        return response
+
+
+class BrandView(PublicView):
+    @extend_schema(parameters=PARAMETERS, responses=BrandSerializer)
+    def get(self, request):
+        from ..brand import public_identity
+
+        preview = is_preview(request)
+        response = Response(public_identity(self.locale, preview))
         if preview:
             response["Cache-Control"] = "private, no-store"
         return response

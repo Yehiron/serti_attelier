@@ -31,7 +31,7 @@
     clearTimeout(timer);
     const imageSlot=spec(row()).slots?.find(s=>s.key===slot);
     const recommendation=(slot.includes('mobile')?imageSlot?.mobile:imageSlot?.desktop)||'4:5 · 1600 x 2000 px';
-    window.CmsMediaLibrary.open({api:root.dataset.media,csrf,recommendation,crop:row().kind==='seo'?'1.91:1':slot==='slides.desktop'||row().kind==='hero'&&slot==='image'?'16:9':'4:5',onChoose:reference=>{
+    window.CmsMediaLibrary.open({api:root.dataset.media,csrf,recommendation,crop:row().kind==='brand'?(slot==='sharing'?'1.91:1':'1:1'):row().kind==='seo'?'1.91:1':slot==='slides.desktop'||row().kind==='hero'&&slot==='image'?'16:9':'4:5',onChoose:reference=>{
       if(selected==='new'){set(reference);properties();}
       else {if(!slot.startsWith('slides.'))row().values[slot]=reference;enqueue({action:'media-select',id:selected,slot,reference,slide});}
     }});
@@ -51,7 +51,9 @@
   function refreshPreview() {
     if (!state.preview[$('preview-language').value]) { $('preview-status').textContent = 'No tienes permiso de vista previa'; return; }
     $('preview-status').textContent = 'Cargando…';
-    $('frame').src = state.preview[$('preview-language').value] + `&refresh=${Date.now()}`;
+    const url = new URL(state.preview[$('preview-language').value], location.origin);
+    if(state.key==='brand:identity' && $('brand-page'))url.searchParams.set('path',state.brand_preview_pages[Number($('brand-page').value)||0].paths[$('preview-language').value]);
+    url.searchParams.set('refresh',Date.now()); $('frame').src = url.href;
   }
   function sizePreview() {
     const width = Number($('device').value), space = $('preview-space');
@@ -87,9 +89,14 @@
     state.sections.forEach(s => local.set(s.id, clone(s)));
     $('document').replaceChildren(...state.documents.map(d => element('option', d.name, {value:d.key})));
     $('document').value = state.key;
+    $('brand-page')?.remove();
+    if(state.key==='brand:identity') { const chooser=element('select','',{id:'cms-brand-page','aria-label':'Página de vista previa'}); chooser.append(...state.brand_preview_pages.map((p,i)=>element('option',p.name,{value:i})));chooser.onchange=refreshPreview;$('preview-language').after(chooser); }
     const available = state.key === 'home' ? state.registry.filter(s=>s.kind!=='seo') : [];
     $('kind').replaceChildren(...available.map(s => element('option', s.name, {value:s.kind})));
     $('add').disabled = !available.length;
+    $('add').hidden = state.key==='brand:identity';
+    $('kind').closest('label').hidden = state.key==='brand:identity';
+    document.querySelector('.cms-language-tabs').hidden = state.key==='brand:identity';
     selected = state.sections.find(s=>s.id===new URLSearchParams(location.search).get('section'))?.id || state.sections[0]?.id; dirty = false; blocked = false; failed = null;
     $('conflict').hidden = true; $('retry').hidden = true;
     structure(); properties(); updateBar(); refreshPreview(); status('Guardado');
@@ -114,7 +121,7 @@
         failed = job; status('Error'); $('retry').hidden = false;
         showErrors(result.fields || {'__all__':[result.error]},job.payload.id); return;
       }
-      state.paths=result.paths; state.translation_exemptions=result.translation_exemptions; state.version = result.version; root.dataset.version=state.version; state.pending = result.pending; state.preview = result.preview; state.can_discard = result.can_discard;
+      state.brand_checks=result.brand_checks; state.paths=result.paths; state.translation_exemptions=result.translation_exemptions; state.version = result.version; root.dataset.version=state.version; state.pending = result.pending; state.preview = result.preview; state.can_discard = result.can_discard;
       if (job.payload.action === 'update') {
         const latest = local.get(job.payload.id);
         if (latest && Object.entries(job.payload.values).every(([key,value])=>JSON.stringify(latest.values[key])===JSON.stringify(value))) {latest.changed = false;latest.errors=false;}
@@ -131,6 +138,10 @@
           [...$('fields').querySelectorAll('[data-slide]')].find(el=>el.dataset.slide===slideFocus)?.querySelector('button:not(:disabled)')?.focus();
           slideFocus=null;
         }
+      }
+      if(state.key==='brand:identity') {
+        const panel = document.querySelector('.cms-brand-checks');
+        if(panel) { panel.replaceChildren(element('h3','Lectura de los colores')); for(const check of state.brand_checks||[])panel.append(element('p',`${check.message}${!check.required?' (aviso)':''}`,{class:check.ok?'cms-help':'cms-brand-warning'})); }
       }
       structure(); refreshPreview(); status('Guardado'); announce('Cambios guardados');
     } catch { failed = job; status('Error de conexión'); $('retry').hidden = false; }
@@ -223,7 +234,7 @@
       const path = prefix + field.key;
       const wrap = element('div','',{class:'cms-field','data-path':path});
       const label = element('span', row().kind==='hero' && field.key==='image' ? 'Foto de respaldo (si no hay carrusel)' : field.label); wrap.append(label); container.append(wrap);
-      const set = value => { values[field.key] = value; changed(); };
+      const set = value => { values[field.key] = value; changed(); updateBrandSample(); };
       let value = values[field.key] ?? clone(field.default ?? null);
       if (field.translated) {
         value ||= {es:'',en:''};
@@ -234,7 +245,7 @@
         wrap.append(input,count);
         if(value.es?.trim()&&value.es.trim()===value.en?.trim()&&!state.translation_exemptions?.[`${selected}.${path}`])wrap.append(button("Es igual en ambos idiomas",()=>{flush();enqueue({action:"translation-equal",id:selected,path});}));
         if (field.key==='slug') {
-          const address=element('small',`serti.co${state.paths?.[language]||`/${language}/${input.value}`}`,{class:'cms-help'});wrap.append(address);
+          const address=element('small',`serti.co${state.paths?.[language]||`/${language}/${input.value}`}`,{class:'cms-help cms-address'});wrap.append(address);
           input.addEventListener('input',()=>address.textContent=`serti.co/${language}/${input.value.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'')}`);
           wrap.append(element('p','Al publicar, la dirección anterior llevará automáticamente a la nueva.',{class:'cms-help'}));
         }
@@ -244,6 +255,14 @@
           wrap.insertBefore(bar,input);wrap.append(element('p','La vista previa muestra el contenido guardado con un formato seguro.',{class:'cms-help'}));
         }
         if(row().kind==='seo')input.addEventListener('input',seoPreview);
+      } else if (field.type === 'color') {
+        const controls=element('div','',{class:'cms-color-controls'});
+        const picker=element('input','',{type:'color','aria-label':`${field.label}: elegir color`});
+        const hex=element('input','',{type:'text','aria-label':`${field.label}: código hexadecimal`,maxlength:'7',pattern:'#[0-9a-fA-F]{6}'});
+        hex.value=value||field.default||'#000000';picker.value=/^#[0-9a-f]{6}$/i.test(hex.value)?hex.value:'#000000';
+        picker.oninput=()=>{hex.value=picker.value;set(picker.value);};
+        hex.oninput=()=>{if(/^#[0-9a-f]{6}$/i.test(hex.value))picker.value=hex.value;set(hex.value);};
+        controls.append(picker,hex);wrap.append(controls);
       } else if (field.type === 'list') {
         value ||= []; values[field.key] = value;
         value.forEach((item,index) => {
@@ -258,7 +277,7 @@
         const input = element('select','',{'aria-label':field.label});
         const options = field.type === 'select' ? field.options.map(v=>({id:v,name:Object.fromEntries(field.option_labels || [])[v] || v})) : state.choices[field.type];
         input.append(element('option','Selecciona…',{value:''}),...options.map(o=>element('option',o.name,{value:o.id})));
-        input.value = value ?? ''; input.onchange=()=>set(field.type==='select'?input.value:Number(input.value)); wrap.append(input);
+        input.value = value ?? ''; input.onchange=()=>set(field.type==='select' && !field.key.endsWith('_scale')?input.value:Number(input.value)); wrap.append(input);
       } else if (field.type === 'boolean') {
         const input=element('input','',{type:'checkbox','aria-label':field.label}); input.checked=!!value; input.onchange=()=>set(input.checked); wrap.append(input); if(field.key==='noindex'){input.disabled=!state.can_noindex;wrap.append(element('p','Atención: esta opción pide a Google que retire la página de sus resultados. Solo la Propietaria puede cambiarla.',{class:'cms-field-error'}));}
       } else if (field.type === 'cta') {
@@ -278,6 +297,11 @@
           if(state.choices[value.kind]) {const target=element('select','',{'aria-label':'Destino'});target.append(element('option','Selecciona…',{value:''}),...state.choices[value.kind].map(o=>element('option',o.name,{value:o.id})));target.value=value.target||'';target.onchange=()=>{value.target=Number(target.value);changed();};wrap.append(target);}
         }
       } else if (field.type === 'image') {
+        if(row().kind==='brand'){
+          const original=field.key==='sharing'?'Sin imagen (se usa la de cada página)':field.key==='icon'?'Ícono original':'Logo original';
+          wrap.append(element('p',value?.asset?`Foto ${value.asset}`:original,{class:'cms-help'}),button('Elegir de la biblioteca',()=>pickMedia(field.key,set)),button(field.key==='sharing'?'Quitar imagen':original,()=>{set(null);properties();}));
+          wrap.append(element('p',field.key==='sharing'?'Imagen para compartir: proporción 1.91:1. No necesita transparencia.':field.key.includes('icon')?'Imagen cuadrada de al menos 512 × 512 px.':'Usa PNG o WebP con transparencia. No se admite SVG porque puede contener scripts. No deformes ni recolorees la marca. Conserva el espacio libre: logotipo de al menos 32 px y monograma de 24 px.',{class:'cms-help'}));return;
+        }
         wrap.append(button('Elegir de la biblioteca',()=>pickMedia(field.key,set)),button('Subir nueva',()=>pickMedia(field.key,set)));
         if(value?.asset){
           const image=element('img','',{alt:'Foto elegida de la biblioteca',width:'160'});wrap.append(image,element('p',`Foto de biblioteca · recorte ${value.crop}`,{class:'cms-help'}));
@@ -359,7 +383,11 @@
   }
   function seoPreview() {
     const box=document.getElementById('cms-seo-cards');if(!box)return;
-    const values=row().values;const title=values.title?.[language]||'Título de la página';const description=values.description?.[language]||'Se usará la descripción habitual de la tienda.';
+    // Keep the empty SEO fields faithful to the storefront's dictionary metadata.
+    const defaults={es:{title:'SERTI — Joyería colombiana de piezas únicas',description:'Piezas únicas de alta joyería, hechas a mano en Colombia.'},en:{title:'SERTI — One-of-a-kind Colombian jewelry',description:'One-of-a-kind fine jewelry, handmade in Colombia.'}};
+    const fallback=state.seo_defaults?.[language]||defaults[language];
+    const page=[...local.values()].find(section=>section.kind==='page');
+    const values=row().values;const title=values.title?.[language]||(page?page.values.title?.[language]??'':fallback.title);const description=values.description?.[language]||fallback.description;
     box.replaceChildren();
     for(const name of ['Vista previa en Google','Vista previa en WhatsApp y Facebook']){
       const card=element('section','',{class:'cms-seo-card'});card.append(element('h3',name),element('small','serti.co'),element('strong',title),element('p',description));
@@ -367,11 +395,34 @@
       box.append(card);
     }
   }
+  function updateBrandSample() {
+    const sample=document.querySelector('.cms-brand-sample');
+    if(!sample || row()?.kind!=='brand')return;
+    const value=row().values;
+    sample.querySelector('h3').style.fontFamily=value.title_font==='cormorant'?'Cormorant Garamond, Georgia, serif':'Ninna, Georgia, serif';
+    const names=[value.title_font==='cormorant'?'Cormorant Garamond':'Ninna','Inter'];
+    const available=names.every(name=>[...document.fonts].some(face=>face.family.replace(/['"]/g,'')===name && face.status==='loaded'));
+    sample.querySelector('small').textContent=available?'La muestra usa las fuentes elegidas.':'Las fuentes elegidas no están cargadas en este panel; la muestra usa fuentes de respaldo. Comprueba la fuente elegida en la vista previa de la tienda.';
+    sample.querySelector('p').style.fontFamily='Inter, Arial, sans-serif';
+    sample.querySelector('h3').style.fontSize=`${24*([90,100,110,120].includes(Number(value.title_scale))?Number(value.title_scale)/100:1)}px`;
+    sample.querySelector('p').style.fontSize=`${16*([90,100,110,120].includes(Number(value.text_scale))?Number(value.text_scale)/100:1)}px`;
+  }
   function properties() {
     $('fields').replaceChildren(); $('section-actions').replaceChildren();
     if(!row()) return;
     const current=row(),type=spec(current); $('section-title').textContent=type.name;
     fields(type.fields,current.values,$('fields'));
+    if(current.kind==='brand'){
+      $('fields').prepend(button('Volver a los colores originales',()=>{for(const field of type.fields.filter(f=>f.type==='color'))current.values[field.key]=clone(field.default);changed();properties();}));
+      const checks=element('section','',{class:'cms-brand-checks','aria-label':'Lectura de los colores','aria-live':'polite'});
+      checks.append(element('h3','Lectura de los colores'));
+      for(const check of state.brand_checks||[])checks.append(element('p',`${check.message}${!check.required?' (aviso)':''}`,{class:check.ok?'cms-help':'cms-brand-warning'}));
+      checks.append(element('p','Puedes guardar un borrador con avisos. Para publicar, todos los textos deben alcanzar el contraste exigido.',{class:'cms-help'}));
+      const sample=element('section','',{class:'cms-brand-sample'});sample.append(element('h3','Una joya, una historia'),element('p','Piezas únicas, hechas a mano en Colombia.'));
+      const scales=[0.9,1,1.1,1.2,90,100,110,120];const scale=key=>scales.includes(Number(current.values[key]))?(Number(current.values[key])>2?Number(current.values[key])/100:Number(current.values[key])):1;
+      sample.querySelector('h3').style.fontFamily=current.values.title_font==='cormorant'?'Cormorant Garamond, Georgia, serif':'Ninna, Georgia, serif';sample.querySelector('h3').style.fontSize=`${24*scale('title_scale')}px`;sample.querySelector('p').style.fontSize=`${16*scale('text_scale')}px`;
+      sample.append(element('small','',{class:'cms-help'}));$('fields').append(checks,sample);updateBrandSample();
+    }
     if(current.kind==='page'&&state.personalize_body_hidden)$('fields').prepend(element('p','El contenido anterior se conserva sin mostrarse. Si lo modificas y publicas, aparecerá antes de los pasos.',{class:'cms-help'}));
     if(current.kind==='seo'){$('fields').append(element('div','',{id:'cms-seo-cards'}));seoPreview();}
     if(current.kind==='page'&&state.legal){$('fields').prepend(element('p',`Versión legal ${state.legal.version} · Última actualización: ${state.legal.updated_at?new Intl.DateTimeFormat('es-CO',{dateStyle:'long',timeZone:'America/Bogota'}).format(new Date(state.legal.updated_at)):'Sin publicar'}. Publicar cambiará la versión legal visible.`,{class:'cms-help'}));}

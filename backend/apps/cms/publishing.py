@@ -26,7 +26,15 @@ def pending_changes(key, *, previous=_UNSET):
 
     doc = get_document(key)
     groups = []
-    if key in MENU_KEYS:
+    if key == "brand:identity":
+        from .brand import groups as brand_groups
+
+        snapshot = doc.brand_identity
+        groups = brand_groups(
+            snapshot, doc.brand_publication.snapshot if doc.brand_publication else {}
+        )
+        changes = change_lines(groups)
+    elif key in MENU_KEYS:
         snapshot = doc.menu_items
         groups = menu_groups(
             snapshot, doc.menu_publication.snapshot if doc.menu_publication else []
@@ -85,7 +93,7 @@ def pending_changes(key, *, previous=_UNSET):
         if previous:
             groups = page_groups(snapshot, previous.snapshot, kind=page.kind)
             changes = change_lines(groups)
-    if key not in MENU_KEYS:
+    if key not in MENU_KEYS and key != "brand:identity":
         previous_seo = (
             previous.seo
             if key == "home" and previous
@@ -117,7 +125,9 @@ def review_publish(request, key):
     require_capability(request.user, "publish")
     from .menus import MENU_KEYS, publish_menu
 
-    if key in MENU_KEYS:
+    if key == "brand:identity":
+        page, title = None, "Identidad de marca"
+    elif key in MENU_KEYS:
         page, title = None, "Menú principal" if key == "menu:main" else "Menú del pie de página"
     elif key != "home":
         page = get_object_or_404(Page, kind=key.removeprefix("page:"))
@@ -135,7 +145,16 @@ def review_publish(request, key):
         try:
             # Service checks the version even for submissions with no pending changes.
             with transaction.atomic():
-                if key in MENU_KEYS:
+                if key == "brand:identity":
+                    from .brand import publish
+
+                    publish(
+                        request.user,
+                        request,
+                        note=note,
+                        expected_version=request.POST.get("expected_version"),
+                    )
+                elif key in MENU_KEYS:
                     publish_menu(
                         key,
                         request.user,
@@ -163,7 +182,7 @@ def review_publish(request, key):
                 reverse("cms-history")
                 + (
                     f"?document={key}"
-                    if key in MENU_KEYS
+                    if key in MENU_KEYS or key == "brand:identity"
                     else f"?document={page.pk}"
                     if page
                     else "?document=home"
@@ -173,6 +192,13 @@ def review_publish(request, key):
             error, status = " ".join(exc.messages), 409
         except ValidationError as exc:
             error, status = " ".join(exc.messages), 400
+    brand_failures = []
+    if key == "brand:identity":
+        from .brand import checks
+
+        brand_failures = [
+            row for row in checks(document.brand_identity) if row["required"] and not row["ok"]
+        ]
     pending = pending_changes(key)
     return TemplateResponse(
         request,
@@ -181,6 +207,8 @@ def review_publish(request, key):
             **admin.site.each_context(request),
             "title": "Revisar y publicar",
             "document_title": title,
+            "is_brand": key == "brand:identity",
+            "brand_failures": brand_failures,
             "editor_url": reverse("visual-editor") + f"?document={key}",
             "expected_version": document.draft_version,
             "changes": pending["changes"],

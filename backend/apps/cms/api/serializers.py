@@ -245,3 +245,33 @@ class MenuItemSerializer(CtaSerializer):
 class MenuSerializer(serializers.Serializer):
     items = MenuItemSerializer(many=True)
     preview = serializers.BooleanField()
+
+
+class BrandLogoSerializer(serializers.Serializer):
+    src = serializers.CharField()
+    width = serializers.IntegerField()
+    height = serializers.IntegerField()
+
+
+class BrandSerializer(serializers.Serializer):
+    wine = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    crimson = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    cream = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    paper = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    ink = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    olive = serializers.RegexField(r"^#[0-9a-f]{6}$")
+    title_font = serializers.ChoiceField(choices=["ninna", "cormorant"])
+    text_font = serializers.ChoiceField(choices=["inter"])
+    title_scale = serializers.ChoiceField(choices=[90, 100, 110, 120])
+    text_scale = serializers.ChoiceField(choices=[90, 100, 110, 120])
+    logo_light = BrandLogoSerializer(allow_null=True)
+    logo_dark = BrandLogoSerializer(allow_null=True)
+    monogram_light = BrandLogoSerializer(allow_null=True)
+    monogram_dark = BrandLogoSerializer(allow_null=True)
+    footer = BrandLogoSerializer(allow_null=True)
+    icon = serializers.DictField(child=serializers.CharField(), allow_null=True)
+    sharing = CmsImageSerializer(allow_null=True)
+
+
+# Hyphenated token name matches CSS and the frozen document contract.
+BrandSerializer._declared_fields["olive-deep"] = serializers.RegexField(r"^#[0-9a-f]{6}$")

@@ -15,6 +15,9 @@ from django.views.decorators.csrf import csrf_protect, ensure_csrf_cookie
 from apps.catalog.models import Category, Collection, Piece, Stone
 
 from . import services, visual_documents
+from .brand import KEY as BRAND_KEY
+from .brand import checks as brand_checks
+from .brand import restore as restore_brand
 from .documents import ContentConflict, edit_document, lock_document, require_capability
 from .menus import MENU_KEYS, restore_menu
 from .models import Page
@@ -49,7 +52,7 @@ def state(key, request):
     document = lock_document(key)
     sections = visual_documents.read_sections(key)
     page = visual_documents.page_for(key) if key.startswith("page:") else None
-    if key not in MENU_KEYS:
+    if key not in MENU_KEYS and key != BRAND_KEY:
         sections.append({"id": "seo", "kind": "seo", "visible": True, "values": document.seo})
     preview = {}
     if request.user.has_perm("cms.preview_content"):
@@ -71,6 +74,21 @@ def state(key, request):
             for row in rows
         ]
     return {
+        "brand_preview_pages": (
+            [
+                {"name": "Inicio", "paths": {lang: f"/{lang}" for lang in ("es", "en")}},
+                *[
+                    {
+                        "name": p.title_es,
+                        "paths": {lang: draft_path(p, lang) for lang in ("es", "en")},
+                    }
+                    for p in Page.objects.all()
+                ],
+            ]
+            if key == BRAND_KEY
+            else []
+        ),
+        "brand_checks": brand_checks(document.brand_identity) if key == BRAND_KEY else [],
         "translation_exemptions": document.translation_exemptions,
         "can_noindex": request.user.has_perm("cms.publish_content"),
         "personalize_body_hidden": bool(
@@ -89,6 +107,7 @@ def state(key, request):
         "registry": visual_documents.applicable_registry(key),
         "documents": [
             {"key": "home", "name": "Inicio"},
+            {"key": BRAND_KEY, "name": "Identidad de marca"},
             {"key": "menu:main", "name": "Menú principal"},
             {"key": "menu:footer", "name": "Menú del pie de página"},
             *[{"key": f"page:{p.kind}", "name": p.title_es} for p in Page.objects.all()],
@@ -99,7 +118,9 @@ def state(key, request):
         "review_url": reverse("cms-review-publish", args=[key]),
         "can_discard": request.user.has_perm("cms.restore_content")
         and bool(
-            document.menu_publication_id
+            document.brand_publication_id
+            if key == BRAND_KEY
+            else document.menu_publication_id
             if key in MENU_KEYS
             else document.home_publication_id
             if key == "home"
@@ -124,7 +145,7 @@ def document(request):
     key = request.GET.get("document", "home")
     try:
         # Reject unknown keys before creating the document row.
-        if key != "home" and key not in MENU_KEYS:
+        if key != "home" and key not in MENU_KEYS and key != BRAND_KEY:
             visual_documents.page_for(key)
         created = None
         if request.method == "POST":
@@ -134,7 +155,9 @@ def document(request):
                 require_capability(request.user, "restore")
                 doc = lock_document(key)
                 origin = (
-                    doc.menu_publication
+                    doc.brand_publication
+                    if key == BRAND_KEY
+                    else doc.menu_publication
                     if key in MENU_KEYS
                     else doc.home_publication
                     if key == "home"
@@ -143,7 +166,9 @@ def document(request):
                 if not origin:
                     raise ValidationError("Todavía no hay una publicación para recuperar.")
                 (
-                    restore_menu
+                    restore_brand
+                    if key == BRAND_KEY
+                    else restore_menu
                     if key in MENU_KEYS
                     else services.restore_home
                     if key == "home"

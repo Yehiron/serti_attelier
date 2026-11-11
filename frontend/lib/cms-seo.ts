@@ -10,7 +10,7 @@ export function applyCmsSeo(base: Metadata, seo: CmsSeo | undefined, siteUrl: st
   return {
     ...base, title, description,
     openGraph: { ...base.openGraph, ...(seo.title ? { title: seo.title } : {}), ...(seo.description ? { description: seo.description } : {}), ...(image ? { images: [image] } : {}) },
-    twitter: { card: image ? 'summary_large_image' : 'summary', ...(typeof title === 'string' ? { title } : {}), ...(description ? { description } : {}), ...(image ? { images: [image] } : {}) },
+    twitter: { ...base.twitter, card: image || (base.twitter && 'images' in base.twitter && base.twitter.images) ? 'summary_large_image' : 'summary', ...(typeof title === 'string' ? { title } : {}), ...(description ? { description } : {}), ...(image ? { images: [image] } : {}) },
     ...(draft ? { robots: { index: false, follow: false } } : seo.noindex ? { robots: { index: false, follow: true } } : {}),
   };
 }

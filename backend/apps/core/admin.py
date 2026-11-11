@@ -48,7 +48,7 @@ class SiteSettingsForm(BaseSettingsForm):
 
     class Meta:
         model = SiteSettings
-        exclude = ("id",)
+        exclude = ("id", "title_scale", "text_scale")
 
 
 @admin.register(SiteSettings)
@@ -84,19 +84,6 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
                     },
                 )
             )
-        result.insert(
-            1,
-            (
-                _("Tipografía"),
-                {
-                    "fields": ["title_scale", "text_scale"],
-                    "description": _(
-                        "Elige el tamaño de los títulos y del texto de la tienda. "
-                        "Guarda para aplicar los cambios."
-                    ),
-                },
-            ),
-        )
         return result
 
     def changeform_view(

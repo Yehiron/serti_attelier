@@ -435,6 +435,18 @@ class MenuPublication(ImmutableSnapshot):
         return f"{self.get_menu_display()} · {self.published_at}"
 
 
+class BrandPublication(ImmutableSnapshot):
+    note = models.CharField(_("Nota"), max_length=300, blank=True)
+    objects = ImmutableQuerySet["BrandPublication"].as_manager()
+
+    class Meta(ImmutableSnapshot.Meta):
+        verbose_name = _("publicación de identidad de marca")
+        verbose_name_plural = _("publicaciones de identidad de marca")
+
+    def __str__(self):
+        return f"Identidad de marca · {self.published_at}"
+
+
 class Redirect(Timestamped):
     from_path = models.CharField(_("Dirección anterior"), max_length=500, unique=True)
     to_path = models.CharField(_("Dirección de destino"), max_length=500)
@@ -481,6 +493,14 @@ class Redirect(Timestamped):
 
 
 class ContentDocument(models.Model):
+    brand_identity = models.JSONField(_("Identidad de marca"), default=dict, blank=True)
+    brand_publication = models.ForeignKey(
+        BrandPublication,
+        verbose_name=_("Publicación de identidad"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     translation_exemptions = models.JSONField(
         _("Textos iguales en ambos idiomas"), default=dict, blank=True
     )
@@ -533,6 +553,13 @@ class ContentDocument(models.Model):
 
 
 class DraftRevision(ImmutableSnapshot):
+    restored_from_brand = models.ForeignKey(
+        BrandPublication,
+        verbose_name=_("Publicación de identidad"),
+        null=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
     seo = models.JSONField(_("Opciones para buscadores"), default=dict, blank=True)
     restored_from_menu = models.ForeignKey(
         MenuPublication,
@@ -583,16 +610,25 @@ class DraftRevision(ImmutableSnapshot):
                         restored_from_home__isnull=False,
                         restored_from_page__isnull=True,
                         restored_from_menu__isnull=True,
+                        restored_from_brand__isnull=True,
                     )
                     | models.Q(
                         restored_from_home__isnull=True,
                         restored_from_page__isnull=False,
                         restored_from_menu__isnull=True,
+                        restored_from_brand__isnull=True,
                     )
                     | models.Q(
                         restored_from_home__isnull=True,
                         restored_from_page__isnull=True,
                         restored_from_menu__isnull=False,
+                        restored_from_brand__isnull=True,
+                    )
+                    | models.Q(
+                        restored_from_home__isnull=True,
+                        restored_from_page__isnull=True,
+                        restored_from_menu__isnull=True,
+                        restored_from_brand__isnull=False,
                     )
                 ),
                 name="cms_restore_one_origin",
@@ -604,7 +640,12 @@ class DraftRevision(ImmutableSnapshot):
 
     @property
     def restored_from(self):
-        return self.restored_from_home or self.restored_from_page or self.restored_from_menu
+        return (
+            self.restored_from_home
+            or self.restored_from_page
+            or self.restored_from_menu
+            or self.restored_from_brand
+        )
 
 
 class MediaAsset(Timestamped):

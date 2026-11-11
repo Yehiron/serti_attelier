@@ -40,3 +40,5 @@ export type PaymentDetails = { wompi: WompiCheckout | null; payment: OrderPaymen
 
 export type MilestoneKey = 'received' | 'paid' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'returned';
 export type Fulfillment = { status: 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'returned'; carrier: string; tracking_number: string; tracking_url?: string; shipped_at: string | null; delivered_at: string | null; timeline: { key: MilestoneKey; label_key: MilestoneKey; at: string | null }[] };
+
+export type { BrandIdentity } from '../cms-brand';

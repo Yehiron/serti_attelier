@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    BrandView,
     HomeView,
     MenuView,
     PageView,
@@ -11,6 +12,7 @@ from .views import (
 )
 
 urlpatterns = [
+    path("cms/brand", BrandView.as_view(), name="cms-brand"),
     path("cms/redirects", RedirectsView.as_view(), name="cms-redirects"),
     path("cms/menus/<str:menu>", MenuView.as_view(), name="cms-menu"),
     path("cms/home", HomeView.as_view(), name="cms-home"),

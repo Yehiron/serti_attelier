@@ -8,6 +8,7 @@ import ts from 'typescript';
 import type { Dictionary } from '../app/[locale]/dictionaries';
 import type { CmsMenuItem, Settings } from './api/types.ts';
 import type { Locale } from './i18n.ts';
+import { originalBrand, brandLogoUrl } from './cms-brand.ts';
 import { href } from './routes.ts';
 
 const require = createRequire(import.meta.url);
@@ -23,6 +24,7 @@ async function renderFooter(locale: Locale, settings: Settings, published?: CmsM
     'next/link': { default: (props: Record<string, unknown>) => h('a', props) },
     'next/headers': { draftMode: async () => ({ isEnabled: false }) },
     '@/lib/api/server': {
+      getBrand: async () => originalBrand,
       getSettings: async () => settings,
       getMenu: async () => {
         if (published === undefined) throw new Error('Sin publicación disponible');
@@ -32,6 +34,7 @@ async function renderFooter(locale: Locale, settings: Settings, published?: CmsM
       getTaxonomy: async () => ({ categories: [], stones: [], collections: [] }),
       siteUrl: 'https://serti.co', emptySettings: settings,
     },
+    '@/lib/cms-brand': { originalBrand, brandLogoUrl },
     '@/lib/routes': { href },
     './navigation': { Navigation: () => null },
     './media': { Signature: () => h('span', {}, 'Firma') },
