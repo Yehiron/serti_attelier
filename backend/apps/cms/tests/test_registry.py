@@ -48,8 +48,10 @@ def test_registry_typescript_is_current():
     required = [target, target.with_name("types.ts"), target.with_name("section-registry.json")]
     missing = [str(path) for path in required if not path.is_file()]
     if missing:
-        reason = "Contrato frontend ausente: " + ", ".join(missing) + (
-            "; monta frontend/lib/api en /frontend/lib/api o ejecuta npm test en frontend."
+        reason = (
+            "Contrato frontend ausente: "
+            + ", ".join(missing)
+            + ("; monta frontend/lib/api en /frontend/lib/api o ejecuta npm test en frontend.")
         )
         if os.environ.get("REQUIRE_FRONTEND_CONTRACT") == "1":
             pytest.fail(reason)

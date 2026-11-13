@@ -115,3 +115,28 @@ def retry_pending_revalidations():
     ).values_list("pk", flat=True)[:100]
     for pk in ids:
         dispatch(pk)
+
+
+@shared_task
+def prune_cache_invalidations(days=30):
+    """Keep the outbox small: drop old rows already superseded for their document.
+
+    The latest row per document drives the Propietaria's notice and pending rows are
+    still being retried, so neither is ever removed. Returns the number deleted.
+    """
+    from datetime import timedelta
+
+    from django.db.models import Max
+    from django.utils import timezone
+
+    from .models import CacheInvalidation
+
+    latest = CacheInvalidation.objects.values("document_key").annotate(last=Max("pk"))
+    keep = [row["last"] for row in latest]
+    deleted, _ = (
+        CacheInvalidation.objects.filter(created_at__lt=timezone.now() - timedelta(days=days))
+        .exclude(state="pending")
+        .exclude(pk__in=keep)
+        .delete()
+    )
+    return deleted

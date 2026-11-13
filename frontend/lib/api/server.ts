@@ -47,8 +47,8 @@ async function cachedRead<T>(path: string, locale: Locale, query: string, tag: s
   await connection();
   // `next dev` serves a stale "use cache" entry once after revalidateTag (by design, see
   // next/dist/server/lib/cache-handlers/default.js), so a publish would look delayed there.
-  // Development reads CMS content live; production keeps tag invalidation (docs/cms-fase-8.md).
-  if (process.env.NODE_ENV === 'development' && tag.startsWith('cms')) return request<T>(path, locale, query);
+  // Development reads live; production keeps tag invalidation (docs/cms-fase-8.md).
+  if (process.env.NODE_ENV === 'development') return request<T>(path, locale, query);
   const result = await cachedResult<T>(path, locale, query, tag);
   if (!result.ok) throw new ApiError(result.status, result.problem);
   return result.data;
@@ -82,11 +82,8 @@ export const getHome = cache((locale: Locale) => cmsRead<Home>('cms/home', local
 // Published reads for sitemap generation never touch request cookies.
 export const getPublishedPage = (locale: Locale, slug: string) => cachedRead<CmsPage>(`cms/pages/${encodeURIComponent(slug)}`, locale, '', 'cms:pages');
 export const getPage = cache((locale: Locale, slug: string, byKind = false) => cmsRead<CmsPage>(`cms/pages/${byKind ? 'kind/' : ''}${encodeURIComponent(slug)}`, locale));
-// Deduplicate within a render, without retaining an outdated menu across requests.
-export const getTaxonomy = cache(async (locale: Locale) => {
-  await connection();
-  return request<Taxonomy>('catalog/taxonomy', locale);
-});
+// Catalog saves (categories, collections, stones, materials, pieces) expire `catalog`.
+export const getTaxonomy = cache((locale: Locale) => cachedRead<Taxonomy>('catalog/taxonomy', locale, '', 'catalog'));
 export const getCatalog = (locale: Locale, query = '') => cachedRead<Catalog>('catalog/pieces', locale, query, 'catalog');
 export const getPiece = (locale: Locale, slug: string) => cachedRead<PieceDetail>(`catalog/pieces/${encodeURIComponent(slug)}`, locale, '', `piece:${slug}`);
 export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms:settings');

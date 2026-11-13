@@ -215,7 +215,7 @@ def test_smtp_failure_and_card_resend(client, order, infrastructure):
 def test_whatsapp_failure_isolated(client, order, infrastructure, settings):
     # Real provider path (not the "log" simulation, which is recorded as skipped).
     settings.WHATSAPP_PROVIDER = "cloud"
-    settings.WHATSAPP_ACCESS_TOKEN = "test-token"  # noqa: S105
+    settings.WHATSAPP_ACCESS_TOKEN = "test-token"
     settings.WHATSAPP_PHONE_NUMBER_ID = "123456"
     settings.WHATSAPP_ORDERS_RECIPIENT = "573001112233"
     settings.WHATSAPP_TEMPLATE_NEW_ORDER = "nuevo_pedido"

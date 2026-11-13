@@ -128,7 +128,9 @@ def test_covers_are_center_cropped_to_16_9(size: tuple[int, int]) -> None:
 
 @pytest.mark.parametrize("model", [Stone, Category])
 def test_portrait_covers_keep_their_proportion(model: type[Stone] | type[Category]) -> None:
-    obj = model(name_es="Esmeralda", slug_es="esmeralda", cover_image=image_file("JPEG", (900, 1125)))
+    obj = model(
+        name_es="Esmeralda", slug_es="esmeralda", cover_image=image_file("JPEG", (900, 1125))
+    )
     save_taxonomy(obj)
     assert (obj.cover_width, obj.cover_height) == (900, 1125)
     assert set(obj.cover_renditions["webp"]) == {"480", "900"}

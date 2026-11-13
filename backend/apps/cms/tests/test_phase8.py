@@ -47,9 +47,7 @@ def test_inline_failure_falls_back_to_celery_retry(django_capture_on_commit_call
         with django_capture_on_commit_callbacks(execute=True), transaction.atomic():
             row = enqueue(["cms:home"])
         run.assert_called_once()
-        later.assert_called_once_with(
-            (["cms:home"],), {"invalidation_id": row.pk}, countdown=30
-        )
+        later.assert_called_once_with((["cms:home"],), {"invalidation_id": row.pk}, countdown=30)
 
 
 def test_rollback_discards_outbox_and_callback(django_capture_on_commit_callbacks):
@@ -162,7 +160,8 @@ def test_exhausted_and_broker_failure(caplog, django_capture_on_commit_callbacks
 
 
 @pytest.mark.parametrize(
-    "model", ["SiteSettings", "PersonalizationService", "Category", "Collection", "Stone"]
+    "model",
+    ["SiteSettings", "PersonalizationService", "Category", "Collection", "Stone", "Material"],
 )
 def test_live_saves_invalidate(model):
     from django.apps import apps
@@ -275,3 +274,35 @@ def test_snapshot_path_tolerates_empty_legacy_snapshot():
     assert snapshot_path(page, {}, "es") is None
     assert snapshot_path(page, {"es": {}}, "es") is None
     assert snapshot_path(page, {"es": {"slug": "terminos"}}, "es")
+
+
+def test_prune_keeps_latest_and_pending():
+    from datetime import timedelta
+
+    from django.utils import timezone
+
+    from apps.cms.tasks import prune_cache_invalidations
+
+    old = timezone.now() - timedelta(days=31)
+    key = "page:prune-test"
+    superseded = CacheInvalidation.objects.create(tags=["cms:home"], document_key=key, state="sent")
+    failed_old = CacheInvalidation.objects.create(
+        tags=["cms:home"], document_key=key, state="failed"
+    )
+    pending = CacheInvalidation.objects.create(tags=["cms:home"], document_key=key, state="pending")
+    latest = CacheInvalidation.objects.create(tags=["cms:home"], document_key=key, state="sent")
+    recent = CacheInvalidation.objects.create(tags=["cms:home"], document_key=key, state="sent")
+    CacheInvalidation.objects.filter(
+        pk__in=[superseded.pk, failed_old.pk, pending.pk, latest.pk]
+    ).update(created_at=old)
+    # `recent` is now the latest; `latest` became superseded but is old.
+    assert prune_cache_invalidations() >= 3
+    remaining = set(CacheInvalidation.objects.filter(document_key=key).values_list("pk", flat=True))
+    assert remaining == {pending.pk, recent.pk}
+    # The only row of a document is never pruned, however old.
+    only = CacheInvalidation.objects.create(
+        tags=["cms:brand"], document_key="prune-only", state="sent"
+    )
+    CacheInvalidation.objects.filter(pk=only.pk).update(created_at=old)
+    prune_cache_invalidations()
+    assert CacheInvalidation.objects.filter(pk=only.pk).exists()

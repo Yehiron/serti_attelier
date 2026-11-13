@@ -192,7 +192,7 @@ def test_initial_migration_copies_scales_idempotently_and_reverses():
         executor.migrate(before)
         # 0025 does not depend on core; include it so SiteSettings exists in the state.
         historical = executor.loader.project_state(
-            before + [("core", "0008_sitesettings_text_scale_sitesettings_title_scale")]
+            [*before, ("core", "0008_sitesettings_text_scale_sitesettings_title_scale")]
         ).apps
         Settings = historical.get_model("core", "SiteSettings")
         config = Settings.objects.first() or Settings.objects.create()

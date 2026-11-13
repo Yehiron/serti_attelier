@@ -28,8 +28,8 @@ def dispatch(pk):
         # after "Publicar" is fresh; the task records the outcome on the row.
         revalidate_tags.run(row.tags, invalidation_id=pk)
         return
-    except Exception:
-        pass  # Recorded as pending by the task; retries continue in Celery below.
+    except Exception:  # Recorded as pending by the task; retries continue in Celery below.
+        logger.info("Actualización CMS en reintento (registro %s).", pk)
     try:
         revalidate_tags.apply_async((row.tags,), {"invalidation_id": pk}, countdown=30)
     except Exception:

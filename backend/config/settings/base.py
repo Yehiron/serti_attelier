@@ -300,3 +300,7 @@ CELERY_BEAT_SCHEDULE["retry-cms-invalidation"] = {
     "task": "apps.cms.tasks.retry_pending_revalidations",
     "schedule": 60.0,
 }
+CELERY_BEAT_SCHEDULE["prune-cms-invalidation"] = {
+    "task": "apps.cms.tasks.prune_cache_invalidations",
+    "schedule": 86400.0,
+}

@@ -148,3 +148,19 @@ Verificado contra el stack de desarrollo y una imagen de producción de la tiend
 - `CacheInvalidation` usa `gettext_lazy` en todas sus etiquetas.
 - **E2E `cms-phase8`:** espera solo las invalidaciones creadas por la prueba, busca la pieza dentro de la página del carrito (no en el cajón cerrado) y compara el formulario de compra cuando departamentos y totales ya cargaron. Pasó 4 de 4 veces.
 - Desarrollo: `REVALIDATE_SECRET` aleatorio solo en `.env` local (no versionado). Producción debe definir el suyo en `.env.production` (Django y Next).
+
+## Cierre técnico (Claude)
+
+- **Medición real con `next start`** (imagen `runtime`, `infra/scripts/cms-cache-measure.py`, peticiones al backend por visita completa):
+
+  | Ruta | Primera visita | Repetida antes del cierre | Repetida tras el cierre |
+  |---|---|---|---|
+  | `/es` | 10–11 | 2 (`cms/redirects`, `catalog/taxonomy`) | **1** (`cms/redirects`) |
+  | `/es/legal/envios` | 2–3 | 2 | **1** |
+
+- **Categorías en caché:** `getTaxonomy` usa la etiqueta `catalog`, que ya expiran los guardados de categorías, colecciones, piedras, materiales y piezas. Comprobado en `next start`: renombrar una categoría y enviar el aviso muestra el nombre nuevo en la primera visita siguiente.
+- **Materiales:** guardar o borrar un `Material` ahora también avisa a la tienda (antes no; un material renombrado podía quedar desactualizado).
+- **Redirecciones sin caché a propósito:** el proxy las consulta en cada visita (una petición pequeña con límite de 2 s). Guardarlas en memoria retrasaría hasta un minuto la redirección 301 de una dirección recién cambiada.
+- **Desarrollo:** `next dev` lee siempre en vivo (CMS y catálogo); producción conserva la caché por etiquetas.
+- **Limpieza del outbox:** tarea diaria `prune_cache_invalidations` (beat `prune-cms-invalidation`). Borra filas de más de 30 días que ya tienen una más reciente para su documento; nunca borra pendientes ni la última fila de cada documento, que es la que decide el aviso de la Propietaria.
+- **404 de páginas:** con streaming, Next conserva HTTP 200 en rutas inexistentes, siempre con `noindex` (comportamiento ya documentado en `api-contract.md`). El seguimiento de pedidos inexistentes sí devuelve 404 real desde el proxy.
