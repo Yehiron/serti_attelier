@@ -708,3 +708,28 @@ class MediaAsset(Timestamped):
 
     def __str__(self):
         return self.title or self.alt_es or f"Foto {self.pk}"
+
+
+class CacheInvalidation(models.Model):
+    """Durable outbox; no secrets, URLs or transport exception payloads are stored."""
+
+    tags = models.JSONField(_("etiquetas"))
+    document_key = models.CharField(_("documento"), max_length=100, blank=True)
+    state = models.CharField(
+        _("estado"),
+        max_length=12,
+        default="pending",
+        db_index=True,
+        choices=[("pending", _("Pendiente")), ("sent", _("Actualizada")), ("failed", _("Fallida"))],
+    )
+    attempts = models.PositiveSmallIntegerField(_("intentos"), default=0)
+    created_at = models.DateTimeField(_("creada el"), auto_now_add=True)
+    updated_at = models.DateTimeField(_("actualizada el"), auto_now=True)
+
+    class Meta:
+        verbose_name = _("actualización de la tienda")
+        verbose_name_plural = _("actualizaciones de la tienda")
+        indexes = [models.Index(fields=["document_key", "-id"], name="cms_invalidation_latest")]
+
+    def __str__(self):
+        return f"Actualización {self.pk}: {self.get_state_display()}"

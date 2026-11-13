@@ -292,3 +292,11 @@ ORDER_TRACKING_TTL_DAYS = env.int("ORDER_TRACKING_TTL_DAYS", default=180)
 REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"]["order_public"] = env(
     "THROTTLE_ORDER_PUBLIC", default="60/min"
 )
+
+# CMS cache invalidation: private Compose address, never the public Caddy URL.
+REVALIDATE_SECRET = env("REVALIDATE_SECRET", default="")
+FRONTEND_INTERNAL_URL = env("FRONTEND_INTERNAL_URL", default="http://frontend:3000")
+CELERY_BEAT_SCHEDULE["retry-cms-invalidation"] = {
+    "task": "apps.cms.tasks.retry_pending_revalidations",
+    "schedule": 60.0,
+}

@@ -26,7 +26,10 @@ def active_redirects():
 
 def invalidate_redirects():
     # Cache failure after commit must never report a committed publication as failed.
+    from .invalidation import enqueue
+
     transaction.on_commit(lambda: cache.delete(CACHE_KEY), robust=True)
+    enqueue(["cms:redirects"], document_key="redirects")
 
 
 def destination_exists(path):
@@ -120,7 +123,7 @@ def on_page_publish(page, previous, snapshot, actor):
     for lang in ("es", "en"):
         target = snapshot_path(page, snapshot, lang)
         old = snapshot_path(page, previous.snapshot, lang) if previous else target
-        if old != target:
+        if old and target and old != target:
             transitions.append((lang, old, target))
     if not transitions:
         return

@@ -10,7 +10,10 @@ set -eu
 DEST=/backups
 RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-14}"
 STAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+case "$RETENTION_DAYS" in ''|*[!0-9]*) echo "Retención inválida" >&2; exit 2;; esac
 umask 077
+WORK=$(mktemp -d)
+trap 'rm -rf "$WORK"' EXIT HUP INT TERM
 mkdir -p "$DEST"
 
 export PGPASSWORD="$POSTGRES_PASSWORD"
@@ -19,14 +22,16 @@ MEDIA_FILE="$DEST/media-$STAMP.tar.gz.age"
 
 pg_dump -h "${POSTGRES_HOST:-db}" -U "$POSTGRES_USER" -d "$POSTGRES_DB" \
   --format=custom --no-owner --no-privileges \
-  | age -r "$BACKUP_AGE_RECIPIENT" -o "$DB_FILE.partial"
+  > "$WORK/db.dump"
+age -r "$BACKUP_AGE_RECIPIENT" -o "$DB_FILE.partial" "$WORK/db.dump"
 mv "$DB_FILE.partial" "$DB_FILE"
 
-tar -C /srv -czf - media private_media \
-  | age -r "$BACKUP_AGE_RECIPIENT" -o "$MEDIA_FILE.partial"
+tar -C /srv -czf "$WORK/media.tar.gz" media private_media
+age -r "$BACKUP_AGE_RECIPIENT" -o "$MEDIA_FILE.partial" "$WORK/media.tar.gz"
 mv "$MEDIA_FILE.partial" "$MEDIA_FILE"
 
-(cd "$DEST" && sha256sum "$(basename "$DB_FILE")" "$(basename "$MEDIA_FILE")" > "checksums-$STAMP.sha256")
+(cd "$DEST" && sha256sum "$(basename "$DB_FILE")" "$(basename "$MEDIA_FILE")" > "checksums-$STAMP.sha256.partial")
+mv "$DEST/checksums-$STAMP.sha256.partial" "$DEST/checksums-$STAMP.sha256"
 
 find "$DEST" -maxdepth 1 -type f \( -name 'db-*' -o -name 'media-*' -o -name 'checksums-*' \) \
   -mtime "+$RETENTION_DAYS" -delete

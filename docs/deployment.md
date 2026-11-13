@@ -59,6 +59,10 @@ Completar `.env.production` (cada `CHANGE-ME`):
   evento a registrar en Wompi es `https://<dominio>/api/v1/payments/wompi/events`.
 - SMTP y `SERTI_ORDERS_EMAIL` cuando el cliente elija proveedor (P-09).
 - `BACKUP_AGE_RECIPIENT`: llave pública de copias (sección 6).
+- `REVALIDATE_SECRET`: secreto aleatorio distinto de los demás, idéntico en Django/worker y Next.
+  Vacío cierra el endpoint con 503; no guardarlo en notas, logs ni pruebas.
+- `FRONTEND_INTERNAL_URL=http://frontend:3000`: destino privado de invalidación; nunca el dominio
+  público de Caddy. No publicar el puerto 3000 ni abrir `/api/internal/*` en el proxy.
 
 ### Fuentes con licencia
 
@@ -110,7 +114,9 @@ Si la versión nueva traía migraciones que no son compatibles hacia atrás, res
 El servicio `backup` guarda cada día a las 3:00 (hora de Colombia), en `BACKUP_DIR` del host:
 
 - `db-<fecha>.dump.age`: `pg_dump` en formato personalizado.
-- `media-<fecha>.tar.gz.age`: fotos públicas y comprobantes de pago privados.
+- `media-<fecha>.tar.gz.age`: directorios completos `media` y `private_media`: biblioteca CMS,
+  originales normalizados, generaciones/renditions históricas, logos/íconos elegidos, catálogo y
+  comprobantes de pago privados. La BD conserva referencias, publicaciones e historial.
 - `checksums-<fecha>.sha256`.
 
 Se cifran con [age](https://age-encryption.org) usando una **llave pública**: el servidor puede
@@ -142,13 +148,13 @@ Vigilar que en `$COMPOSE logs backup` aparezca `backup ok` cada día; `backup FA
 
 ## 7. Restaurar (y simulacro)
 
-Hacer un simulacro antes del lanzamiento y luego cada trimestre: restaurar en una máquina de prueba,
+Hacer un simulacro antes del lanzamiento y luego cada mes: restaurar en una máquina de prueba,
 no en producción.
 
 ```bash
 $COMPOSE stop backend worker beat frontend
 $COMPOSE run --rm -v "$PWD/serti-backup.key:/keys/backup.key:ro" --entrypoint restore.sh backup \
-  /keys/backup.key db-20261028T080000Z.dump.age media-20261028T080000Z.tar.gz.age
+  --confirm-replace-real-data /keys/backup.key db-20261028T080000Z.dump.age media-20261028T080000Z.tar.gz.age
 $COMPOSE up -d
 $COMPOSE exec backend python manage.py check_production
 ```
@@ -156,6 +162,85 @@ $COMPOSE exec backend python manage.py check_production
 La llave privada se copia al servidor solo durante la restauración y se borra después.
 `pg_restore --clean` reemplaza los datos actuales dentro de una única transacción: si falla, la
 base queda como estaba.
+
+### Simulacro automatizado y no destructivo
+
+Desde la raíz, con el stack local y las imágenes ya disponibles (no descargar dependencias):
+
+```bash
+docker compose -f infra/docker-compose.dev.yml --profile backup build backup
+# BACKUP_AGE_RECIPIENT contiene la llave pública; los directorios de medios deben existir.
+docker compose -f infra/docker-compose.dev.yml run --rm --entrypoint backup.sh backup
+infra/scripts/backup-verify.sh --confirm-temporary-restore "$PWD/serti-backup.key" dev
+```
+
+En un equipo de recuperación con el compose de producción ya configurado, cambiar `dev` por `prod`.
+El flag confirma únicamente la restauración **temporal**. El script selecciona la última pareja con
+manifest de checksums completo, comprueba SHA-256 y descifra con age; restaura en una base nueva
+`serti_verify_<fecha>_<pid>` y un volumen Docker con ese mismo nombre. No usa `--clean`, no migra
+la copia y no escribe en los medios de la tienda. Requiere permiso CREATEDB en PostgreSQL; el
+usuario de Compose ya lo tiene. Una base configurada como real con ese nombre queda rechazada.
+
+`manage.py verify_backup` abre la base temporal en una transacción READ ONLY. Comprueba todas las
+migraciones del código, imprime recuentos de HomePublication/PageRevision/MenuPublication/
+BrandPublication/MediaAsset/Order, revisa generaciones y referencias de biblioteca/marca incluidas
+las históricas, y la existencia de todos los FileField públicos y privados. Cualquier falta da salida
+no cero. Una copia antigua debe verificarse con el código de su fecha; no se migran ni inventan
+archivos para hacer pasar la comprobación. Guardar el JSON de recuentos y contrastarlo con el
+registro de la copia o del simulacro anterior: los recuentos por sí solos no prueban completitud.
+
+El trap elimina exclusivamente la base y el volumen temporales al terminar, también ante fallo.
+Un SIGKILL o corte de energía puede impedirlo: el técnico debe identificar exactamente los recursos
+`serti_verify_...` de esa ejecución antes de retirarlos. No ejecutar limpiezas globales de Docker.
+Los temporales contienen datos descifrados: ejecutar el simulacro solo en un equipo de confianza,
+con disco cifrado, espacio suficiente y sin otros procesos editoriales simultáneos. El backup
+necesita espacio temporal adicional para un dump y un tar sin cifrar; se retiran con trap.
+
+### Recuperación real, paso a paso
+
+1. La dueña identifica la fecha deseada y entrega al técnico acceso temporal a la llave privada.
+   Conservar fuera del servidor la pareja dump/tar y su manifest, además del código de esa fecha.
+2. Verificar checksums y ejecutar primero el simulacro anterior. Anotar recuentos y resultado.
+   Hacer una copia adicional del estado actual antes de reemplazarlo.
+3. Poner la tienda en mantenimiento; detener backend, worker, beat y frontend con el comando
+   anterior. No dejar tareas ni escrituras activas durante la recuperación.
+4. Ejecutar `restore.sh --confirm-replace-real-data` con **ambos archivos de la misma fecha**.
+   La BD se reemplaza transaccionalmente; los medios se extraen después y no forman una
+   transacción conjunta con PostgreSQL. Si falla cualquier paso, mantener el mantenimiento.
+   La extracción repone/sobrescribe archivos; no elimina archivos adicionales del volumen.
+5. Arrancar con el código correspondiente, comprobar migraciones y `check_production`, revisar
+   portada, página, logos, biblioteca, un pedido y su comprobante. Reiniciar Next elimina la caché
+   en memoria anterior; después se mantienen las invalidaciones. No reenviar pagos ni webhooks.
+6. Confirmar que pedidos y medios coinciden con los recuentos del simulacro; habilitar tráfico,
+   observar worker y correo, retirar la llave temporal del servidor y registrar fecha/resultado.
+
+Restaurar la BD recupera también publicaciones, punteros, borradores, `DraftRevision`, auditoría y
+registro de invalidaciones a esa fecha. Se pierde el trabajo posterior a la copia. No restaurar solo
+medios ni borrar generaciones antiguas: publicaciones históricas e identidad pueden referenciarlas.
+La copia externa, la custodia de la llave y el simulacro mensual son necesarios; un checksum correcto
+no sustituye una restauración. Ninguno de estos comandos se ejecutó contra producción en Fase 8.
+
+### Operación de la invalidación CMS
+
+Tras migrar 0027, mantener worker y beat activos. La publicación guarda una fila de
+`CacheInvalidation` y solo tras commit encola `apps.cms.tasks.revalidate_tags`. Se hacen hasta seis
+intentos (inicial + cinco reintentos; 30/60/120/240/480 s), timeout de cinco segundos y sin seguir
+redirecciones HTTP. Beat recupera cada minuto filas pendientes de más de 15 minutos, incluidas las
+que no llegaron al broker. Los fallos agotados requieren intervención; no se reintentan para siempre.
+El historial muestra a la Propietaria «La tienda se actualizará en unos minutos» si el último estado
+por documento no está enviado. Los logs incluyen ID/intento, nunca secreto ni cuerpo de excepción.
+
+Después de corregir secreto/conectividad, el técnico puede seleccionar los IDs fallidos concretos en
+una shell Django, poner `state="pending", attempts=0` y llamar a `apps.cms.invalidation.dispatch(id)`.
+No cambiar snapshots ni publicar borradores para reparar la caché. Las lecturas CMS tienen respaldo
+de una hora para revalidar y cuatro horas de expiración; errores usan TTL corto. El proxy de
+redirecciones conserva su consulta de 60 s: Next no ofrece `use cache` dentro de proxy; no se promete
+invalidación inmediata allí. Las respuestas permanentes ya almacenadas por navegadores duran más.
+
+Caddy dev/prod devuelve 404 a `/api/internal/*` y ningún servicio frontend publica su puerto.
+Comprobar antes del lanzamiento con una petición externa (404) y una petición interna autenticada
+(200); con secreto ausente debe responder 503. Al escalar Next a varias instancias habrá que compartir
+el almacenamiento de caché o invalidar cada instancia; este compose utiliza una sola.
 
 ## 8. Seguridad aplicada
 

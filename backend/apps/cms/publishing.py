@@ -177,7 +177,9 @@ def review_publish(request, key):
                         note=note,
                         expected_version=request.POST.get("expected_version"),
                     )
-            messages.success(request, "Publicación guardada. La tienda ya muestra esta versión.")
+            messages.success(
+                request, "Publicación guardada. La tienda se actualizará en unos instantes."
+            )
             return HttpResponseRedirect(
                 reverse("cms-history")
                 + (

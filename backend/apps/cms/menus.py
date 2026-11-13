@@ -205,6 +205,8 @@ def public_menu(key, locale, preview=False):
             url = href(kind, locale, target)
         else:
             url = href("catalog" if kind in {"stones", "collections"} else kind, locale)
+        if not url:
+            continue
         result.append(
             {
                 "label": link["label"].get(locale) or link["label"]["es"],

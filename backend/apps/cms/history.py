@@ -254,6 +254,16 @@ def history(request):
         if key in MENU_KEYS or key in ("home", BRAND_KEY)
         else f"page:{Page.objects.get(pk=key).kind}"
     )
+    from .models import CacheInvalidation
+
+    context["invalidation_pending"] = request.user.has_perm("cms.publish_content") and (
+        any(
+            state != "sent"
+            for state in CacheInvalidation.objects.order_by("document_key", "-pk")
+            .distinct("document_key")
+            .values_list("state", flat=True)
+        )
+    )
     context["editor_url"] = reverse("visual-editor") + f"?document={content_document.key}"
     from .publishing import preview_url
 

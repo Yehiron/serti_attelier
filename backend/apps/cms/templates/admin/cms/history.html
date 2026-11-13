@@ -4,6 +4,7 @@
 {% block content %}
 <div class="cms-history cms-review">
 <header class="cms-review-header"><div><p class="cms-eyebrow">Historial de publicaciones</p><h2>{{ document_title }}</h2></div><nav class="cms-review-actions" aria-label="Documento"><a class="cms-secondary" href="{{ editor_url }}">Volver al editor</a>{% if preview_url %}<a class="cms-secondary" href="{{ preview_url }}" target="_blank" rel="noopener">Ver vista previa</a>{% endif %}</nav></header>
+{% if invalidation_pending %}<p class="cms-review-notice" role="status">La tienda se actualizará en unos minutos.</p>{% endif %}
 {% if confirmation %}
 <div class="cms-review-notice"><p>{{ confirmation }}</p>{% if conflict %}<p role="alert">{{ conflict }}</p><a class="cms-secondary" href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a>{% endif %}
 <form method="post" class="cms-review-actions">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}"><button name="confirm" value="yes" class="cms-primary" {% if conflict %}disabled{% endif %}><span class="material-symbols-outlined" aria-hidden="true">restore</span>Restaurar como borrador</button><a class="cms-secondary" href="?document={{ document }}">Cancelar</a></form></div>

@@ -22,6 +22,7 @@ x-backend: &backend
     - ../frontend/lib/api:/frontend/lib/api:ro
     # Lets the backend test suite exercise the fake's contract (read-only).
     - ./wompi-fake:/infra/wompi-fake:ro
+    - ./scripts:/infra/scripts:ro
     - ./Caddyfile:/infra/Caddyfile:ro
     - ./Caddyfile.dev:/infra/Caddyfile.dev:ro
   depends_on:
@@ -103,6 +104,18 @@ services:
       - ../frontend:/app
       - /app/node_modules
       - /app/.next
+
+  # Opt-in encrypted copies and isolated verification; source media are read-only.
+  backup:
+    profiles: [backup]
+    build:
+      context: .
+      dockerfile: backup/Dockerfile
+    env_file: ../.env
+    volumes:
+      - ${BACKUP_DIR:-../backups}:/backups
+      - ../backend/media:/srv/media:ro
+      - ../backend/private_media:/srv/private_media:ro
 
   mailpit:
     image: axllent/mailpit:latest

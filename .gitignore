@@ -42,3 +42,7 @@ preview-instagram/
 # Client photos downloaded from the SERTI Drive folder (local only).
 preview-drive/
 .codex-review/
+
+# Copias locales cifradas y llaves de simulacro
+/backups/
+*.key

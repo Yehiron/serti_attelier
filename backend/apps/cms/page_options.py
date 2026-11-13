@@ -53,7 +53,11 @@ def draft_path(page, locale):
 
 
 def snapshot_path(page, snapshot, locale):
-    return snapshot[locale].get("path") or legacy_path(page.kind, locale, snapshot[locale]["slug"])
+    # Seeded/legacy revisions may carry an empty snapshot: they publish no address.
+    content = snapshot.get(locale) if isinstance(snapshot, dict) else None
+    if not isinstance(content, dict) or not (content.get("path") or content.get("slug")):
+        return None
+    return content.get("path") or legacy_path(page.kind, locale, content["slug"])
 
 
 def prepare_slugs(page):

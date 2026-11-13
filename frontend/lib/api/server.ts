@@ -27,10 +27,13 @@ export async function request<T>(path: string, locale: Locale, query = '', previ
 type CachedResult<T> = { ok: true; data: T } | { ok: false; status: number; problem: import('./types').Problem };
 async function cachedResult<T>(path: string, locale: Locale, query: string, tag: string): Promise<CachedResult<T>> {
   'use cache';
-  cacheLife({ stale: 60, revalidate: 60, expire: 300 });
+  cacheLife(path.startsWith('catalog/') ? { stale: 60, revalidate: 60, expire: 300 } : { stale: 0, revalidate: 3600, expire: 14400 });
   cacheTag(tag, path.startsWith('catalog/') ? 'catalog' : 'cms');
   try {
-    return { ok: true, data: await request<T>(path, locale, query) };
+    const data = await request<T>(path, locale, query);
+    // Slug reads acquire the stable document tag after resolving the published page.
+    if (path.startsWith('cms/pages/') && data && typeof data === 'object' && 'kind' in data && typeof data.kind === 'string') cacheTag(`cms:page:${data.kind}`);
+    return { ok: true, data };
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
     // Keep errors serializable across the cache boundary and retry them quickly.
@@ -42,6 +45,10 @@ async function cachedRead<T>(path: string, locale: Locale, query: string, tag: s
   // The API is not reachable while building (docker build, CI): stop prerendering here so
   // data is fetched at request time. Results are still cached in memory across requests.
   await connection();
+  // `next dev` serves a stale "use cache" entry once after revalidateTag (by design, see
+  // next/dist/server/lib/cache-handlers/default.js), so a publish would look delayed there.
+  // Development reads CMS content live; production keeps tag invalidation (docs/cms-fase-8.md).
+  if (process.env.NODE_ENV === 'development' && tag.startsWith('cms')) return request<T>(path, locale, query);
   const result = await cachedResult<T>(path, locale, query, tag);
   if (!result.ok) throw new ApiError(result.status, result.problem);
   return result.data;
@@ -57,25 +64,23 @@ export const previewToken = cache(async () => {
   if (!token) throw new ApiError(403, { code: 'preview_invalid' });
   return token;
 });
+export function cmsTag(path: string): string {
+  if (path.startsWith('cms/pages/kind/')) return `cms:page:${path.split('/').at(-1)}`;
+  // Slug misses also need invalidation when an address is published for the first time.
+  if (path.startsWith('cms/pages/')) return 'cms:pages';
+  return path.replace('cms/menus/', 'cms:menu:').replace('cms/', 'cms:').replace('site/settings', 'cms:settings');
+}
 async function cmsRead<T>(path: string, locale: Locale) {
   const token = await previewToken();
-  // The home response resolves category cards live. There is no save-time cache
-  // invalidation from Django, so sharing this response would hide recent categories.
   if (token) return request<T>(path, locale, '', token);
-  // Published pages are read live too: a publish in the dashboard must show on the next visit.
-  // (Phase 8 replaces these live reads with tag invalidation triggered by publishing.)
-  if (path === 'cms/brand' || path === 'cms/home' || (path.startsWith('cms/pages/') || path.startsWith('cms/menus/'))) {
-    await connection();
-    return request<T>(path, locale);
-  }
-  return cachedRead<T>(path, locale, '', 'cms');
+  return cachedRead<T>(path, locale, '', cmsTag(path));
 }
 export const getBrand = cache((locale: Locale) => cmsRead<import('../cms-brand').BrandIdentity>('cms/brand', locale));
 export const getMenu = cache((locale: Locale, menu: 'main' | 'footer') => cmsRead<CmsMenu>(`cms/menus/${menu}`, locale));
-export const getPublishedPageByKind = (locale: Locale, kind: string) => request<CmsPage>(`cms/pages/kind/${kind}`, locale);
+export const getPublishedPageByKind = (locale: Locale, kind: string) => cachedRead<CmsPage>(`cms/pages/kind/${kind}`, locale, '', `cms:page:${kind}`);
 export const getHome = cache((locale: Locale) => cmsRead<Home>('cms/home', locale));
 // Published reads for sitemap generation never touch request cookies.
-export const getPublishedPage = (locale: Locale, slug: string) => cachedRead<CmsPage>(`cms/pages/${encodeURIComponent(slug)}`, locale, '', 'cms');
+export const getPublishedPage = (locale: Locale, slug: string) => cachedRead<CmsPage>(`cms/pages/${encodeURIComponent(slug)}`, locale, '', 'cms:pages');
 export const getPage = cache((locale: Locale, slug: string, byKind = false) => cmsRead<CmsPage>(`cms/pages/${byKind ? 'kind/' : ''}${encodeURIComponent(slug)}`, locale));
 // Deduplicate within a render, without retaining an outdated menu across requests.
 export const getTaxonomy = cache(async (locale: Locale) => {
@@ -84,8 +89,8 @@ export const getTaxonomy = cache(async (locale: Locale) => {
 });
 export const getCatalog = (locale: Locale, query = '') => cachedRead<Catalog>('catalog/pieces', locale, query, 'catalog');
 export const getPiece = (locale: Locale, slug: string) => cachedRead<PieceDetail>(`catalog/pieces/${encodeURIComponent(slug)}`, locale, '', `piece:${slug}`);
-export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms');
-export const getPersonalization = (locale: Locale) => cachedRead<Personalization>('cms/personalization', locale, '', 'cms');
+export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms:settings');
+export const getPersonalization = (locale: Locale) => cachedRead<Personalization>('cms/personalization', locale, '', 'cms:personalization');
 export const emptyTaxonomy: Taxonomy = { categories: [], collections: [], stones: [], materials: [] };
 export const emptySettings: Settings = { title_scale: 1, text_scale: 1, whatsapp: { number: null, general_url: null }, social: [], support_email: null, legal_pages: [] };
 export async function optionalPage(locale: Locale, kind: string) {

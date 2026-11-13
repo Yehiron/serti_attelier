@@ -21,6 +21,11 @@
 	import security_headers
 	encode zstd gzip
 
+	# Internal frontend endpoints are never forwarded from the public entry point.
+	handle /api/internal/* {
+		respond 404
+	}
+
 	# Capability URLs: no access logging is enabled in this site. Keep tokens private.
 	# Draft Mode (CMS preview): the site-wide Referrer-Policy/Cache-Control would otherwise win.
 	@cms_draft {
