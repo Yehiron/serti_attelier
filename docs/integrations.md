@@ -136,3 +136,13 @@ API: `POST https://graph.facebook.com/{WHATSAPP_API_VERSION}/{WHATSAPP_PHONE_NUM
 ## Facturación electrónica (excluida del MVP)
 
 Interfaz `InvoicingProvider` con `issue(order) -> InvoiceRef` y una implementación `NoopInvoicingProvider`. Los datos del pedido ya guardan lo necesario para integrar un proveedor autorizado por la DIAN más adelante (P-14).
+
+### Wompi sandbox real en local
+
+Por defecto el entorno de desarrollo usa el simulador `wompi-fake` (las pruebas E2E dependen de él). Para probar con el sandbox real de Wompi:
+
+1. Poner las cuatro llaves **de pruebas** (`pub_test_`, `prv_test_`, `test_integrity_`, `test_events_`) y `WOMPI_API_URL=https://sandbox.wompi.co/v1` en el `.env` raíz (no versionado).
+2. Levantar con la capa opcional: `docker compose -f infra/docker-compose.dev.yml -f infra/docker-compose.sandbox.yml up -d`.
+3. Para volver al simulador (y correr Playwright), levantar sin `docker-compose.sandbox.yml`.
+
+Los eventos de Wompi no llegan a `localhost`: el estado se obtiene al volver del checkout (`payment-sync`) y con la conciliación periódica. El webhook se prueba en *staging* con una URL pública. Las llaves de producción solo van en `.env.production` del servidor.

@@ -1,0 +1,11 @@
+# Opt-in: real Wompi sandbox instead of the local fake. The test keys come from ../.env
+# (WOMPI_PUBLIC_KEY, WOMPI_PRIVATE_KEY, WOMPI_INTEGRITY_SECRET, WOMPI_EVENTS_SECRET, WOMPI_API_URL).
+#   docker compose -f infra/docker-compose.dev.yml -f infra/docker-compose.sandbox.yml up -d
+# Browser E2E tests expect the fake: start without this file to run them.
+services:
+  backend:
+    environment: !reset {}
+  worker:
+    environment: !reset {}
+  beat:
+    environment: !reset {}
