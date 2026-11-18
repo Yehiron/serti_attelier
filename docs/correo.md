@@ -28,7 +28,9 @@ Gmail y Outlook solo confían en un correo si el dominio del remitente lo **aute
 
 Por eso el remitente debe ser del **dominio de la tienda** (p. ej. `pedidos@serti.co`), nunca una cuenta de Gmail. `check_production` bloquea el lanzamiento si el remitente no usa el dominio de la tienda, si falta TLS o si faltan las credenciales.
 
-## Pasos (cuando exista el dominio)
+## Pasos
+
+Para `sertiattelier.com` en Hostinger: [dominio-sertiattelier.md](dominio-sertiattelier.md).
 
 1. **Cuenta en Resend** (resend.com, plan gratis: 3.000 correos/mes, 100/día). La crea el cliente con su correo.
 2. **Domains → Add domain** → el dominio de la tienda. Resend muestra los registros exactos: normalmente un TXT de DKIM (`resend._domainkey`), y un MX y un TXT de SPF en un subdominio de envío. **Copiarlos tal cual** en el panel DNS del dominio.
