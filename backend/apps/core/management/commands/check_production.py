@@ -15,6 +15,7 @@ from apps.cms.models import HomePublication, PageRevision
 from apps.cms.selectors import published_pages
 from apps.core import health
 from apps.core.models import SiteSettings
+from apps.notifications.email_checks import sender_errors
 from apps.payments.configuration import configuration_errors
 
 
@@ -60,6 +61,8 @@ class Command(BaseCommand):
         report("Migraciones aplicadas", migrations_ok)
         report("Llaves Wompi completas y coherentes con su URL", wompi_coherent())
         report("Correo SMTP configurado", bool(settings.EMAIL_HOST), warning=True)
+        for problem in sender_errors(settings):
+            report(f"Correo: {problem}", False)
         report("Correo de pedidos configurado", bool(settings.SERTI_ORDERS_EMAIL), warning=True)
         report("WhatsApp con proveedor real", settings.WHATSAPP_PROVIDER != "log", warning=True)
         report("Sentry habilitado", bool(getattr(settings, "SENTRY_DSN", "")), warning=True)

@@ -79,8 +79,32 @@ def test_production_can_pass_with_warnings() -> None:
             ALLOWED_HOSTS=["example.com"],
             COUPON_EMAIL_PEPPER="p" * 32,
             INTERNAL_API_TOKEN="t" * 32,
+            EMAIL_HOST="",
         ),
     ):
         call_command("check_production", stdout=out)
     assert "❌" not in out.getvalue()
     assert "⚠️" in out.getvalue()
+    # A provider configured with a sender outside the shop domain blocks the launch.
+    bad = StringIO()
+    with (
+        patch.object(health, "check_database", return_value=True),
+        patch.object(health, "check_redis", return_value=True),
+        patch.object(health, "check_migrations", return_value=True),
+        patch("apps.core.management.commands.check_production.wompi_coherent", return_value=True),
+        override_settings(
+            SECRET_KEY="abcdefghij0123456789" * 4,
+            ALLOWED_HOSTS=["example.com"],
+            COUPON_EMAIL_PEPPER="p" * 32,
+            INTERNAL_API_TOKEN="t" * 32,
+            PUBLIC_SITE_URL="https://serti.co",
+            EMAIL_HOST="smtp.resend.com",
+            EMAIL_USE_TLS=True,
+            EMAIL_HOST_USER="resend",
+            EMAIL_HOST_PASSWORD="re_test",
+            DEFAULT_FROM_EMAIL="serti.joyas@gmail.com",
+        ),
+        pytest.raises(CommandError),
+    ):
+        call_command("check_production", stdout=bad)
+    assert "❌ Correo: El remitente" in bad.getvalue()

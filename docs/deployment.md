@@ -36,7 +36,7 @@ En el proveedor del dominio del cliente:
 | CAA (opcional) | `@` | `0 issue "letsencrypt.org"` |
 
 Para el correo transaccional, el proveedor SMTP indicará los registros SPF, DKIM y DMARC; sin ellos
-los correos de pedidos terminan en spam.
+los correos de pedidos terminan en spam. Guía paso a paso con Resend: [correo.md](correo.md).
 
 Comprobar antes del primer arranque: `dig +short CHANGE-ME.co` debe devolver la IP del VPS. Caddy
 pide el certificado al iniciar; si el DNS aún no apunta, Let's Encrypt falla y reintenta con espera.
@@ -57,7 +57,7 @@ Completar `.env.production` (cada `CHANGE-ME`):
 - `DJANGO_ADMIN_URL`: ruta del panel difícil de adivinar (por ejemplo `gestion-7f3k/`).
 - Wompi: llaves de **sandbox** hasta que el cliente apruebe la salida en vivo (P-11). La URL del
   evento a registrar en Wompi es `https://<dominio>/api/v1/payments/wompi/events`.
-- SMTP y `SERTI_ORDERS_EMAIL` cuando el cliente elija proveedor (P-09).
+- SMTP (Resend, ver [correo.md](correo.md)) y `SERTI_ORDERS_EMAIL`.
 - `BACKUP_AGE_RECIPIENT`: llave pública de copias (sección 6).
 - `REVALIDATE_SECRET`: secreto aleatorio distinto de los demás, idéntico en Django/worker y Next.
   Vacío cierra el endpoint con 503; no guardarlo en notas, logs ni pruebas.
