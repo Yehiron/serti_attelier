@@ -127,7 +127,13 @@ def test_checkout_and_reload(order: Order, client: APIClient) -> None:
     assert fields["expiration-time"].endswith("Z")
     assert fields["redirect-url"].endswith(f"/es/pedido/{order.public_token}")
     prefilled = checkout_fields(first, include_customer=True)
-    assert len(prefilled) == 14 and prefilled["shipping-address:country"] == "CO"
+    assert prefilled["shipping-address:country"] == "CO"
+    assert prefilled["shipping-address:phone-number"] == order.customer_phone
+    if order.customer_phone.startswith("+57"):
+        assert len(prefilled) == 16 and prefilled["customer-data:phone-number-prefix"] == "+57"
+        assert prefilled["customer-data:phone-number"] == order.customer_phone[3:]
+    else:
+        assert len(prefilled) == 15
     detail = client.get(f"/api/v1/orders/{order.public_token}").data
     assert detail["wompi"]["fields"] == fields and detail["payment"]["can_retry"] is False
 

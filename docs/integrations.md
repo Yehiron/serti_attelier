@@ -146,3 +146,19 @@ Por defecto el entorno de desarrollo usa el simulador `wompi-fake` (las pruebas 
 3. Para volver al simulador (y correr Playwright), levantar sin `docker-compose.sandbox.yml`.
 
 Los eventos de Wompi no llegan a `localhost`: el estado se obtiene al volver del checkout (`payment-sync`) y con la conciliación periódica. El webhook se prueba en *staging* con una URL pública. Las llaves de producción solo van en `.env.production` del servidor.
+
+#### Prueba real en sandbox (2026-11-18)
+
+| Caso | Medio | Resultado en SERTI |
+|---|---|---|
+| Aprobado | Tarjeta 4242 4242 4242 4242 | Pedido pagado, pieza vendida, correo al cliente y a SERTI |
+| Rechazado → reintento aprobado | Tarjeta 4111 1111 1111 1111, luego PSE «Banco que aprueba» | Primer intento DECLINED con opción de reintentar; segundo APPROVED detectado por la conciliación automática (sin volver del checkout) |
+| Error del banco | PSE «Banco que simula un error» | Intento ERROR, «El pago no fue completado», pieza reservada para reintentar |
+| Pendiente | PSE antes de conciliar | «Estamos confirmando tu pago…», reserva con cuenta regresiva |
+
+Correcciones que solo el sandbox real reveló:
+- Wompi exige `shipping-address:phone-number` cuando se envía dirección de envío (el checkout fallaba).
+- El celular se prellenaba vacío: Wompi espera el número nacional y `customer-data:phone-number-prefix` aparte.
+- El checkout quedaba bloqueado en la misma pestaña tras un pedido rechazado, pendiente o abandonado («confirmación pendiente» con los datos anteriores). Ahora la marca guarda el pedido creado, la página del pedido la retira y el checkout ofrece «Ver mi pedido» / «Hacer otra compra».
+
+Notas: en el reintento desde la página del pedido Wompi no recibe datos del comprador (la página pública nunca los expone). La conciliación revisa pendientes con más de 10 minutos. En local la vuelta desde Wompi usa `PUBLIC_SITE_URL` (`https://serti.localhost`), que necesita el certificado local de Caddy de confianza en el navegador.

@@ -6,7 +6,7 @@ import type { PaymentDetails } from '@/lib/api/types';
 import type { Locale } from '@/lib/i18n';
 import { browserRequest } from '@/lib/cart';
 import { ApiError } from '@/lib/api/problem';
-import { clearAttempt, clearPaymentAttempt, paymentAttemptKey } from '@/lib/commerce';
+import { clearAttempt, clearAttemptForOrder, clearPaymentAttempt, paymentAttemptKey } from '@/lib/commerce';
 import { orderViewState } from '@/lib/order-state';
 import { submitWompiCheckout, withoutTransactionId } from '@/lib/wompi';
 
@@ -14,6 +14,10 @@ export function OrderPayment({ order, token, locale, t, paused = false }: { paus
   const view = orderViewState(order); const router = useRouter();
   const [busy, setBusy] = useState(false); const [message, setMessage] = useState('');
   const locked = useRef(false); const synced = useRef<string | null>(null); const previous = useRef(view.status);
+  useEffect(() => {
+    // This order now has its own payment controls: the checkout must not keep replaying it.
+    try { clearAttemptForOrder(sessionStorage, token); } catch { /* Storage unavailable. */ }
+  }, [token]);
   useEffect(() => {
     if (view.status === 'approved') {
       try { clearAttempt(sessionStorage); clearPaymentAttempt(sessionStorage, token); } catch { /* Payment is already confirmed. */ }

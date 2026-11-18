@@ -284,6 +284,9 @@
     "cancelledHelp": "Este pedido fue cancelado. Si ya habías pagado, te contactaremos para la devolución.",
     "returnedHelp": "Tu pedido fue devuelto. Escríbenos si necesitas ayuda.",
     "linkUnavailable": "Este enlace ya no está disponible. Escríbenos y con gusto te ayudamos.",
-    "tooManyRequests": "Has consultado este pedido varias veces. Espera un momento y vuelve a intentarlo."
+    "tooManyRequests": "Has consultado este pedido varias veces. Espera un momento y vuelve a intentarlo.",
+    "orderInProgress": "Ya creaste un pedido en esta visita. Puedes pagarlo o revisarlo desde su página.",
+    "viewOrder": "Ver mi pedido",
+    "newPurchase": "Hacer otra compra"
   }
 }

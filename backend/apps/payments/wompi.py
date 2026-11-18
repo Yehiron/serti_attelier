@@ -62,15 +62,22 @@ def checkout_fields(attempt: PaymentAttempt, *, include_customer: bool = False) 
         "redirect-url": settings.PUBLIC_SITE_URL + href("order", order.locale, order),
     }
     if include_customer:
+        # Wompi prefills the phone only as national number + separate prefix (+57 3001234567).
+        phone = order.customer_phone
+        local = phone[3:] if phone.startswith("+57") else phone
+        if local != phone:
+            fields["customer-data:phone-number-prefix"] = "+57"
         fields.update(
             {
                 "customer-data:email": order.customer_email,
                 "customer-data:full-name": order.customer_name,
-                "customer-data:phone-number": order.customer_phone,
+                "customer-data:phone-number": local,
                 "shipping-address:address-line-1": order.shipping_address_line,
                 "shipping-address:country": "CO",
                 "shipping-address:city": place_name(municipality.name),
                 "shipping-address:region": place_name(municipality.department.name),
+                # Wompi rejects a shipping address without its own phone number.
+                "shipping-address:phone-number": order.customer_phone,
             }
         )
     return fields

@@ -33,7 +33,7 @@ export function checkoutPayload(data: FormData, choices: { coupon: string; certi
 export type CheckoutPayload = ReturnType<typeof checkoutPayload>;
 export type AttemptStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 export const attemptStorageKey = 'serti_checkout_attempt';
-export type Attempt = { key: string; body: CheckoutPayload };
+export type Attempt = { key: string; body: CheckoutPayload; order?: string };
 export function readAttempt(storage: AttemptStorage): Attempt | null {
   const raw = storage.getItem(attemptStorageKey); if (!raw) return null;
   try { const attempt = JSON.parse(raw); return typeof attempt.key === 'string' && attempt.body?.contact && attempt.body?.shipping ? attempt : null; } catch { return null; }
@@ -44,6 +44,14 @@ export function checkoutAttempt(storage: AttemptStorage, body: CheckoutPayload, 
   const attempt = { key: uuid(), body }; storage.setItem(attemptStorageKey, JSON.stringify(attempt)); return attempt;
 }
 export function clearAttempt(storage: AttemptStorage) { storage.removeItem(attemptStorageKey); }
+// Once the API answered, the order exists: keep its token so a later visit links to it
+// instead of replaying the request, and so the order page can retire the attempt.
+export function rememberAttemptOrder(storage: AttemptStorage, token: string) {
+  const attempt = readAttempt(storage); if (attempt) storage.setItem(attemptStorageKey, JSON.stringify({ ...attempt, order: token }));
+}
+export function clearAttemptForOrder(storage: AttemptStorage, token: string) {
+  if (readAttempt(storage)?.order === token) clearAttempt(storage);
+}
 export function formatDeadline(value: string, locale: Locale) { return new Intl.DateTimeFormat(locale === 'es' ? 'es-CO' : 'en-US', { timeZone: 'America/Bogota', dateStyle: 'long', timeStyle: 'short' }).format(new Date(value)); }
 
 // One persisted key per order and failed reference: uncertain retries replay the same request.

@@ -284,6 +284,9 @@
     "cancelledHelp": "This order was cancelled. If you had already paid, we’ll contact you about your refund.",
     "returnedHelp": "Your order was returned. Contact us if you need help.",
     "linkUnavailable": "This link is no longer available. Contact us and we’ll be happy to help.",
-    "tooManyRequests": "You’ve checked this order several times. Please wait a moment and try again."
+    "tooManyRequests": "You’ve checked this order several times. Please wait a moment and try again.",
+    "orderInProgress": "You already placed an order during this visit. You can pay for it or check it on its page.",
+    "viewOrder": "View my order",
+    "newPurchase": "Make another purchase"
   }
 }

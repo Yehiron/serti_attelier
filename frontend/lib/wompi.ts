@@ -2,7 +2,7 @@ import type { WompiCheckout } from './api/types.ts';
 
 const checkoutUrl = 'https://checkout.wompi.co/p/';
 const required = ['public-key', 'currency', 'amount-in-cents', 'reference', 'signature:integrity', 'expiration-time'] as const;
-const allowed = new Set<string>([...required, 'redirect-url', 'customer-data:email', 'customer-data:full-name', 'customer-data:phone-number', 'shipping-address:address-line-1', 'shipping-address:country', 'shipping-address:city', 'shipping-address:region', 'shipping-address:phone-number']);
+const allowed = new Set<string>([...required, 'redirect-url', 'customer-data:email', 'customer-data:full-name', 'customer-data:phone-number', 'customer-data:phone-number-prefix', 'shipping-address:address-line-1', 'shipping-address:country', 'shipping-address:city', 'shipping-address:region', 'shipping-address:phone-number']);
 export function wompiFormModel(checkout: WompiCheckout) {
   if (checkout.checkout_url !== checkoutUrl) throw new Error('Invalid checkout URL');
   const fields = Object.entries(checkout.fields).map(([name, value]) => {

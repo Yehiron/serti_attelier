@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkoutAttempt, checkoutPayload, clearAttempt, couponMessageKey, emptyCart, fieldErrors, formatDeadline, mergeCart, normalizePhone, readAttempt, type CartItem } from './commerce.ts';
+import { checkoutAttempt, checkoutPayload, clearAttempt, clearAttemptForOrder, rememberAttemptOrder, couponMessageKey, emptyCart, fieldErrors, formatDeadline, mergeCart, normalizePhone, readAttempt, type CartItem } from './commerce.ts';
 const item = (sku: string, purchasable = true): CartItem => ({ sku, slug: sku, name: sku, image: null, price: { amount_cents: 10000, currency: 'COP' }, sale_price: null, effective_price: { amount_cents: 10000, currency: 'COP' }, sale_state: purchasable ? 'available' : 'reserved', purchasable });
 test('server reconciliation deduplicates unique pieces, keeps reserved and reconciles removed notices', () => {
   const first = mergeCart(emptyCart, { ...emptyCart, items: [item('A'),item('A'),item('B',false)], subtotal: { amount_cents: 10000, currency: 'COP' }, count: 3 });
@@ -28,6 +28,14 @@ test('attempt persistence replays the exact body and key after edits or reload, 
   assert.deepEqual(readAttempt(storage),first); assert.equal(count,1);
   clearAttempt(storage); assert.equal(readAttempt(storage),null); assert.equal(checkoutAttempt(storage,payload,uuid).key,'uuid-2');
   memory.set('serti_checkout_attempt','broken'); assert.equal(readAttempt(storage),null);
+});
+test('an answered attempt remembers its order and only that order page retires it', () => {
+  const memory = new Map<string,string>(); const storage = { getItem:(key:string) => memory.get(key) ?? null, setItem:(key:string,value:string) => { memory.set(key,value); }, removeItem:(key:string) => { memory.delete(key); } };
+  const first=checkoutAttempt(storage,body(),() => 'uuid-1');
+  rememberAttemptOrder(storage,'token-a'); assert.deepEqual(readAttempt(storage),{...first,order:'token-a'});
+  clearAttemptForOrder(storage,'token-b'); assert.equal(readAttempt(storage)?.order,'token-a');
+  clearAttemptForOrder(storage,'token-a'); assert.equal(readAttempt(storage),null);
+  rememberAttemptOrder(storage,'token-c'); assert.equal(readAttempt(storage),null);
 });
 test('nested and dotted API validation errors map to form names without losing messages', () => {
   assert.deepEqual(fieldErrors({ code:'validation_error',errors:{contact:{email:['Invalid'],phone:['Required']},'shipping.address_line':['Required'],non_field_errors:['Try again']} }),{'contact.email':['Invalid'],'contact.phone':['Required'],'shipping.address_line':['Required'],non_field_errors:['Try again']});

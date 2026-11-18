@@ -70,7 +70,10 @@ export async function stubWompi(page: Page): Promise<() => URLSearchParams> {
   let last = new URLSearchParams();
   await page.route('https://checkout.wompi.co/**', async (route) => {
     last = new URL(route.request().url()).searchParams;
-    await route.fulfill({ status: 200, contentType: 'text/html', body: '<!doctype html><title>Wompi (stub)</title><h1>Wompi stub</h1>' });
+    // Same rule as the real sandbox: a shipping address needs its own phone number.
+    const missingPhone = [...last.keys()].some((key) => key.startsWith('shipping-address:')) && !last.get('shipping-address:phone-number');
+    const body = missingPhone ? '<!doctype html><title>Wompi (stub)</title><h1>Errores</h1><p>shipping-address:phone-number</p>' : '<!doctype html><title>Wompi (stub)</title><h1>Wompi stub</h1>';
+    await route.fulfill({ status: 200, contentType: 'text/html', body });
   });
   return () => last;
 }
