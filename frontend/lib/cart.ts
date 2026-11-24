@@ -5,8 +5,8 @@ export async function browserRequest<T>(path: string, locale: Locale, options: R
   const url = new URL(`/api/v1/${path}`, window.location.origin); url.searchParams.set('locale', locale);
   return readResponse<T>(await fetch(url.pathname + url.search, { ...options, credentials: 'same-origin', cache: 'no-store', headers: { Accept: 'application/json', ...(options.body ? { 'Content-Type': 'application/json' } : {}), ...options.headers } }));
 }
-export type CartSnapshot = { cart: Cart; loaded: boolean; error: boolean; drawer: boolean };
-const initial: CartSnapshot = { cart: emptyCart, loaded: false, error: false, drawer: false };
+export type CartSnapshot = { cart: Cart; loaded: boolean; error: boolean; drawer: boolean; added: string | null; focusTarget: HTMLElement | null };
+const initial: CartSnapshot = { cart: emptyCart, loaded: false, error: false, drawer: false, added: null, focusTarget: null };
 let state = initial;
 let queue: Promise<unknown> = Promise.resolve();
 const listeners = new Set<() => void>();
@@ -25,6 +25,6 @@ function operation(locale: Locale, path = 'cart', options?: RequestInit) {
 export const refreshCart = (locale: Locale) => operation(locale);
 export const addToCart = (locale: Locale, sku: string) => operation(locale, 'cart/items', { method: 'POST', body: JSON.stringify({ sku }) });
 export const removeFromCart = (locale: Locale, sku: string) => operation(locale, `cart/items/${encodeURIComponent(sku)}`, { method: 'DELETE' });
-export const openCart = () => publish({ ...state, drawer: true });
-export const closeCart = () => publish({ ...state, drawer: false });
+export const openCart = (options?: { added?: string; focusTarget?: HTMLElement | null }) => publish({ ...state, drawer: true, added: options?.added ?? null, focusTarget: options?.focusTarget ?? null });
+export const closeCart = () => publish({ ...state, drawer: false, added: null, focusTarget: null });
 export const dismissRemoved = () => publish({ ...state, cart: { ...state.cart, removed: [] } });
