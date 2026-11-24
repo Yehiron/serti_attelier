@@ -3,7 +3,7 @@ import { notFound } from 'next/navigation';
 import { locale } from 'next/root-params';
 import { getDictionary } from '@/app/[locale]/dictionaries';
 import { ApiError, getPiece, getSettings, siteUrl } from '@/lib/api/server';
-import { formatCOP, whatsappUrl } from '@/lib/api/format';
+import { formatCOP } from '@/lib/api/format';
 import { isLocale } from '@/lib/i18n';
 import { href } from '@/lib/routes';
 import { PageAlternates, pageMetadata } from '@/lib/metadata';
@@ -26,31 +26,30 @@ export async function pieceMetadata(slug: string) {
 export async function PieceDetail({ slug }: { slug: string }) {
   const { piece, current } = await context(slug);
   const [dict, settings] = await Promise.all([getDictionary(), getSettings(current)]);
-  const sold = piece.sale_state === 'sold';
-  const message = `${sold ? dict.ui.soldMessage : dict.ui.pieceMessage} ${piece.name} (${piece.sku}) · ${new URL(href('piece', current, piece.slug), siteUrl).href}`;
-  const general = whatsappUrl(settings.whatsapp.number, message);
-  const pageUrl = new URL(href('piece', current, piece.slug), siteUrl).href;
-  const wa = (text: string) => whatsappUrl(settings.whatsapp.number, `${text} ${piece.name} (${piece.sku}) · ${pageUrl}`);
+  const general = piece.whatsapp_url;
+  const pageWhatsapp = piece.sale_state === 'sold' && piece.cta.kind === 'whatsapp' ? piece.cta.url : general;
   const link = (target: string | null, label: string) => target ? <a className="button" href={target} target="_blank" rel="noopener noreferrer">{label} ↗</a> : <p className="cta-unavailable">{label}</p>;
   // Every state is pre-rendered; LivePieceAction picks the live one (the page itself is cached).
   const variants: Record<SaleState, ReactNode> = {
-    available: process.env.NEXT_PUBLIC_CART_ENABLED === 'true' ? <AddToCart sku={piece.sku} locale={current} dict={dict} whatsapp={general} /> : link(wa(dict.ui.pieceMessage), dict.ui.want),
-    reserved: link(wa(dict.ui.pieceMessage), dict.ui.reservedCta),
-    sold: link(wa(dict.ui.soldMessage), dict.ui.bespoke),
-    preorder: link(wa(dict.ui.pieceMessage), dict.ui.preorderCta),
+    available: process.env.NEXT_PUBLIC_CART_ENABLED === 'true' ? <AddToCart sku={piece.sku} locale={current} dict={dict} whatsapp={general} /> : link(general, dict.ui.want),
+    reserved: link(general, dict.ui.reservedCta),
+    sold: link(piece.cta.kind === 'whatsapp' && piece.cta.reason === 'sold' ? piece.cta.url : null, dict.ui.bespoke),
+    preorder: link(general, dict.ui.preorderCta),
   };
   if (piece.cta.kind === 'whatsapp') variants[piece.sale_state] = link(piece.cta.url, piece.cta.reason === 'sold' ? dict.ui.bespoke : piece.cta.reason === 'reserved' ? dict.ui.reservedCta : dict.ui.preorderCta);
   const notices: Partial<Record<SaleState, ReactNode>> = { reserved: <p className="state-notice">{dict.ui.reservedNotice}</p>, sold: <p className="state-notice">{dict.ui.soldNotice}</p> };
   const activePrice = piece.sale_price ?? piece.price;
   const availability = { available: 'InStock', reserved: 'OutOfStock', sold: 'SoldOut', preorder: 'PreOrder' }[piece.sale_state];
   const jsonld = { '@context': 'https://schema.org', '@type': 'Product', name: piece.name, description: piece.short_description, sku: piece.sku, image: piece.gallery.map(x => new URL(x.src, siteUrl).href), brand: { '@type': 'Brand', name: 'SERTI' }, offers: { '@type': 'Offer', url: piece.seo.alternates[current], price: activePrice.amount_cents / 100, priceCurrency: activePrice.currency, availability: `https://schema.org/${availability}` } };
-  const story = (piece.story || piece.long_description || '').trim();
+  const story = (piece.story || '').trim();
+  const details = (piece.long_description || '').trim();
+  const attributeValue = (value: unknown) => typeof value === 'number' ? new Intl.NumberFormat(current, { maximumFractionDigits: 10 }).format(value) : String(value ?? '—');
   const materials = [...piece.materials, ...piece.stones].map(x => x.name).join(' · ');
   const attributes = Object.entries(piece.attributes);
   const policies = settings.legal_pages.filter(x => x.kind === 'shipping' || x.kind === 'returns');
   const slugFrom = (url: string) => decodeURIComponent(url.split('/').filter(Boolean).at(-1) ?? piece.slug);
-  return <main id="main" className="piece-page" data-page-whatsapp={general ?? undefined}><PageAlternates alternates={piece.seo.alternates} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonld).replace(/</g, '\\u003c') }} /><div className="piece-detail-layout"><Gallery images={piece.gallery.length ? piece.gallery : piece.image ? [piece.image] : []} video={piece.video} label={dict.ui.gallery} photo={dict.ui.photo} watch={dict.ui.video} /><article className="piece-info"><p className="eyebrow">{dict.ui.unique} · {piece.piece_number}</p><div className="piece-title"><h1>{piece.name}</h1><WishButton wish={{ sku: piece.sku, slugs: { es: slugFrom(piece.seo.alternates.es), en: slugFrom(piece.seo.alternates.en) }, name: piece.name, image: piece.image, price: activePrice, addedAt: 0 }} save={dict.ui.save} remove={dict.ui.remove} /></div><p className="piece-price">{piece.sale_price && <del>{formatCOP(piece.price.amount_cents, current)} </del>}{formatCOP(activePrice.amount_cents, current)}</p><p className="body-copy">{piece.short_description}</p><dl className="attributes">{Object.entries(piece.attributes).map(([key, value]) => <div key={key}><dt>{dict.ui.attributeLabels[key as keyof typeof dict.ui.attributeLabels] ?? key}</dt><dd>{String(value ?? '—')}</dd></div>)}</dl><LivePieceAction sku={piece.sku} initial={piece.sale_state} variants={variants} notices={notices} /><p className="shipping-note">{dict.ui.shipping}</p>
+  return <main id="main" className="piece-page" data-page-whatsapp={pageWhatsapp ?? ""}><PageAlternates alternates={piece.seo.alternates} /><script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonld).replace(/</g, '\\u003c') }} /><div className="piece-detail-layout"><Gallery images={piece.gallery.length ? piece.gallery : piece.image ? [piece.image] : []} video={piece.video} label={dict.ui.gallery} photo={dict.ui.photo} watch={dict.ui.video} /><article className="piece-info"><p className="eyebrow">{dict.ui.unique} · {piece.piece_number}</p><div className="piece-title"><h1>{piece.name}</h1><WishButton wish={{ sku: piece.sku, slugs: { es: slugFrom(piece.seo.alternates.es), en: slugFrom(piece.seo.alternates.en) }, name: piece.name, image: piece.image, price: activePrice, addedAt: 0 }} save={dict.ui.save} remove={dict.ui.remove} /></div><p className="piece-price">{piece.sale_price && <del>{formatCOP(piece.price.amount_cents, current)} </del>}{formatCOP(activePrice.amount_cents, current)}</p><p className="body-copy">{piece.short_description}</p><dl className="attributes">{Object.entries(piece.attributes).map(([key, value]) => <div key={key}><dt>{dict.ui.attributeLabels[key as keyof typeof dict.ui.attributeLabels] ?? key}</dt><dd>{attributeValue(value)}</dd></div>)}</dl><LivePieceAction sku={piece.sku} initial={piece.sale_state} variants={variants} notices={notices} /><p className="shipping-note">{dict.ui.shipping}</p>
       {/* Sections without content are omitted instead of opening empty. */}
-      {story && <details><summary>{dict.ui.story}</summary><div className="body-copy whitespace-pre-line">{story}</div></details>}{materials && <details><summary>{dict.ui.materials}</summary><p>{materials}</p></details>}{attributes.length > 0 && <details><summary>{dict.ui.measurements}</summary><dl className="attributes">{attributes.map(([key, value]) => <div key={key}><dt>{dict.ui.attributeLabels[key as keyof typeof dict.ui.attributeLabels] ?? key}</dt><dd>{String(value ?? '—')}</dd></div>)}</dl></details>}{piece.care && <details><summary>{dict.ui.care}</summary><p className="whitespace-pre-line">{piece.care}</p></details>}{policies.length > 0 && <details><summary>{dict.ui.shipping} · {dict.ui.returns}</summary><div>{policies.map(x => <Link key={x.kind} className="text-link" href={x.href}>{x.title} ↗</Link>)}</div></details>}<Link className="text-link" href={href('story', current)}>{dict.ui.manufacturer} ↗</Link>
+      {details && <details open><summary>{dict.ui.details}</summary><div className="body-copy whitespace-pre-line">{details}</div></details>}{story && <details><summary>{dict.ui.story}</summary><div className="body-copy whitespace-pre-line">{story}</div></details>}{materials && <details><summary>{dict.ui.materials}</summary><p>{materials}</p></details>}{attributes.length > 0 && <details><summary>{dict.ui.measurements}</summary><dl className="attributes">{attributes.map(([key, value]) => <div key={key}><dt>{dict.ui.attributeLabels[key as keyof typeof dict.ui.attributeLabels] ?? key}</dt><dd>{attributeValue(value)}</dd></div>)}</dl></details>}{piece.care && <details><summary>{dict.ui.care}</summary><p className="whitespace-pre-line">{piece.care}</p></details>}{policies.length > 0 && <details><summary>{dict.ui.shipping} · {dict.ui.returns}</summary><div>{policies.map(x => <Link key={x.kind} className="text-link" href={x.href}>{x.title} ↗</Link>)}</div></details>}<Link className="text-link" href={href('story', current)}>{dict.ui.manufacturer} ↗</Link>
       </article></div><section className="related"><h2>{dict.ui.related}</h2><div className="piece-grid">{piece.related.map(related => <PieceCard key={related.sku} piece={related} locale={current} dict={dict} />)}</div></section><div className="sticky-piece-cta"><span><span className="sticky-piece-name">{piece.name}</span><small>{formatCOP(activePrice.amount_cents, current)}</small></span><LivePieceAction sku={piece.sku} initial={piece.sale_state} variants={variants} bare /></div></main>;
 }

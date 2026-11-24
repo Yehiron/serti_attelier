@@ -103,6 +103,11 @@ class Command(BaseCommand):
                     SiteSettings.objects.exclude(whatsapp_number="").exists(),
                     warning=True,
                 )
+                report(
+                    "Correo de soporte configurado",
+                    SiteSettings.objects.exclude(support_email="").exists(),
+                    warning=True,
+                )
                 report("Inicio publicado", HomePublication.objects.exists(), warning=True)
                 report(
                     "Sin piezas de demostración",

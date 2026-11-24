@@ -89,12 +89,14 @@ def quote(
             coupon.ends_at and now >= coupon.ends_at
         ):
             reason = "coupon_expired"
-        elif (coupon.max_uses is not None and coupon.uses >= coupon.max_uses) or (
+        elif coupon.max_uses is not None and coupon.uses >= coupon.max_uses:
+            reason = "coupon_exhausted"
+        elif (
             email_hash is not None
             and coupon.max_uses_per_email is not None
             and coupon.email_uses >= coupon.max_uses_per_email
         ):
-            reason = "coupon_exhausted"
+            reason = "coupon_used_by_email"
         elif result.subtotal_cents < coupon.min_subtotal_cents:
             reason = "coupon_min_subtotal"
         elif not eligible:

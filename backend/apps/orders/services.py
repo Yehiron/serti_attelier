@@ -161,7 +161,8 @@ def create_order(
             lock=True,
         )
     if pricing.coupon and not pricing.coupon["applied"]:
-        raise CheckoutError(str(pricing.coupon["reason"]))
+        reason = str(pricing.coupon["reason"])
+        raise CheckoutError("coupon_exhausted" if reason == "coupon_used_by_email" else reason)
     config = get_solo()
     channel = data["payment_channel"]
     expires = timezone.now() + (
@@ -406,6 +407,17 @@ def validate_fulfillment(order, target):
         raise ValidationError(prefix + "las piezas no están vendidas a este pedido.")
 
 
+def available_fulfillment_transitions(order):
+    allowed = set(FULFILLMENT_TRANSITIONS.get(order.fulfillment_status, ()))
+    for target in allowed & {"preparing", "shipped"}:
+        try:
+            with transaction.atomic():
+                validate_fulfillment(order, target)
+        except ValidationError:
+            allowed.remove(target)
+    return allowed
+
+
 @transaction.atomic
 def cancel_order(order, *, actor, reason, notify, expected_status, include_reason=False):
     from apps.inventory.models import PieceReservation, PieceStatusChange
@@ -454,6 +466,14 @@ def cancel_order(order, *, actor, reason, notify, expected_status, include_reaso
                 ref=order.number or "",
                 actor=actor,
             )
+    if order.payment_status not in {"approved", "voided", "cancelled"}:
+        payment_previous = order.payment_status
+        order.payment_status = "cancelled"
+        order.save(update_fields=["payment_status", "updated_at"])
+        OrderStatusChange.objects.create(
+            order=order, field="payment_status", from_state=payment_previous,
+            to_state="cancelled", actor=actor, note="Pedido cancelado.",
+        )
     order.fulfillment_status = "cancelled"
     order.save(update_fields=["fulfillment_status", "updated_at"])
     change = OrderStatusChange.objects.create(

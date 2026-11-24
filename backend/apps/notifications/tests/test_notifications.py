@@ -126,7 +126,7 @@ def test_confirmation_email(order: Order, locale: str, certificate: bool) -> Non
         certificate_label = (
             "Certificado de autenticidad" if locale == "es" else "Certificate of authenticity"
         )
-        assert certificate_label in body
+        assert (certificate_label in body) == certificate
         assert format_cop(order.shipping_cents, locale) in body
         assert "factura" not in body.lower() and "invoice" not in body.lower()
     assert 'lang="' + locale + '"' in html and "/brand/monogram-email.png" in html
@@ -534,3 +534,30 @@ def test_html_escapes_customer_and_manual_content(order: Order) -> None:
     enqueue(order, "needs_attention")
     internal = order.deliveries.get(event="needs_attention", channel="email")
     assert "<script>" not in render_email(internal, order).html
+
+
+@pytest.mark.parametrize("locale", ["es", "en"])
+def test_order_email_footer_and_zero_totals(order, locale):
+    from urllib.parse import parse_qs, urlsplit
+
+    config = get_solo()
+    config.whatsapp_number = "573001112233"
+    config.save()
+    order.locale = locale
+    order.discount_cents = 0
+    order.wants_certificate = False
+    order.payment_status = "cancelled"
+    order.fulfillment_status = "cancelled"
+    order.save()
+    context = order_context(order, locale)
+    text = parse_qs(urlsplit(context["whatsapp_url"]).query)["text"][0]
+    assert order.number in text
+    prefix = (
+        "Hola SERTI, quiero coordinar" if locale == "es" else "Hello SERTI, I'd like to coordinate"
+    )
+    assert text.startswith(prefix)
+    delivery = queued(order, "order_cancelled")
+    content = render_email(delivery, order)
+    assert context["purchase_status"] in content.text
+    assert context["l_discount"] not in content.text
+    assert context["l_certificate"] not in content.text

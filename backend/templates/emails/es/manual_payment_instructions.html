@@ -2,6 +2,6 @@
 {% block content %}
 <p style="font-size:15px;line-height:1.7;">Reservamos tus piezas mientras completas el pago.</p>
 <p style="font-size:15px;line-height:1.7;">{{ instructions|linebreaksbr }}</p>
-<p style="font-size:15px;line-height:1.7;">{% if deadline %}Paga antes de: {{ deadline }}{% endif %}</p>
 <p style="font-size:15px;line-height:1.7;">Te avisaremos cuando confirmemos el pago.</p>
+{% if deadline and deadline not in instructions %}<p style="font-size:15px;line-height:1.7;">Paga antes de: {{ deadline }}</p>{% endif %}
 {% endblock %}

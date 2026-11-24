@@ -4,7 +4,7 @@ Your pieces are reserved while you complete payment.
 
 {{ instructions }}
 
-{% if deadline %}Pay before: {{ deadline }}{% endif %}
 
 We will let you know once we confirm your payment.
+{% if deadline and deadline not in instructions %}Pay before: {{ deadline }}{% endif %}
 {% endblock %}

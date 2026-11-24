@@ -71,6 +71,7 @@ class Order(models.Model):
             ("error", _("Error")),
             ("expired", _("Vencido")),
             ("voided", _("Anulado")),
+            ("cancelled", _("Anulado")),
         ],
     )
     fulfillment_status = models.CharField(

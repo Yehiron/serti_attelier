@@ -6,6 +6,7 @@ PAYMENT_TRANSITIONS: dict[str, frozenset[str]] = {
     "approved": frozenset({"voided"}),
     "expired": frozenset({"approved"}),
     "voided": frozenset(),
+    "cancelled": frozenset({"approved"}),
 }
 FULFILLMENT_TRANSITIONS: dict[str, frozenset[str]] = {
     "unfulfilled": frozenset({"preparing", "cancelled"}),

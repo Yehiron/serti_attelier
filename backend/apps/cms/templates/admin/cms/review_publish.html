@@ -1,5 +1,5 @@
 {% extends "admin/base_site.html" %}
-{% load static %}
+{% load static i18n %}
 {% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'cms/visual-editor.css' %}">{% endblock %}
 {% block content %}
 <div class="cms-review">
@@ -11,6 +11,7 @@
 {% if brand_failures %}<div class="cms-review-notice" role="alert"><p>Ajusta estos colores en el editor antes de publicar:</p><ul>{% for check in brand_failures %}<li>{{ check.message }}</li>{% endfor %}</ul></div>{% endif %}
 {% if error %}<div class="cms-review-notice" role="alert"><p>{{ error }}</p><a class="cms-secondary" href="{{ current_url }}" target="_blank" rel="noopener">Ver versión actual</a></div>{% endif %}
 {% if pending_count %}{% include "admin/cms/change_groups.html" %}{% else %}<p class="cms-empty">No hay cambios pendientes</p>{% endif %}
+{% if missing_translations %}<div class="cms-review-notice" role="status"><p>{% blocktranslate count count=missing_translations|length %}Falta {{ count }} texto en inglés. Si publicas así, los visitantes en inglés lo verán en español.{% plural %}Faltan {{ count }} textos en inglés. Si publicas así, los visitantes en inglés los verán en español.{% endblocktranslate %}</p><ul>{% for item in missing_translations %}<li>{{ item.section }} · {{ item.label }} · {{ item.es }} — <a href="{{ item.url }}">Editar en inglés</a></li>{% endfor %}</ul></div>{% endif %}
 <form method="post" class="cms-publish-form">{% csrf_token %}<input type="hidden" name="expected_version" value="{{ expected_version }}">
 <label for="publication-note">Nota opcional</label><p class="cms-help" id="note-help">Quedará guardada en el historial de esta publicación.</p><textarea id="publication-note" name="note" maxlength="300" aria-describedby="note-help">{{ note }}</textarea>
 <div class="cms-publish-footer"><button class="cms-primary" {% if not pending_count or error or brand_failures %}disabled aria-disabled="true" aria-describedby="publish-disabled"{% endif %}>Publicar ahora</button>{% if brand_failures %}<p id="publish-disabled">No se puede publicar: ajusta los colores señalados hasta alcanzar el contraste mínimo.</p>{% elif error %}<p id="publish-disabled">Revisa la versión actual y resuelve el aviso antes de publicar.</p>{% elif not pending_count %}<p id="publish-disabled">La tienda ya muestra este contenido. Edita el borrador para publicar cambios.</p>{% endif %}</div>

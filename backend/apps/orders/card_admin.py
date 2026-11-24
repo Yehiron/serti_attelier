@@ -13,8 +13,7 @@ from apps.core.formatting import format_admin_cop, format_bogota_datetime
 
 from .forms import CardFulfillmentForm
 from .models import Order, OrderStatusChange
-from .services import add_order_note, transition_status
-from .transitions import FULFILLMENT_TRANSITIONS
+from .services import add_order_note, available_fulfillment_transitions, transition_status
 
 
 class OrderCardAdminMixin:
@@ -70,7 +69,7 @@ class OrderCardAdminMixin:
                     "note": change.note,
                 }
             )
-        allowed = FULFILLMENT_TRANSITIONS.get(order.fulfillment_status, ())
+        allowed = available_fulfillment_transitions(order)
         can_cancel = request.user.has_perm("orders.cancel_order")
         incidents = [
             {
@@ -122,6 +121,7 @@ class OrderCardAdminMixin:
                 }
                 for key, label in Order._meta.get_field("fulfillment_status").choices
                 if key in allowed and (key != "cancelled" or can_cancel)
+                and not (key in {"preparing", "shipped"} and order.payment_status != "approved")
             ],
             "pieces": [
                 {

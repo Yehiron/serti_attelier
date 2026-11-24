@@ -139,8 +139,18 @@ def home_groups(current, previous):
                 "rows": [
                     {
                         "label": "Orden de las secciones",
-                        "before": "Orden anterior",
-                        "after": "Orden actualizado",
+                        "before": ", ".join(
+                            REGISTRY[row.get("kind")].name
+                            if row.get("kind") in REGISTRY
+                            else "Sección"
+                            for row in previous
+                        ),
+                        "after": ", ".join(
+                            REGISTRY[row.get("kind")].name
+                            if row.get("kind") in REGISTRY
+                            else "Sección"
+                            for row in current
+                        ),
                     }
                 ],
             }

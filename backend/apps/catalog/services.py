@@ -173,7 +173,7 @@ def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None
         piece.status != Piece.Status.DRAFT or piece.sale_state != Piece.SaleState.AVAILABLE
     ):
         raise ValidationError(_("Las piezas nuevas deben ser borradores disponibles."))
-    automatic_sku = old is None and not piece.sku
+    automatic_sku = not piece.sku
     # Historical unknown keys survive edits, but cannot be introduced or altered here.
     from .validators import ATTRIBUTE_FIELDS, validate_attributes
 
@@ -219,22 +219,22 @@ def publication_missing(piece: Piece) -> list[str]:
         ("category_id", "categoría"),
         ("price_cents", "precio"),
         ("name_es", "nombre en español"),
-        ("slug_es", "slug en español"),
+        ("slug_es", "dirección web en español"),
         ("short_description_es", "descripción corta en español"),
     ]:
         if not getattr(piece, field):
             missing.append(label)
     if not piece.pk:
-        return [*missing, "imagen procesada", "imagen principal procesada"]
+        return [*missing, "al menos una foto lista", "foto principal lista"]
     photos = list(piece.images.all())  # reuse the admin's prefetch, including photos/status
     primary_pending = any(p.is_primary and p.processing_status == "pending" for p in photos)
     if primary_pending:
         missing.append("la foto principal aún se está procesando")
     else:
         if not any(p.processing_status == "ready" for p in photos):
-            missing.append("imagen procesada")
+            missing.append("al menos una foto lista")
         if not any(p.is_primary and p.processing_status == "ready" for p in photos):
-            missing.append("imagen principal procesada")
+            missing.append("foto principal lista")
     return missing
 
 
@@ -663,11 +663,6 @@ def duplicate_piece(piece: Piece, actor: Actor, request: HttpRequest | None = No
         raise PermissionDenied
     require_commercial_permission(actor)
     source = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
-    # Serialize copies of the same source; bounded identifiers retain room for suffixes.
-    index = 1
-    while Piece.objects.filter(sku=f"{source.sku[:25]}-COPIA-{index}").exists():
-        index += 1
-    suffix = f"-copia-{index}"
     data = {
         field.attname: getattr(source, field.attname)
         for field in Piece._meta.concrete_fields
@@ -688,19 +683,14 @@ def duplicate_piece(piece: Piece, actor: Actor, request: HttpRequest | None = No
             "slug_en",
         }
     }
-    data["sku"] = f"{source.sku[:25]}-COPIA-{index}"
+    data["sku"] = ""
     for locale in ("es", "en"):
         data[f"name_{locale}"] = (
             f"{(getattr(source, f'name_{locale}') or source.name_es)[:192]} (copia)"
         )
-        base = getattr(source, f"slug_{locale}") or source.slug_es or source.sku.lower()
-        slug = base[:190] + suffix
-        collision = 1
-        while Piece.objects.filter(**{f"slug_{locale}": slug}).exists():
-            collision += 1
-            slug = f"{base[:180]}{suffix}-{collision}"
-        data[f"slug_{locale}"] = slug
-    copy = Piece.objects.create(**data)
+    copy = Piece(**data)
+    copy.sku = next_piece_sku(copy)
+    copy.save()
     copy.stones.set(source.stones.all())
     copy.materials.set(source.materials.all())
     for link in CollectionPiece.objects.filter(piece=source):

@@ -182,7 +182,7 @@ def test_history_confirmation_csrf_and_queries(page, actor):
     with CaptureQueriesContext(connection) as queries:
         response = client.get(reverse("cms-history") + f"?document={page.pk}")
     assert response.status_code == 200
-    assert len(response.context_data["rows"]) == 20
+    assert len(response.context_data["entries"]) == 20
     assert len(queries) < 25
     assert "snapshot" not in response.content.decode()
     with CaptureQueriesContext(connection) as queries:
@@ -403,3 +403,41 @@ def test_delete_faq_and_step_audits(page, actor):
         event = AuditLog.objects.latest("pk")
         assert event.actor == actor
         assert event.diff["Contenido"][1] == "Eliminado del borrador"
+
+
+def test_history_interleaves_restorations_and_publications(actor):
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from django.utils import timezone
+    from django_otp import DEVICE_ID_SESSION_KEY
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    from apps.cms.documents import get_document
+    from apps.cms.models import BrandPublication, DraftRevision
+
+    now = timezone.now()
+    with patch("django.utils.timezone.now", return_value=now - timedelta(days=2)):
+        old = BrandPublication.objects.create(snapshot={})
+        DraftRevision.objects.create(
+            document=get_document("brand:identity"),
+            draft_version=999999,
+            restored_from_brand=old,
+            snapshot={},
+        )
+    with patch("django.utils.timezone.now", return_value=now):
+        recent = BrandPublication.objects.create(snapshot={})
+    client = Client()
+    client.force_login(actor)
+    session = client.session
+    session[DEVICE_ID_SESSION_KEY] = TOTPDevice.objects.create(
+        user=actor, confirmed=True
+    ).persistent_id
+    session.save()
+    response = client.get(reverse("cms-history"), {"document": "brand:identity"})
+    assert response.status_code == 200
+    entries = response.context_data["entries"]
+    assert entries[0]["row"]["publication"].pk == recent.pk
+    assert any("restoration" in entry for entry in entries)
+    html = response.content.decode()
+    assert html.index("Publicación</p>") < html.index("Restauración del borrador")

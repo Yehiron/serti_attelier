@@ -32,7 +32,7 @@ test('filter lists unfold in place, one at a time, and submit the chosen value',
   await expect(category.getByRole('listbox')).toBeHidden();
   await expect(row(form, 'Material').getByRole('listbox')).toBeVisible();
   await category.locator('button').click();
-  await category.getByRole('option', { name: 'Anillos' }).click();
+  await category.getByRole('option', { name: 'Anillos', exact: true }).click();
   await expect(category.locator('button')).toHaveText('Anillos');
   await expect(category.getByRole('listbox')).toBeHidden();
   await form.getByRole('button', { name: 'Aplicar filtros' }).click();

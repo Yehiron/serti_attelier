@@ -1,0 +1,184 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Contacto · Prototipo C · Cita en el atelier</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,400;0,500;1,400&family=Inter:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+@font-face { font-family: "Ninna"; src: url("../../../frontend/public/fonts/ninna-regular.otf"); }
+@font-face { font-family: "Ninna"; font-style: italic; src: url("../../../frontend/public/fonts/ninna-italic.otf"); }
+:root {
+  --wine: #651c32; --crimson: #8a1538; --cream: #ead9cb; --paper: #dfc9b8;
+  --olive: #7a7256; --olive-deep: #58513d; --ink: #330414;
+  --serif: "Ninna", "Cormorant Garamond", Georgia, serif;
+  --sans: "Inter", Arial, sans-serif;
+  --gutter: clamp(20px, 5vw, 88px);
+  --mark: url("../../../frontend/public/brand/logo/monogram-mark.webp");
+  --ease: cubic-bezier(.22,1,.36,1);
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--cream); color: var(--ink); font: 300 16px/1.6 var(--sans); -webkit-font-smoothing: antialiased; }
+.proto-tag { position: fixed; z-index: 40; left: 50%; top: 0; transform: translateX(-50%); white-space: nowrap; font: 500 10px/1 var(--sans); letter-spacing: .16em; text-transform: uppercase; background: var(--ink); color: var(--cream); padding: 8px 10px; }
+header.nav { display: flex; justify-content: space-between; align-items: center; padding: 22px var(--gutter); border-bottom: 1px solid #7a725633; font-size: 12px; letter-spacing: .18em; text-transform: uppercase; }
+header.nav .brand { font-family: var(--serif); font-size: 26px; letter-spacing: .14em; color: var(--wine); text-transform: none; }
+
+.split { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); min-height: calc(100vh - 70px); }
+.visual { position: relative; overflow: hidden; background: var(--ink); }
+.visual img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: saturate(.92) contrast(1.02); transform: scale(1.04); }
+.visual::after { content: ""; position: absolute; inset: 0; background: linear-gradient(180deg, #33041400 40%, #330414d9 100%); }
+.visual .caption { position: absolute; z-index: 1; left: clamp(24px, 4vw, 56px); right: clamp(24px, 4vw, 56px); bottom: clamp(28px, 5vw, 64px); color: var(--cream); }
+.visual .caption .mark { display: block; width: 74px; aspect-ratio: 240/206; background: url("../../../frontend/public/brand/logo/monogram-gold.webp") center/contain no-repeat;  margin-bottom: 22px; opacity: .9; }
+.visual blockquote { margin: 0; font: italic 400 clamp(28px, 3vw, 40px)/1.15 var(--serif); }
+.visual cite { display: block; margin-top: 14px; font: 400 11px/1 var(--sans); letter-spacing: .22em; text-transform: uppercase; color: #ead9cbb3; font-style: normal; }
+
+.panel { position: relative; isolation: isolate; overflow: hidden; padding: clamp(40px, 6vw, 88px) clamp(24px, 6vw, 96px) 120px; display: flex; flex-direction: column; }
+.panel::before { content: ""; position: absolute; z-index: -1; right: -60px; bottom: -40px; width: 420px; aspect-ratio: 240/206; background: url("../../../frontend/public/brand/logo/monogram-wine.webp") center/contain no-repeat; opacity: .05;  }
+.eyebrow { font-size: 11px; letter-spacing: .22em; text-transform: uppercase; color: var(--olive-deep); margin: 0; }
+h1 { font: 400 clamp(46px, 5.6vw, 84px)/.95 var(--serif); color: var(--wine); margin: 14px 0 18px; }
+h1 em { font-style: italic; }
+.lede { max-width: 460px; color: var(--olive-deep); margin: 0 0 40px; }
+
+.progress { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 40px; max-width: 520px; }
+.progress li { list-style: none; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--olive); padding-top: 12px; border-top: 1px solid #7a725655; position: relative; }
+.progress li::before { content: ""; position: absolute; left: 0; top: -1px; height: 1px; width: 0; background: var(--wine); transition: width .6s var(--ease); }
+.progress li.done::before, .progress li[aria-current]::before { width: 100%; }
+.progress li[aria-current] { color: var(--wine); }
+.progress { padding: 0; }
+
+.step { display: none; max-width: 560px; animation: rise .6s var(--ease); }
+.step.active { display: block; }
+@keyframes rise { from { opacity: 0; transform: translateY(10px); } }
+@media (prefers-reduced-motion: reduce) { .step { animation: none; } }
+.step h2 { font: 400 clamp(28px, 2.6vw, 36px)/1.1 var(--serif); color: var(--ink); margin: 0 0 24px; }
+.step h2 span { color: var(--olive); font-family: var(--sans); font-size: 12px; letter-spacing: .2em; margin-right: 12px; vertical-align: middle; }
+
+.options { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.option input { position: absolute; opacity: 0; }
+.option .box { display: grid; gap: 4px; min-height: 96px; padding: 18px 20px; border: 1px solid #7a725660; background: #f3e8de80; cursor: pointer; transition: border-color .3s, background .3s, transform .3s var(--ease); position: relative; }
+.option .box b { font: 400 22px/1.1 var(--serif); color: var(--wine); }
+.option .box small { font-size: 12.5px; color: var(--olive-deep); }
+.option .box::after { content: ""; position: absolute; right: 16px; top: 16px; width: 16px; height: 16px; border-radius: 50%; border: 1px solid var(--olive); }
+.option:hover .box { transform: translateY(-2px); }
+.option input:checked + .box { border-color: var(--wine); background: #f6ece3; box-shadow: inset 0 0 0 1px var(--wine); }
+.option input:checked + .box::after { background: var(--wine) radial-gradient(circle, var(--cream) 0 2px, transparent 3px); border-color: var(--wine); }
+.option input:focus-visible + .box { outline: 2px solid var(--wine); outline-offset: 3px; }
+.option.wide { grid-column: 1 / -1; }
+.option.wide .box { min-height: 64px; }
+
+.field { position: relative; margin-bottom: 26px; }
+.field label { display: block; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; color: var(--olive-deep); margin-bottom: 4px; }
+.field input, .field textarea { width: 100%; border: 0; border-bottom: 1px solid #7a725699; background: transparent; padding: 8px 0 10px; font: 400 22px/1.3 "Cormorant Garamond", Georgia, serif; color: var(--ink); outline: none; border-radius: 0; }
+.field textarea { min-height: 150px; resize: vertical; }
+.field input::placeholder, .field textarea::placeholder { color: #58513d80; font-style: italic; }
+.field:focus-within label { color: var(--wine); }
+.field:focus-within input, .field:focus-within textarea { border-bottom-color: var(--wine); }
+.field input:-webkit-autofill { -webkit-text-fill-color: var(--ink); box-shadow: 0 0 0 100px var(--cream) inset; }
+.field .count { position: absolute; right: 0; bottom: -20px; font-size: 11px; color: var(--olive); }
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 0 28px; }
+.segmented { display: inline-flex; border: 1px solid #7a725680; margin-top: 6px; }
+.segmented label { position: relative; }
+.segmented input { position: absolute; opacity: 0; }
+.segmented span { display: inline-flex; align-items: center; min-height: 44px; padding: 0 22px; font-size: 13px; cursor: pointer; transition: background .3s, color .3s; }
+.segmented input:checked + span { background: var(--wine); color: var(--cream); }
+.consent { display: flex; gap: 10px; align-items: center; font-size: 13px; color: var(--olive-deep); margin-top: 26px; }
+.consent a { color: var(--wine); }
+input[type=checkbox] { appearance: none; width: 18px; height: 18px; border: 1px solid var(--olive); margin: 0; flex: none; display: grid; place-items: center; }
+input[type=checkbox]:checked { background: var(--wine); border-color: var(--wine); }
+input[type=checkbox]:checked::after { content: ""; width: 5px; height: 9px; border: solid var(--cream); border-width: 0 1.5px 1.5px 0; transform: rotate(45deg) translate(-1px, -1px); }
+
+.summary { border-left: 1px solid var(--wine); padding: 4px 0 4px 18px; margin-bottom: 26px; font-size: 14px; color: var(--olive-deep); }
+.summary b { font-weight: 400; color: var(--wine); }
+
+.actions { display: flex; gap: 16px; align-items: center; margin-top: 36px; }
+.primary { min-height: 54px; padding: 0 36px; border: 0; background: var(--wine); color: var(--cream); font: 500 12px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; cursor: pointer; transition: background .3s; }
+.primary:hover { background: var(--crimson); }
+.back { background: none; border: 0; color: var(--olive-deep); font: 400 12px/1 var(--sans); letter-spacing: .18em; text-transform: uppercase; cursor: pointer; min-height: 44px; }
+
+.concierge { position: fixed; z-index: 20; right: clamp(16px, 3vw, 36px); bottom: clamp(16px, 3vw, 36px); display: flex; align-items: center; gap: 12px; padding: 8px 22px 8px 8px; border-radius: 999px; background: #ead9cbe0; backdrop-filter: blur(18px) saturate(130%); -webkit-backdrop-filter: blur(18px) saturate(130%); border: 1px solid #ffffff70; box-shadow: 0 18px 50px -18px #33041466; color: var(--wine); text-decoration: none; font-size: 13px; transition: transform .4s var(--ease); }
+.concierge:hover { transform: translateY(-2px); }
+.concierge i { width: 42px; height: 42px; border-radius: 50%; background: var(--wine); color: var(--cream); display: grid; place-items: center; }
+.concierge svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; }
+.concierge b { display: block; font-weight: 500; letter-spacing: .04em; }
+.concierge small { display: block; font-size: 11px; color: var(--olive-deep); }
+
+@media (max-width: 900px) {
+  .split { grid-template-columns: 1fr; }
+  .visual { min-height: 46vh; }
+  .panel { padding-top: 40px; }
+  .options { grid-template-columns: 1fr; }
+  .option .box { min-height: 0; }
+  .two { grid-template-columns: 1fr; }
+  .actions { flex-direction: column-reverse; align-items: stretch; }
+  .primary { width: 100%; }
+  .concierge { left: 16px; right: 16px; justify-content: flex-start; }
+}
+@media (max-width: 720px) { header.nav > span:not(.brand) { display: none; } header.nav { justify-content: center; } }
+html, body { overflow-x: hidden; }
+</style>
+</head>
+<body>
+<div class="proto-tag">Prototipo C · Cita en el atelier</div>
+<header class="nav"><span>Colecciones · Joyería · Historia</span><span class="brand">SERTI</span><span>Buscar · Tu selección (0)</span></header>
+<main class="split">
+  <figure class="visual" style="margin:0">
+    <img src="foto-c.jpg" alt="Pulseras de diamantes y esmeraldas sobre una copa de cristal">
+    <figcaption class="caption"><span class="mark" aria-hidden="true"></span><blockquote>Cada pieza comienza con una conversación.</blockquote><cite>Atelier SERTI · Colombia</cite></figcaption>
+  </figure>
+
+  <section class="panel">
+    <p class="eyebrow">Contacto</p>
+    <h1>Visita <em>el atelier</em></h1>
+    <p class="lede">Tres pasos y una asesora te responde personalmente para acompañarte a elegir o crear tu joya.</p>
+
+    <ol class="progress" id="progress">
+      <li aria-current="step">Motivo</li><li>Tus datos</li><li>Tu mensaje</li>
+    </ol>
+
+    <form onsubmit="event.preventDefault()">
+      <div class="step active" data-step="0">
+        <h2><span>01</span>¿Qué te trae al atelier?</h2>
+        <div class="options" role="radiogroup">
+          <label class="option"><input type="radio" name="t" checked><span class="box"><b>Una pieza</b><small>Preguntas sobre una joya de la colección</small></span></label>
+          <label class="option"><input type="radio" name="t"><span class="box"><b>Personalización</b><small>Diseñar o transformar una joya</small></span></label>
+          <label class="option"><input type="radio" name="t"><span class="box"><b>Cita privada</b><small>Visitar el atelier con cita previa</small></span></label>
+          <label class="option"><input type="radio" name="t"><span class="box"><b>Mi pedido</b><small>Seguimiento, envío o certificado</small></span></label>
+          <label class="option wide"><input type="radio" name="t"><span class="box"><b>Otro tema</b></span></label>
+        </div>
+        <div class="actions"><button class="primary" type="button" data-next>Siguiente</button></div>
+      </div>
+
+      <div class="step" data-step="1">
+        <h2><span>02</span>¿Cómo te llamamos?</h2>
+        <div class="field"><label for="n">Nombre completo</label><input id="n" autocomplete="name" placeholder="Como quieres que te llamemos"></div>
+        <div class="two">
+          <div class="field"><label for="e">Correo</label><input id="e" type="email" autocomplete="email" placeholder="tu@correo.com"></div>
+          <div class="field"><label for="p">Celular (opcional)</label><input id="p" type="tel" autocomplete="tel" placeholder="300 000 0000"></div>
+        </div>
+        <div class="field"><label>Prefiero que me respondan por</label>
+          <div class="segmented"><label><input type="radio" name="c" checked><span>Correo</span></label><label><input type="radio" name="c"><span>WhatsApp</span></label></div>
+        </div>
+        <div class="actions"><button class="primary" type="button" data-next>Siguiente</button><button class="back" type="button" data-back>← Atrás</button></div>
+      </div>
+
+      <div class="step" data-step="2">
+        <h2><span>03</span>Cuéntanos tu idea</h2>
+        <div class="summary">Sobre <b>personalización</b> · te responderemos por <b>correo</b></div>
+        <div class="field"><label for="m">Mensaje</label><textarea id="m" placeholder="La ocasión, la piedra que te inspira, una fecha especial…"></textarea><span class="count">0 / 2000</span></div>
+        <label class="consent"><input type="checkbox"> Acepto el <a href="#">tratamiento de mis datos</a></label>
+        <div class="actions"><button class="primary" type="submit">Enviar mensaje</button><button class="back" type="button" data-back>← Atrás</button></div>
+      </div>
+    </form>
+  </section>
+</main>
+<a class="concierge" href="#"><i><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M4.8 24.4 A14 14 0 1 1 7.6 27.2 L3 29 Z"/><path d="M11 9 H12.5 L14.8 12.6 L13 15.3 Q14.3 17.7 16.7 19 L18.3 17.4 L22.4 18.7 V21 Q23 23 21 23 C15 23 9 17 9 11 Q9 9 11 9 Z"/></svg></i><span><b>Hablar con una asesora</b><small>WhatsApp · respuesta personal</small></span></a>
+<script>
+  const steps = [...document.querySelectorAll('.step')], marks = [...document.querySelectorAll('#progress li')];
+  let at = 0;
+  const go = n => { at = n; steps.forEach((s, i) => s.classList.toggle('active', i === n)); marks.forEach((m, i) => { m.classList.toggle('done', i < n); i === n ? m.setAttribute('aria-current', 'step') : m.removeAttribute('aria-current'); }); };
+  document.addEventListener('click', e => { if (e.target.closest('[data-next]')) go(Math.min(at + 1, 2)); if (e.target.closest('[data-back]')) go(Math.max(at - 1, 0)); });
+  const params = new URLSearchParams(location.search); if (params.get('paso')) go(+params.get('paso'));
+</script>
+</body>
+</html>

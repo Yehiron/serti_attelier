@@ -18,6 +18,7 @@ from apps.cart.selectors import cart_data, pieces
 from apps.core.api.base import PublicView
 from apps.core.api.serializers import ProblemSerializer
 from apps.core.http import client_ip
+from apps.promotions.services import email_digest
 
 from .exceptions import CheckoutError
 from .response_serializers import (
@@ -119,6 +120,7 @@ class QuoteView(BrowserView):
             else [],
             data.get("coupon_code", ""),
             wants_certificate=data["wants_certificate"],
+            email_hash=email_digest(data["email"].strip().lower()) if data.get("email") else None,
         )
         return Response(asdict(result))
 

@@ -206,3 +206,23 @@ def test_released_reservations_expire_before_deadline(
     release_reservation(PieceReservation.objects.get().pk, reason="released")
     assert expire_stale_orders() == 1
     assert Order.objects.get().payment_status == "expired"
+
+
+def test_quote_checks_coupon_email_limit(client, piece, payload):
+    Coupon.objects.create(code="EMAIL", kind="percent", value=10, max_uses_per_email=1)
+    payload["coupon_code"] = "EMAIL"
+    add(client, piece)
+    assert submit(client, payload).status_code == 201
+    second = APIClient()
+    other = Piece.objects.create(
+        sku="QUOTE-OTHER", name_es="Otra", slug_es="quote-other", price_cents=100,
+        status="published",
+    )
+    add(second, other)
+    data = {"coupon_code": "EMAIL", "wants_certificate": False}
+    assert second.post("/api/v1/checkout/quote", data, format="json").data["coupon"]["applied"]
+    data["email"] = payload["contact"]["email"].upper()
+    coupon = second.post("/api/v1/checkout/quote", data, format="json").data["coupon"]
+    assert coupon["applied"] is False and coupon["reason"] == "coupon_used_by_email"
+    data["email"] = "other@example.com"
+    assert second.post("/api/v1/checkout/quote", data, format="json").data["coupon"]["applied"]

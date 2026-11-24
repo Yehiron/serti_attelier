@@ -14,6 +14,7 @@ export type PieceDetail = PieceCard & {
   piece_number: string; short_description: string; long_description: string; story: string; care: string;
   attributes: { ring_size?: string | number; length_mm?: number; metal?: string; metal_purity?: string; carats?: number; weight_g?: number; dimensions_mm?: string }; materials: Named[]; collections: Named[];
   gallery: Image[]; related: PieceCard[]; seo: { title: string; description: string; alternates: Alternates };
+  whatsapp_url: string | null;
   cta: { kind: 'add_to_cart' } | { kind: 'whatsapp'; reason: 'preorder' | 'reserved' | 'sold'; url: string | null };
 };
 export type Alternates = { es: string; en: string };
@@ -34,7 +35,7 @@ export type Settings = { title_scale: number; text_scale: number; legal_versions
 export type Problem = { code: string; title?: string; detail?: string; status?: number; skus?: string[]; errors?: Record<string, string[] | Record<string, string[]>> };
 
 export type WompiCheckout = { checkout_url: string; fields: Record<string, string> };
-export type PaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'error' | 'expired' | 'awaiting_manual_payment';
+export type PaymentStatus = 'pending' | 'approved' | 'declined' | 'voided' | 'cancelled' | 'error' | 'expired' | 'awaiting_manual_payment';
 export type OrderPayment = { status: PaymentStatus; last_attempt: { reference: string; status: 'PENDING' | 'APPROVED' | 'DECLINED' | 'VOIDED' | 'ERROR'; payment_method_type: string | null } | null; can_retry: boolean };
 export type PaymentDetails = { wompi: WompiCheckout | null; payment: OrderPayment; payment_unavailable?: boolean };
 
@@ -42,3 +43,5 @@ export type MilestoneKey = 'received' | 'paid' | 'preparing' | 'shipped' | 'deli
 export type Fulfillment = { status: 'unfulfilled' | 'preparing' | 'shipped' | 'delivered' | 'cancelled' | 'returned'; carrier: string; tracking_number: string; tracking_url?: string; shipped_at: string | null; delivered_at: string | null; timeline: { key: MilestoneKey; label_key: MilestoneKey; at: string | null }[] };
 
 export type { BrandIdentity } from '../cms-brand';
+
+export type ContactReceived = { received: true };

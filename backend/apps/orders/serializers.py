@@ -29,6 +29,7 @@ class ShippingSerializer(serializers.Serializer[Any]):
 
 
 class QuoteInputSerializer(serializers.Serializer[Any]):
+    email = serializers.EmailField(required=False, allow_blank=True)
     coupon_code = serializers.CharField(max_length=50, required=False, allow_blank=True)
     wants_certificate = serializers.BooleanField()
 

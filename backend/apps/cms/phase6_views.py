@@ -101,15 +101,10 @@ def missing_pairs(value, path=""):
             yield from missing_pairs(item, f"{path}.{index}".strip("."))
 
 
-def pending_translations():
-    groups = []
-    documents = {doc.key: doc for doc in ContentDocument.objects.all()}
-    keys = [
-        ("home", "Inicio"),
-        ("menu:main", "Menú principal"),
-        ("menu:footer", "Menú del pie de página"),
-    ]
-    keys += [(f"page:{p.kind}", p.title_es) for p in Page.objects.all()]
+def document_pending_translations(key, document):
+    from .visual_documents import applicable_registry
+
+    names = {spec["kind"]: spec["name"] for spec in applicable_registry(key)}
     labels = {
         "title": "Título",
         "body": "Contenido",
@@ -122,39 +117,52 @@ def pending_translations():
         "image_alt": "Texto alternativo",
         "cta_label": "Texto del enlace",
     }
+    sections = read_sections(key)
+    if not key.startswith("menu:"):
+        sections.append({"id": "seo", "kind": "seo", "values": document.seo})
+    items = []
+    for section in sections:
+        for path, es, en in missing_pairs(section["values"]):
+            # Addresses are translated independently but aren't prose translations.
+            if path == "slug" or (
+                document.translation_exemptions.get(f"{section['id']}.{path}") == es and es == en
+            ):
+                continue
+            items.append(
+                {
+                    "section": names.get(section["kind"], "Sección"),
+                    "label": labels.get(path.split(".")[-1], "Texto")
+                    + (" SEO" if section["id"] == "seo" else ""),
+                    "es": es,
+                    "en": en,
+                    "url": reverse("visual-editor")
+                    + "?"
+                    + urlencode(
+                        {
+                            "document": key,
+                            "section": section["id"],
+                            "field": path,
+                            "language": "en",
+                        }
+                    ),
+                }
+            )
+    return items
+
+
+def pending_translations():
+    groups = []
+    documents = {doc.key: doc for doc in ContentDocument.objects.all()}
+    keys = [
+        ("home", "Inicio"),
+        ("menu:main", "Menú principal"),
+        ("menu:footer", "Menú del pie de página"),
+    ]
+    keys += [(f"page:{p.kind}", p.title_es) for p in Page.objects.all()]
     for key, name in keys:
         if key not in documents:
             continue
-        sections = read_sections(key)
-        if not key.startswith("menu:"):
-            sections.append({"id": "seo", "values": documents[key].seo})
-        items = []
-        for section in sections:
-            for path, es, en in missing_pairs(section["values"]):
-                # Addresses are translated independently but aren't prose translations.
-                if path == "slug" or (
-                    documents[key].translation_exemptions.get(f"{section['id']}.{path}") == es
-                    and es == en
-                ):
-                    continue
-                items.append(
-                    {
-                        "label": labels.get(path.split(".")[-1], "Texto")
-                        + (" SEO" if section["id"] == "seo" else ""),
-                        "es": es,
-                        "en": en,
-                        "url": reverse("visual-editor")
-                        + "?"
-                        + urlencode(
-                            {
-                                "document": key,
-                                "section": section["id"],
-                                "field": path,
-                                "language": "en",
-                            }
-                        ),
-                    }
-                )
+        items = document_pending_translations(key, documents[key])
         if items:
             groups.append({"name": name, "items": items})
     photos = [

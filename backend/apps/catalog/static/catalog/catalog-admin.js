@@ -92,6 +92,8 @@
     form.addEventListener('submit', event => {
       // A retry has its own fetch handler and must not lock the editing form.
       if (event.submitter?.hasAttribute('data-photo-retry')) return;
+      const missing = Array.from(form.querySelectorAll('[required]')).find(el => el.willValidate && el.getClientRects().length && el.validity.valueMissing);
+      if (missing) { event.preventDefault(); missing.focus(); missing.reportValidity(); return; }
       if (submitting) { event.preventDefault(); return; }
       submitting = true;
       // Preserve the submitter's name/value before disabling it.

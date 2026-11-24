@@ -1,9 +1,12 @@
 from django.urls import path
 
+from apps.inquiries.api import ContactView
+
 from .api.locations import DepartmentView, MunicipalityView
 from .views import LiveView, ReadyView
 
 urlpatterns = [
+    path("contact", ContactView.as_view(), name="contact"),
     path("locations/departments", DepartmentView.as_view(), name="departments"),
     path(
         "locations/departments/<str:code>/municipalities",

@@ -84,7 +84,7 @@
       {% csrf_token %}{{ form.expected_status }}
       <h4 data-confirm-question>¿Cambiar el pedido {{ order.number }} de «{{ order.get_fulfillment_status_display }}»?</h4>
       <p>{{ order.customer_name }} · {{ total }}</p>
-      {% if form.errors %}<div role="alert" class="oc-notice">{{ form.errors }}</div>{% endif %}
+      {% if form.errors %}<div role="alert" class="oc-notice">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}{% for field in form %}{% for error in field.errors %}<p>{{ error }}</p>{% endfor %}{% endfor %}</div>{% endif %}
       <label>Nuevo estado {{ form.target }}</label>
       <div data-shipping-fields>
         <label>Transportadora (obligatoria al enviar) {{ form.carrier }}</label>

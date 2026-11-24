@@ -13,7 +13,7 @@ export function mergeCart(previous: Cart, incoming: Cart): Cart {
   const present = new Set(items.map(item => item.sku));
   return { ...incoming, items, count: items.length, removed: [...new Map([...previous.removed, ...incoming.removed].filter(item => !present.has(item.sku)).map(item => [item.sku, item])).values()] };
 }
-export const couponKeys = { coupon_invalid: 'couponInvalid', coupon_expired: 'couponExpired', coupon_exhausted: 'couponExhausted', coupon_not_applicable: 'couponNotApplicable', coupon_min_subtotal: 'couponMinSubtotal' } as const;
+export const couponKeys = { coupon_invalid: 'couponInvalid', coupon_expired: 'couponExpired', coupon_exhausted: 'couponExhausted', coupon_used_by_email: 'couponUsedByEmail', coupon_not_applicable: 'couponNotApplicable', coupon_min_subtotal: 'couponMinSubtotal' } as const;
 export function couponMessageKey(reason: string) { return couponKeys[reason as keyof typeof couponKeys] ?? 'couponInvalid'; }
 export function fieldErrors(problem: Problem): Record<string, string[]> {
   const result: Record<string, string[]> = {};
@@ -65,3 +65,5 @@ export function paymentAttemptKey(storage: AttemptStorage, token: string, refere
   const key = uuid(); storage.setItem(name, JSON.stringify({ reference, key })); return key;
 }
 export function clearPaymentAttempt(storage: AttemptStorage, token: string) { storage.removeItem(`serti_payment_attempt:${token}`); }
+
+export function quoteEmail(value: string) { const email = value.trim().toLowerCase(); return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : undefined; }

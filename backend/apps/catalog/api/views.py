@@ -36,10 +36,13 @@ class TaxonomyView(PublicView):
                 {
                     "categories": Category.objects.filter(
                         is_active=True, parent=None
-                    ).prefetch_related("children"),
-                    "collections": Collection.objects.filter(is_active=True),
-                    "stones": Stone.objects.all(),
-                    "materials": Material.objects.all(),
+                    ).exclude(slug_es__isnull=True).exclude(slug_es="").prefetch_related("children"),
+                    "collections": (
+                        Collection.objects.filter(is_active=True)
+                        .exclude(slug_es__isnull=True).exclude(slug_es="")
+                    ),
+                    "stones": Stone.objects.exclude(slug_es__isnull=True).exclude(slug_es=""),
+                    "materials": Material.objects.exclude(slug_es__isnull=True).exclude(slug_es=""),
                 }
             ).data
         )

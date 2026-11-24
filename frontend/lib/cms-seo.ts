@@ -8,7 +8,7 @@ export function applyCmsSeo(base: Metadata, seo: CmsSeo | undefined, siteUrl: st
   const description = seo.description || base.description;
   const image = seo.image ? new URL(seo.image.src, siteUrl).href : undefined;
   return {
-    ...base, title, description,
+    ...base, title: typeof title === 'string' && /serti/i.test(title) ? { absolute: title } : title, description,
     openGraph: { ...base.openGraph, ...(seo.title ? { title: seo.title } : {}), ...(seo.description ? { description: seo.description } : {}), ...(image ? { images: [image] } : {}) },
     twitter: { ...base.twitter, card: image || (base.twitter && 'images' in base.twitter && base.twitter.images) ? 'summary_large_image' : 'summary', ...(typeof title === 'string' ? { title } : {}), ...(description ? { description } : {}), ...(image ? { images: [image] } : {}) },
     ...(draft ? { robots: { index: false, follow: false } } : seo.noindex ? { robots: { index: false, follow: true } } : {}),

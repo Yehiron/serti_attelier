@@ -465,7 +465,9 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
 
     @admin.display(description=_("Municipio y departamento"))
     def destination(self, obj: Order) -> str:
-        return f"{obj.shipping_municipality.name}, {obj.shipping_municipality.department.name}"
+        city = obj.shipping_municipality.name
+        department = obj.shipping_municipality.department.name
+        return city if city.casefold() == department.casefold() else f"{city}, {department}"
 
     @display(  # type: ignore[untyped-decorator]
         description=_("Pago"),
@@ -627,7 +629,8 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
         return TemplateResponse(
             request,
             "admin/payments/confirm.html",
-            {**self.admin_site.each_context(request), "form": form, "order": order},
+            {**self.admin_site.each_context(request), "form": form, "order": order,
+             "title": f"Confirmar pago manual · {order.number}"},
         )
 
     @admin.display(description=_("Certificado de autenticidad"))

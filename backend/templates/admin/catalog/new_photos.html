@@ -1,4 +1,5 @@
 <div class="ca-upload">
+  {% if lost_new_photos %}<p role="alert">Corrige los campos marcados y vuelve a elegir tus fotos: por seguridad el navegador no las conserva.</p>{% endif %}
   <label for="id_new_photos"><span class="material-symbols-outlined" aria-hidden="true">add_photo_alternate</span><strong>Agregar fotos</strong><span>Elige varias fotos. Se agregan al guardar.</span><small>JPG, PNG, WebP, AVIF o HEIC · hasta 25 MB cada una</small></label>
   <input id="id_new_photos" type="file" name="new_photos" multiple accept=".jpg,.jpeg,.png,.webp,.avif,.heic,.heif,image/jpeg,image/png,image/webp,image/avif,image/heic,image/heif">
   <p data-upload-count aria-live="polite"></p><div class="ca-photo-grid" data-local-previews></div>

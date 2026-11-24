@@ -13,7 +13,6 @@ from django.utils.text import format_lazy
 from django.utils.translation import gettext_lazy as _
 
 TECHNICAL_MODELS = {
-    "audit.auditlog",
     "axes.accessattempt",
     "axes.accessfailurelog",
     "axes.accesslog",
@@ -55,6 +54,12 @@ def item(title: str, icon: str, model: str) -> dict[str, Any]:
     }
 
 
+def new_contact_count(request: HttpRequest) -> int:
+    from apps.inquiries.models import ContactInquiry
+
+    return ContactInquiry.objects.filter(status="new").count()
+
+
 def web_active(route: str, section: str = "") -> Callable[[HttpRequest], bool]:
     """Match the editor section explicitly: Unfold otherwise ignores the query string."""
 
@@ -91,6 +96,8 @@ NAVIGATION: list[dict[str, Any]] = [
         "title": _("Pedidos"),
         "items": [
             item("Pedidos", "shopping_bag", "orders.order"),
+            {**item("Mensajes de contacto", "mail", "inquiries.contactinquiry"),
+             "badge": "apps.core.dashboard.new_contact_count"},
             {
                 "title": _("Avisos de pedidos"),
                 "icon": "notifications",
@@ -175,6 +182,7 @@ NAVIGATION: list[dict[str, Any]] = [
         "items": [
             item("Datos del sitio", "settings", "core.sitesettings"),
             item("Equipo", "group", "accounts.user"),
+            item("Auditoría", "history", "audit.auditlog"),
         ],
     },
     {
@@ -183,7 +191,6 @@ NAVIGATION: list[dict[str, Any]] = [
         "items": [
             {**item(title, "build", model), "permission": technical_permission(model)}
             for title, model in [
-                ("Auditoría", "audit.auditlog"),
                 ("Intentos de acceso", "axes.accessattempt"),
                 ("Fallos de acceso", "axes.accessfailurelog"),
                 ("Accesos", "axes.accesslog"),

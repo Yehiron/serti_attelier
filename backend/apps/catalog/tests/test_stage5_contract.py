@@ -44,6 +44,7 @@ DETAIL_KEYS = LIST_KEYS | {
     "related",
     "seo",
     "cta",
+    "whatsapp_url",
 }
 ATTRIBUTES = {
     "ring_size": 7,

@@ -5,6 +5,7 @@ from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
 from django.db import models
+from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.manager import MultilingualManager
 
@@ -46,6 +47,33 @@ class NamedModel(models.Model):
     def __str__(self) -> str:
         return self.name
 
+    def save(self, *args: Any, **kwargs: Any) -> None:
+        generated = self.populate_slugs()
+        if kwargs.get("update_fields") is not None:
+            kwargs["update_fields"] = set(kwargs["update_fields"]) | generated
+        super().save(*args, **kwargs)
+
+
+    def clean(self) -> None:
+        super().clean()
+        self.populate_slugs()
+
+
+    def populate_slugs(self) -> set[str]:
+        generated = set()
+        for language in ("es", "en"):
+            field = f"slug_{language}"
+            if getattr(self, field):
+                continue
+            name = getattr(self, f"name_{language}") or self.name_es
+            base = (slugify(name or "") or "pieza")[:210]
+            candidate, suffix = base, 2
+            while type(self).objects.filter(**{field: candidate}).exclude(pk=self.pk).exists():
+                candidate = f"{base}-{suffix}"
+                suffix += 1
+            setattr(self, field, candidate)
+            generated.add(field)
+        return generated
 
 class CoveredModel(NamedModel):
     cover_renditions = models.JSONField(

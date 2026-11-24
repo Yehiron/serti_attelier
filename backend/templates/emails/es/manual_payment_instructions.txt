@@ -4,7 +4,7 @@ Reservamos tus piezas mientras completas el pago.
 
 {{ instructions }}
 
-{% if deadline %}Paga antes de: {{ deadline }}{% endif %}
 
 Te avisaremos cuando confirmemos el pago.
+{% if deadline and deadline not in instructions %}Paga antes de: {{ deadline }}{% endif %}
 {% endblock %}

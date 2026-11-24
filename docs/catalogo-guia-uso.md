@@ -73,7 +73,7 @@ su espacio: centra el motivo de la foto y revisa la presentación.
 | Borrar clasificaciones si no están protegidas por relaciones | Sí | Sí | No |
 | Consultar Historial de la pieza o clasificación | Sí | Sí | Sí |
 
-El Propietario también administra usuarios, roles y la auditoría general.
+La Propietaria también administra usuarios y roles. En Ajustes → Auditoría puede consultar la auditoría general en modo de solo lectura, buscar registros y filtrarlos por acción, fecha o responsable.
 Contenido puede editar y publicar contenido de la página web; eso no le permite
 publicar piezas. Operaciones puede consultar ese contenido, sin editarlo.
 

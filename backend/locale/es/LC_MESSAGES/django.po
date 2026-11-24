@@ -286,3 +286,12 @@ msgstr "Ver el sitio"
 msgid "You have been successfully logged out from the administration"
 msgstr "Has cerrado sesión en la administración"
 
+
+msgid "Date"
+msgstr "Fecha"
+
+msgid "Time"
+msgstr "Hora"
+
+msgid "Select action"
+msgstr "Selecciona una acción"

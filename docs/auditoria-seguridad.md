@@ -7,7 +7,7 @@ Revisión de la rama `fase-9-produccion` en el entorno de desarrollo, sin servic
 | Área | Comprobación | Resultado |
 |---|---|---|
 | Dashboard sin sesión | GET/POST a las 24 vistas propias (editor, biblioteca, publicar, pedidos, comprobantes, 2FA…) | Login o 403 en todas |
-| Permisos por rol | 21 rutas con sesión local de Operaciones, Contenido y Propietaria | Operaciones sin CMS; Contenido edita y no publica; tablas internas (grupos, auditoría, TOTP, intentos de pago) cerradas |
+| Permisos por rol | 21 rutas con sesión local de Operaciones, Contenido y Propietaria | Operaciones sin CMS; Contenido edita y no publica; auditoría general de solo lectura para Propietaria y superusuarios; tablas internas (grupos, TOTP, intentos de pago) cerradas a los demás roles |
 | API pública | 25 rutas `AllowAny` | Todas son de la tienda; límites de peticiones en lectura, carrito, cotización, pedidos y pagos |
 | Endpoint interno | `/api/internal/*` desde Caddy | 404 |
 | Esquema API y `/media/` por Django | `urls.py` | Solo en desarrollo |
@@ -30,3 +30,5 @@ Revisión de la rama `fase-9-produccion` en el entorno de desarrollo, sin servic
 - `npm audit`: 7 avisos moderados de `minimatch` dentro de `typescript-eslint` (solo herramientas de desarrollo; no llegan a la tienda). Se resolverán al actualizar eslint.
 - OWASP ZAP *baseline*: requiere descargar su imagen Docker; ejecutar con autorización, idealmente contra *staging*.
 - Rutas inexistentes de la tienda responden 200 con `noindex` (streaming de Next; documentado en `api-contract.md`).
+
+La auditoría registra cambios en Datos del sitio con campos sensibles redactados y cambios de estado de mensajes de contacto sin copiar el mensaje. La lista omite la IP y el navegador; el detalle conserva los datos técnicos existentes. Operaciones y Contenido no tienen acceso a la auditoría general.

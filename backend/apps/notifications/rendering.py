@@ -67,14 +67,16 @@ def order_context(order: Order, locale: str) -> dict[str, Any]:
     site_url = settings.PUBLIC_SITE_URL.rstrip("/")
     public_logo = urlsplit(site_url).scheme in {"http", "https"} and bool(urlsplit(site_url).netloc)
     municipality = order.shipping_municipality
-    destination = f"{place_name(municipality.name)}, {place_name(municipality.department.name)}"
+    city = place_name(municipality.name)
+    department = place_name(municipality.department.name)
+    destination = city if city.casefold() == department.casefold() else f"{city}, {department}"
     whatsapp = (
         f"https://wa.me/{config.whatsapp_number}?"
         + urlencode(
             {
-                "text": "Hola SERTI, quisiera crear una pieza única."
+                "text": f"Hola SERTI, quiero coordinar mi pedido {order.number}."
                 if locale == "es"
-                else "Hello SERTI, I would like to create a unique piece."
+                else f"Hello SERTI, I'd like to coordinate my order {order.number}."
             }
         )
         if config.whatsapp_number
@@ -145,6 +147,7 @@ def order_context(order: Order, locale: str) -> dict[str, Any]:
         "purchase_status": {
             "approved": "Pago aprobado",
             "voided": "Pago anulado",
+            "cancelled": "Pago anulado",
             "pending": "Pago en proceso",
             "awaiting_manual_payment": "Pendiente de pago manual",
             "declined": "Pago rechazado",
@@ -155,6 +158,7 @@ def order_context(order: Order, locale: str) -> dict[str, Any]:
         else {
             "approved": "Payment approved",
             "voided": "Payment voided",
+            "cancelled": "Payment voided",
             "pending": "Payment in progress",
             "awaiting_manual_payment": "Awaiting manual payment",
             "declined": "Payment declined",

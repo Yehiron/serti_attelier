@@ -585,5 +585,5 @@ class PublicationAdmin(ReadOnlyAdmin):
             self.message_user(request, _("Selecciona una sola publicación."), messages.ERROR)
             return
         obj = queryset.get()
-        key = "home" if isinstance(obj, HomePublication) else str(obj.page_id)
+        key = "home" if isinstance(obj, HomePublication) else f"page:{obj.page.kind}"
         return HttpResponseRedirect(reverse("cms-history") + f"?document={key}&restore={obj.pk}")

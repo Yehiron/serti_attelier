@@ -231,8 +231,12 @@ def document(request):
         return key, "Inicio", HomePublication.objects.all()
     if not request.user.has_perm("cms.view_pagerevision"):
         raise PermissionDenied
-    page = get_object_or_404(Page, pk=key if key.isdecimal() else 0)
-    return key, page.title_es, PageRevision.objects.filter(page=page)
+    page = (
+        get_object_or_404(Page, kind=key[5:])
+        if key.startswith("page:")
+        else get_object_or_404(Page, pk=key if key.isdecimal() else 0)
+    )
+    return f"page:{page.kind}", page.title_es, PageRevision.objects.filter(page=page)
 
 
 @csrf_protect
@@ -249,11 +253,7 @@ def history(request):
         else [],
         "can_restore": request.user.has_perm("cms.restore_content"),
     }
-    content_document = get_document(
-        key
-        if key in MENU_KEYS or key in ("home", BRAND_KEY)
-        else f"page:{Page.objects.get(pk=key).kind}"
-    )
+    content_document = get_document(key)
     from .models import CacheInvalidation
 
     context["invalidation_pending"] = request.user.has_perm("cms.publish_content") and (
@@ -269,9 +269,6 @@ def history(request):
 
     context["preview_url"] = preview_url(request, content_document.key)
     context["expected_version"] = content_document.draft_version
-    context["restorations"] = content_document.draft_revisions.select_related(
-        "restored_from_home", "restored_from_page", "restored_from_menu", "restored_from_brand"
-    )[:20]
     revision_id = request.GET.get("restore")
     if revision_id:
         if not context["can_restore"]:
@@ -330,10 +327,20 @@ def history(request):
     else:
         if request.method != "GET":
             raise PermissionDenied
-        page = Paginator(queryset, 20).get_page(request.GET.get("page"))
-        # Fetch one predecessor for the whole page, avoiding one query per publication.
-        rows = list(page.object_list)
-        older = queryset.filter(pk__lt=rows[-1].pk).first() if rows else None
+        publications = list(queryset.order_by("-published_at", "-pk"))
+        restorations = content_document.draft_revisions.select_related(
+            "restored_from_home", "restored_from_page", "restored_from_menu", "restored_from_brand"
+        )
+        entries = [(row.published_at, row.pk, 1, row) for row in publications]
+        entries += [(row.published_at, row.pk, 0, row) for row in restorations]
+        entries.sort(key=lambda entry: entry[:3], reverse=True)
+        page = Paginator(entries, 20).get_page(request.GET.get("page"))
+        selected = {entry[3].pk for entry in page.object_list if entry[2] == 1}
+        rows = [row for row in publications if row.pk in selected]
+        predecessors = {
+            row.pk: publications[index + 1] if index + 1 < len(publications) else None
+            for index, row in enumerate(publications)
+        }
         context["page_obj"] = page
         context["rows"] = [
             {
@@ -345,20 +352,16 @@ def history(request):
                 if key in MENU_KEYS
                 else summary(
                     row.snapshot,
-                    (rows[index + 1] if index + 1 < len(rows) else older).snapshot
-                    if index + 1 < len(rows) or older
-                    else None,
+                    predecessors[row.pk].snapshot if predecessors[row.pk] else None,
                     key == "home",
                     current_source=getattr(row, "draft_snapshot", None),
-                    previous_source=getattr(
-                        rows[index + 1] if index + 1 < len(rows) else older, "draft_snapshot", None
-                    ),
+                    previous_source=getattr(predecessors[row.pk], "draft_snapshot", None),
                 ),
             }
-            for index, row in enumerate(rows)
+            for row in rows
         ]
-        for index, item in enumerate(context["rows"]):
-            prior = rows[index + 1] if index + 1 < len(rows) else older
+        for item in context["rows"]:
+            prior = predecessors[item["publication"].pk]
             item["change_groups"] = (
                 brand_groups(item["publication"].snapshot, prior.snapshot if prior else {})
                 if key == BRAND_KEY
@@ -375,8 +378,8 @@ def history(request):
                 if key != "home" and prior
                 else []
             )
-        for index, item in enumerate(context["rows"]):
-            prior = rows[index + 1] if index + 1 < len(rows) else older
+        for item in context["rows"]:
+            prior = predecessors[item["publication"].pk]
             if key not in MENU_KEYS and key != BRAND_KEY:
                 current_seo = (
                     item["publication"].seo
@@ -391,6 +394,11 @@ def history(request):
                     else {}
                 )
                 item["change_groups"].extend(seo_groups(current_seo, old_seo))
+        publication_rows = {item["publication"].pk: item for item in context["rows"]}
+        context["entries"] = [
+            {"row": publication_rows[entry[3].pk]} if entry[2] else {"restoration": entry[3]}
+            for entry in page.object_list
+        ]
     return TemplateResponse(
         request, "admin/cms/history.html", context, status=409 if context.get("conflict") else 200
     )

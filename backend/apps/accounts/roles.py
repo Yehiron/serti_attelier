@@ -102,3 +102,8 @@ for role in (PROPIETARIO, OPERACIONES):
             "orders.resolve_operational_incident",
         }
     )
+
+for role in (PROPIETARIO, OPERACIONES):
+    ROLE_PERMISSIONS[role].update(
+        {"inquiries.view_contactinquiry", "inquiries.change_contactinquiry"}
+    )

@@ -119,9 +119,6 @@ class PieceForm(BasePieceForm):
         self._original_attributes = dict(self.instance.attributes or {})
         for key in ATTRIBUTE_FIELDS:
             self.initial[key] = self._original_attributes.get(key)
-        if self.instance.pk and "sku" in self.fields:
-            self.fields["sku"].required = True
-            self.fields["sku"].help_text = "Puedes cambiar la referencia de esta pieza."
         for key in ("name_es", "category", "short_description_es", "price_cents", "slug_es"):
             if key in self.fields:
                 self.fields[key].help_text = (

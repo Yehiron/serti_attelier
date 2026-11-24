@@ -7,7 +7,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from apps.core.money import Money
-from apps.core.selectors import piece_url
+from apps.core.selectors import piece_url, whatsapp_url
 
 from ..models import Category, Collection, Material, Piece, PieceImage, Stone
 from ..selectors import cover_data, piece_cta, related_pieces
@@ -53,7 +53,7 @@ class CategorySerializer(TaxonSerializer):
     def get_children(self, obj: Category) -> list[dict[str, Any]]:
         return list(
             TaxonSerializer(
-                [child for child in obj.children.all() if child.is_active], many=True
+                [child for child in obj.children.all() if child.is_active and child.slug], many=True
             ).data
         )
 
@@ -190,6 +190,7 @@ class PieceDetailSerializer(PieceListSerializer):
     related = serializers.SerializerMethodField()
     seo = serializers.SerializerMethodField()
     cta = serializers.SerializerMethodField()
+    whatsapp_url = serializers.SerializerMethodField()
 
     class Meta(PieceListSerializer.Meta):
         fields = (
@@ -207,6 +208,7 @@ class PieceDetailSerializer(PieceListSerializer):
             "related",
             "seo",
             "cta",
+            "whatsapp_url",
         )
 
     @extend_schema_field(VideoSerializer(allow_null=True))
@@ -263,6 +265,10 @@ class PieceDetailSerializer(PieceListSerializer):
             "description": obj.seo_description or obj.short_description,
             "alternates": {locale: piece_url(obj, locale) for locale in ("es", "en")},
         }
+
+    @extend_schema_field(serializers.URLField(allow_null=True))
+    def get_whatsapp_url(self, obj: Piece) -> str | None:
+        return whatsapp_url("general", obj, self.context["locale"])
 
     @extend_schema_field(CTASerializer)
     def get_cta(self, obj: Piece) -> dict[str, Any]:

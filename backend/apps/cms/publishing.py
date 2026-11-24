@@ -180,16 +180,7 @@ def review_publish(request, key):
             messages.success(
                 request, "Publicación guardada. La tienda se actualizará en unos instantes."
             )
-            return HttpResponseRedirect(
-                reverse("cms-history")
-                + (
-                    f"?document={key}"
-                    if key in MENU_KEYS or key == "brand:identity"
-                    else f"?document={page.pk}"
-                    if page
-                    else "?document=home"
-                )
-            )
+            return HttpResponseRedirect(reverse("cms-history") + f"?document={key}")
         except ContentConflict as exc:
             error, status = " ".join(exc.messages), 409
         except ValidationError as exc:
@@ -202,6 +193,9 @@ def review_publish(request, key):
             row for row in checks(document.brand_identity) if row["required"] and not row["ok"]
         ]
     pending = pending_changes(key)
+    from .phase6_views import document_pending_translations
+
+    missing = [] if key == "brand:identity" else document_pending_translations(key, document)
     return TemplateResponse(
         request,
         "admin/cms/review_publish.html",
@@ -217,6 +211,7 @@ def review_publish(request, key):
             "change_groups": pending["groups"],
             "preview_url": preview_url(request, key),
             "pending_count": pending["count"],
+            "missing_translations": missing,
             "error": error,
             "note": note,
             "current_url": reverse("cms-review-publish", args=[key]),

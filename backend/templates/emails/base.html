@@ -11,14 +11,14 @@
   </td></tr>
   <tr><td style="padding:36px 32px 8px;">
     <h1 style="margin:0 0 12px;font-family:'Cormorant Garamond',Georgia,'Times New Roman',serif;font-weight:400;font-size:34px;line-height:1.15;color:#651c32;">{% block heading %}{{ title }}{% endblock %}</h1>
-    {% if not internal %}<p style="font-size:15px;line-height:1.7;">{% if locale == 'es' %}Hola{% else %}Hello{% endif %}, {{ order.customer_name }}.</p>{% endif %}
+    {% block greeting %}{% if not internal %}<p style="font-size:15px;line-height:1.7;">{% if locale == 'es' %}Hola{% else %}Hello{% endif %}, {{ order.customer_name }}.</p>{% endif %}{% endblock %}
     {% block content %}{% endblock %}
-    {% include "emails/_summary.html" %}
-    {% if internal %}{% include "emails/_button.html" with url=admin_url label=admin_label %}{% else %}{% include "emails/_button.html" with url=order_url label=order_label %}{% endif %}
+    {% block summary %}{% include "emails/_summary.html" %}{% endblock %}
+    {% block primary_button %}{% if internal %}{% include "emails/_button.html" with url=admin_url label=admin_label %}{% else %}{% include "emails/_button.html" with url=order_url label=order_label %}{% endif %}{% endblock %}
   </td></tr>
   <tr><td style="padding:24px 32px 32px;">
     <table role="presentation" width="100%" cellspacing="0" cellpadding="0" border="0"><tr><td style="border-top:1px solid #7a7256;padding-top:20px;font-size:13px;line-height:1.7;color:#58513d;">
-      <p style="margin:0 0 12px;">{% if internal %}{% if locale == 'es' %}Comunicación operativa de SERTI. Consulta el historial del pedido en el dashboard.{% else %}SERTI operational communication. Check the order history in the dashboard.{% endif %}{% else %}{% if locale == 'es' %}Comunicación sobre tu pedido; no es un comprobante fiscal electrónico.{% else %}Order communication; this is not an electronic tax receipt.{% endif %}{% endif %}</p>
+      {% block disclaimer %}<p style="margin:0 0 12px;">{% if internal %}{% if locale == 'es' %}Comunicación operativa de SERTI. Consulta el historial del pedido en el dashboard.{% else %}SERTI operational communication. Check the order history in the dashboard.{% endif %}{% else %}{% if locale == 'es' %}Comunicación sobre tu pedido; no es un comprobante fiscal electrónico.{% else %}Order communication; this is not an electronic tax receipt.{% endif %}{% endif %}</p>{% endblock %}
       {% block footer %}{% endblock %}
       {% if support_email %}<a href="mailto:{{ support_email }}" style="color:#651c32;">{{ support_email }}</a>{% endif %}{% if support_email and whatsapp_url %} · {% endif %}{% if whatsapp_url %}<a href="{{ whatsapp_url }}" style="color:#651c32;">WhatsApp</a>{% endif %}
       <p style="margin:12px 0 0;font-size:11px;letter-spacing:2px;text-transform:uppercase;color:#58513d;">SERTI · Colombia</p>

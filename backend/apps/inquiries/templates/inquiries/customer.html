@@ -1,0 +1,8 @@
+{% extends "emails/base.html" %}
+{% block preheader %}{{ title }}{% endblock %}
+{% block eyebrow %}SERTI · Atelier{% endblock %}
+{% block greeting %}{% endblock %}
+{% block content %}<p style="font-size:15px;line-height:1.7;">{% if locale == 'es' %}Recibimos tu carta, {{ inquiry.name }}. Una asesora del atelier te responderá muy pronto por {{ channel }}.{% else %}We received your letter, {{ inquiry.name }}. An atelier advisor will reply very soon by {{ channel }}.{% endif %}</p>{% endblock %}
+{% block summary %}{% endblock %}
+{% block primary_button %}{% if whatsapp_url %}{% if locale == 'es' %}{% include "emails/_button.html" with url=whatsapp_url label="Escríbenos por WhatsApp" %}{% else %}{% include "emails/_button.html" with url=whatsapp_url label="Write to us on WhatsApp" %}{% endif %}{% endif %}{% endblock %}
+{% block disclaimer %}{% endblock %}

@@ -77,8 +77,9 @@
   $('preview-language').onchange = () => { scrollY = 0; refreshPreview(); };
   $('refresh').onclick = async () => { try {const response=await fetch(`${root.dataset.api}?document=${encodeURIComponent(state.key)}`);if(!response.ok)throw Error();const result=await response.json();state.preview=result.preview;refreshPreview();}catch{$('preview-status').textContent='No se pudo recargar. Inténtalo de nuevo.';} }; 
   function updateBar() {
-    $('pending').textContent = `${state.pending} cambios sin publicar`;
+    $('pending').textContent = `${state.pending} ${state.pending === 1 ? "cambio" : "cambios"} sin publicar`;
     if ($('review')) $('review').href = state.review_url;
+    $('history').href = state.history_url;
     $('discard').hidden = !state.can_discard;
     $('discard').disabled = !!pending();
   }
@@ -215,7 +216,7 @@
   }
   function missing() {
     const count = missingCount(row()?.values || {});
-    $('missing').textContent = count ? `${count} textos sin traducir` : '';
+    $('missing').textContent = count ? `${count} ${count === 1 ? "texto" : "textos"} sin traducir` : '';
   }
   function showErrors(errors, id = selected) {
     document.querySelectorAll('.cms-field-error').forEach(el => el.remove());

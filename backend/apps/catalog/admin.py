@@ -684,6 +684,7 @@ class PieceAdmin(
         form_url: str = "",
         obj: Any = None,
     ) -> Any:
+        context["lost_new_photos"] = bool(request.FILES.getlist("new_photos"))
         piece = context["adminform"].form.instance
         missing = services.publication_missing(piece)
         checks = [
@@ -691,7 +692,7 @@ class PieceAdmin(
             ("Categoría", "categoría"),
             ("Descripción corta", "descripción corta en español"),
             ("Precio", "precio"),
-            ("Dirección en la web", "slug en español"),
+            ("Dirección en la web", "dirección web en español"),
         ]
         checklist = [
             {"label": label, "missing_key": key, "ready": key not in missing}
@@ -997,6 +998,18 @@ class PieceAdmin(
             else:
                 self.message_user(request, str(exc), messages.ERROR)
 
+    def message_user(self, request: HttpRequest, message: Any, level: Any = messages.INFO,
+                     extra_tags: str = "", fail_silently: bool = False) -> None:
+        from django.utils.safestring import SafeData, mark_safe
+
+        if isinstance(message, SafeData) and "El pieza “" in str(message):
+            message = message.replace("El pieza “", "La pieza “")
+            message = message.replace("fue agregado correctamente", "se agregó correctamente")
+            message = message.replace("se cambió correctamente", "se guardó correctamente")
+            # Django constructs these messages with format_html; preserve its escaped markup.
+            message = mark_safe(message)  # noqa: S308 -- Django already escaped the formatted message
+        super().message_user(request, message, level, extra_tags, fail_silently)
+
     def response_add(
         self, request: HttpRequest, obj: Piece, post_url_continue: Any = None
     ) -> HttpResponse:
@@ -1216,10 +1229,15 @@ class PieceAdmin(
         )
         for formset in formsets:
             self.save_formset(request, form, formset, change)
-        for error in services.append_piece_photos(
+        photo_errors = services.append_piece_photos(
             form.instance, request.FILES.getlist("new_photos"), actor=request.user, request=request
-        ):
+        )
+        for error in photo_errors:
             self.message_user(request, error, messages.ERROR)
+        if photo_errors:
+            self.message_user(
+                request, "Vuelve a elegir las fotos que no se pudieron cargar.", messages.ERROR
+            )
 
     def save_formset(self, request: HttpRequest, form: Any, formset: Any, change: bool) -> None:
         if formset.model is PieceImage:

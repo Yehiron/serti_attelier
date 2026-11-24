@@ -328,3 +328,43 @@ def test_branding_and_spanish_device_label() -> None:
         response = browser.get(reverse(f"admin:{model}_changelist"))
         assert response.status_code == 200
         assert "TOTP devices" not in response.content.decode()
+
+
+@pytest.mark.parametrize("role,expected", [
+    (PROPIETARIO, 200), ("developer", 200), (OPERACIONES, 403), (CONTENIDO, 403),
+])
+def test_audit_navigation_and_permissions(role, expected):
+    from apps.audit.models import AuditLog
+
+    browser, user = staff(role)
+    AuditLog.objects.create(actor=user, actor_repr=user.username, action="orders.cancelled",
+                            object_repr="Pedido SRT", ip="192.0.2.1")
+    response = browser.get(reverse("admin:audit_auditlog_changelist"))
+    assert response.status_code == expected
+    index = browser.get(reverse("admin:index"))
+    links = [entry for group in index.context["sidebar_navigation"] for entry in group["items"]
+             if str(entry["title"]) == "Auditoría"]
+    assert bool(links and links[0]["has_permission"]) == (expected == 200)
+    if expected == 200:
+        html = response.content.decode()
+        assert "Canceló el pedido" in html
+        assert "192.0.2.1" not in html
+
+
+def test_site_settings_change_is_audited():
+    from apps.audit.models import AuditLog
+    from apps.core.models import SiteSettings
+    from apps.core.selectors import get_solo
+
+    _, user = staff(PROPIETARIO)
+    obj = get_solo()
+    obj.support_email = "nuevo@example.com"
+    obj.manual_payment_instructions_es = "Cuenta privada {number}"
+    request = RequestFactory().post("/")
+    request.user = user
+    admin.site._registry[SiteSettings].save_model(request, obj, None, True)
+    event = AuditLog.objects.get(action="core.settings_updated")
+    assert event.actor == user
+    assert event.diff["support_email"][1] == "nuevo@example.com"
+    assert "Cuenta privada" not in str(event.diff)
+    assert event.diff["manual_payment_instructions_es"] == ["[redactado]", "[redactado]"]

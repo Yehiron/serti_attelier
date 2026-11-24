@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { checkoutAttempt, checkoutPayload, clearAttempt, clearAttemptForOrder, rememberAttemptOrder, couponMessageKey, emptyCart, fieldErrors, formatDeadline, mergeCart, normalizePhone, readAttempt, type CartItem } from './commerce.ts';
+import { checkoutAttempt, checkoutPayload, clearAttempt, clearAttemptForOrder, rememberAttemptOrder, couponMessageKey, quoteEmail, emptyCart, fieldErrors, formatDeadline, mergeCart, normalizePhone, readAttempt, type CartItem } from './commerce.ts';
 const item = (sku: string, purchasable = true): CartItem => ({ sku, slug: sku, name: sku, image: null, price: { amount_cents: 10000, currency: 'COP' }, sale_price: null, effective_price: { amount_cents: 10000, currency: 'COP' }, sale_state: purchasable ? 'available' : 'reserved', purchasable });
 test('server reconciliation deduplicates unique pieces, keeps reserved and reconciles removed notices', () => {
   const first = mergeCart(emptyCart, { ...emptyCart, items: [item('A'),item('A'),item('B',false)], subtotal: { amount_cents: 10000, currency: 'COP' }, count: 3 });
@@ -42,7 +42,7 @@ test('nested and dotted API validation errors map to form names without losing m
   assert.deepEqual(fieldErrors({code:'network_unavailable'}),{});
 });
 test('every stable coupon reason maps to a translation key', () => {
-  for (const [reason,key] of Object.entries({coupon_invalid:'couponInvalid',coupon_expired:'couponExpired',coupon_exhausted:'couponExhausted',coupon_not_applicable:'couponNotApplicable',coupon_min_subtotal:'couponMinSubtotal'})) assert.equal(couponMessageKey(reason),key);
+  for (const [reason,key] of Object.entries({coupon_invalid:'couponInvalid',coupon_expired:'couponExpired',coupon_exhausted:'couponExhausted',coupon_used_by_email:'couponUsedByEmail',coupon_not_applicable:'couponNotApplicable',coupon_min_subtotal:'couponMinSubtotal'})) assert.equal(couponMessageKey(reason),key);
   assert.equal(couponMessageKey('unknown'),'couponInvalid');
 });
 test('deadlines are consistently rendered in Bogota even across UTC date boundaries', () => {
@@ -50,3 +50,5 @@ test('deadlines are consistently rendered in Bogota even across UTC date boundar
   assert.match(formatDeadline(value,'en'),/October 24, 2026/); assert.match(formatDeadline(value,'en'),/9:30\s?PM/);
   assert.match(formatDeadline(value,'es'),/24 de octubre de 2026/);
 });
+
+test('quote email is normalized and omitted until valid', () => { assert.equal(quoteEmail(' ANA@EXAMPLE.COM '), 'ana@example.com'); assert.equal(quoteEmail('bad@'), undefined); });

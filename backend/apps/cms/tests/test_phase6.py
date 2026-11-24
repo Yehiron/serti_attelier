@@ -755,3 +755,93 @@ def test_legacy_page_revision_has_no_phantom_pending_changes(owner, kind):
     assert pending_changes(f"page:{kind}")["count"] == 0
     if kind != "personalize":
         assert selectors.page_payload(page, "es")["body_visible"] is True
+
+
+@pytest.mark.django_db
+def test_review_warns_about_document_translations_and_respects_exemptions(owner, shipping):
+    browser, actor = owner
+    update("page:shipping", "page", {"title": {"es": "Texto pendiente", "en": ""}}, actor)
+    url = reverse("cms-review-publish", args=["page:shipping"])
+    response = browser.get(url)
+    assert response.status_code == 200
+    item = next(
+        item for item in response.context["missing_translations"] if item["es"] == "Texto pendiente"
+    )
+    assert item["section"] == "Contenido de la página"
+    assert item["label"] == "Título"
+    assert "language=en" in item["url"]
+    assert "visitantes en inglés" in response.content.decode()
+    update("page:shipping", "page", {"title": {"en": "Texto pendiente"}}, actor)
+    assert any(
+        item["es"] == "Texto pendiente" for item in browser.get(url).context["missing_translations"]
+    )
+    with edit_document("page:shipping", actor, version("page:shipping")):
+        visual_documents.mutate(
+            "page:shipping", "translation-equal", {"id": "page", "path": "title"}, actor, None
+        )
+    assert not any(
+        item["es"] == "Texto pendiente" for item in browser.get(url).context["missing_translations"]
+    )
+    update("page:shipping", "page", {"title": {"en": "Translated text"}}, actor)
+    assert not any(
+        item["es"] == "Texto pendiente" for item in browser.get(url).context["missing_translations"]
+    )
+
+
+@pytest.mark.django_db
+def test_editor_history_accepts_page_keys_and_legacy_ids(owner, shipping):
+    browser, _ = owner
+    state = browser.get(reverse("cms-editor-document"), {"document": "page:shipping"}).json()
+    assert state["history_url"].endswith("?document=page%3Ashipping")
+    for key in ("page:shipping", str(shipping.pk)):
+        response = browser.get(reverse("cms-history"), {"document": key})
+        assert response.status_code == 200
+        assert response.context["document"] == "page:shipping"
+    assert browser.get(reverse("cms-history"), {"document": "page:unknown"}).status_code == 404
+    update("page:shipping", "page", {"title": {"es": "Nuevo título", "en": ""}}, _)
+    response = browser.post(
+        reverse("cms-review-publish", args=["page:shipping"]),
+        {"expected_version": version("page:shipping")},
+    )
+    assert response.status_code == 302
+    assert response.url.endswith("?document=page:shipping")
+
+
+def test_home_reorder_lists_editor_section_names():
+    from apps.cms.review_changes import home_groups
+
+    before = [{"id": "1", "kind": "hero"}, {"id": "2", "kind": "statement"}]
+    after = list(reversed(before))
+    rows = next(group["rows"] for group in home_groups(after, before) if group["name"] == "Inicio")
+    from apps.cms.registry import REGISTRY
+
+    assert rows[0]["before"] == f"{REGISTRY['hero'].name}, {REGISTRY['statement'].name}"
+    assert rows[0]["after"] == f"{REGISTRY['statement'].name}, {REGISTRY['hero'].name}"
+
+
+@pytest.mark.parametrize(
+    ("count", "notice"),
+    [
+        (1, "Falta 1 texto en inglés. Si publicas así, "
+         "los visitantes en inglés lo verán en español."),
+        (2, "Faltan 2 textos en inglés. Si publicas así, "
+         "los visitantes en inglés los verán en español."),
+    ],
+)
+def test_review_translation_notice_agrees_with_count(count, notice):
+    from django.template.loader import render_to_string
+
+    html = render_to_string(
+        "admin/cms/review_publish.html", {"missing_translations": [{}] * count}
+    )
+    assert notice in html
+
+
+@pytest.mark.django_db
+def test_editor_history_link_contains_initial_document(owner):
+    browser, _ = owner
+    response = browser.get(reverse("visual-editor"), {"document": "page:personalize"})
+    assert response.status_code == 200
+    assert 'id="cms-history" href="/dashboard/publicaciones/?document=page%3Apersonalize"' in (
+        response.content.decode()
+    )

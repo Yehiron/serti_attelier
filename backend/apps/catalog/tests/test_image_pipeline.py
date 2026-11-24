@@ -258,7 +258,7 @@ def test_taxonomy_http_and_schema_contract(client: Client) -> None:
     save_taxonomy(obj)
     response = client.get("/api/v1/catalog/taxonomy", {"locale": "en"})
     assert response.status_code == 200
-    category = next(row for row in response.json()["categories"] if row["slug"] == "foto")
+    category = next(row for row in response.json()["categories"] if row["slug"] == "photo")
     assert category["cover"]["alt"] == "Photo"
     assert category["cover_image"] == category["cover"]["src"]
     assert category["cover"]["srcset"]

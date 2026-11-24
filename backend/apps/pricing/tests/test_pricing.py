@@ -41,7 +41,7 @@ def calculate(
         (ITEM, replace(COUPON, ends_at=NOW), 10001, "coupon_expired"),
         (ITEM, replace(COUPON, starts_at=NOW + timedelta(seconds=1)), 10001, "coupon_expired"),
         (ITEM, replace(COUPON, max_uses=1, uses=1), 10001, "coupon_exhausted"),
-        (ITEM, replace(COUPON, max_uses_per_email=1, email_uses=1), 10001, "coupon_exhausted"),
+        (ITEM, replace(COUPON, max_uses_per_email=1, email_uses=1), 10001, "coupon_used_by_email"),
         (ITEM, replace(COUPON, kind="fixed", value=20000), 10001, "coupon_not_applicable"),
     ],
 )

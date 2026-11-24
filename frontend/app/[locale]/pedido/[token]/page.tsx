@@ -40,6 +40,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
     </header>
     <div className="order-layout">
       <section className="order-status">
+        {order.fulfillment.status === 'cancelled' && <p>{view.status === 'approved' ? t.approved : t.paymentVoided} · {t.cancelled}</p>}
         <OrderPayment order={order} token={token} locale={current} t={t} paused={terminal || order.payment_review} />
         {order.fulfillment.status === 'cancelled' && <p>{t.cancelledHelp}</p>}
         {order.fulfillment.status === 'returned' && <p>{t.returnedHelp}</p>}
@@ -66,7 +67,7 @@ export default async function Page({ params }: { params: Promise<{ token: string
         <OrderLive status={active ? (view.retry ? 'pending' : view.status) : 'inactive'} deadline={order.reservation_expires_at} label={t.remaining} expired={t.expired} />
         {view.status === 'expired' && <Link className="button" href={href('catalog',current)}>{t.explore} ↗</Link>}
         <p>{order.wants_certificate ? t.certificateYes : t.certificateNo}</p>
-        <p>{t.delivery} · {order.shipping.municipality}, {order.shipping.department}</p>
+        <p>{t.delivery} · {order.shipping.municipality}{order.shipping.municipality.toLocaleLowerCase() !== order.shipping.department.toLocaleLowerCase() && `, ${order.shipping.department}`}</p>
       </section>
       <section aria-label={t.summary}>
         {order.items.map(item => <article className="cart-line" key={item.sku}>

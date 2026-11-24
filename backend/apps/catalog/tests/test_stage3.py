@@ -9,7 +9,7 @@ from django.urls import reverse
 from apps.accounts.roles import CONTENIDO, PROPIETARIO
 from apps.catalog import services
 from apps.catalog.api.serializers import PieceDetailSerializer
-from apps.catalog.models import Category, Piece
+from apps.catalog.models import Category, Collection, Material, Piece, Stone
 from apps.catalog.tests.test_admin_sections import add_data
 from apps.catalog.tests.test_operating_rules import change_data as original_change_data
 from apps.catalog.tests.test_photo_management import photos_for
@@ -271,8 +271,62 @@ def test_category_path_and_upload_error_message():
     data = add_data(page) | {"new_photos": photo("anillo.png"), "price_cents": "-1"}
     response = browser.post(url, data)
     assert response.status_code == 200
-    assert (
-        "Vuelve a elegir las fotos nuevas: el navegador no permite conservarlas tras un error."
-        in response.content.decode()
+    notice = (
+        "Corrige los campos marcados y vuelve a elegir tus fotos: "
+        "por seguridad el navegador no las conserva."
     )
+    assert response.content.decode().count(notice) == 1
     assert not Piece.objects.exists()
+
+
+def test_upload_error_prompts_to_choose_failed_photos_again():
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    browser, _ = staff(PROPIETARIO)
+    url = reverse("admin:catalog_piece_add")
+    data = add_data(browser.get(url)) | {
+        "new_photos": SimpleUploadedFile("invalida.png", b"no es una imagen", "image/png"),
+    }
+    response = browser.post(url, data, follow=True)
+    assert response.status_code == 200
+    html = response.content.decode()
+    assert "invalida.png" in html
+    assert html.count("Vuelve a elegir las fotos que no se pudieron cargar.") == 1
+    assert Piece.objects.exists()
+
+
+@pytest.mark.parametrize("model", [Piece, Category, Collection, Stone, Material])
+def test_blank_slugs_are_generated_and_unique(model):
+    extra = {"sku": "TEST-1", "price_cents": 10000} if model is Piece else {}
+    first = model.objects.create(name_es="Ópalo azul", name_en="Blue opal", **extra)
+    if model is Piece:
+        extra["sku"] = "TEST-2"
+    second = model.objects.create(name_es="Ópalo azul", name_en="Blue opal", **extra)
+    assert (first.slug_es, first.slug_en) == ("opalo-azul", "blue-opal")
+    assert (second.slug_es, second.slug_en) == ("opalo-azul-2", "blue-opal-2")
+    first.name_es = "Otro nombre"
+    first.save()
+    first.refresh_from_db()
+    assert first.slug_es == "opalo-azul"
+    first.slug_es = ""
+    first.name_en = ""
+    first.slug_en = ""
+    first.save()
+    assert first.slug_es == "otro-nombre"
+    assert first.slug_en == "otro-nombre"
+
+
+def test_edit_empty_sku_generates_next_reference():
+    piece = create_piece(cat=category())
+    piece.sku = ""
+    services.save_piece(piece, actor=None)
+    assert piece.sku == "SRT-ANI-0002"
+
+
+def test_duplicate_uses_generated_reference_and_name_slug():
+    _, user = staff(PROPIETARIO)
+    piece = create_piece(cat=category())
+    copy = services.duplicate_piece(piece, user)
+    assert copy.sku == "SRT-ANI-0002"
+    assert copy.slug_es == "uno-copia"
+    assert copy.status == Piece.Status.DRAFT

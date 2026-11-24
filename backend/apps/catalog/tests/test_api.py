@@ -179,3 +179,26 @@ def test_pagination_query_counts(client: Client, make_piece: Callable[..., Piece
     assert client.get(URL).json()["count"] == 50
     assert len(client.get(URL).json()["results"]) == 24
     assert client.get(URL, {"page": 99}).status_code == 404
+
+
+@pytest.mark.parametrize(
+    "locale,slug,name", [("es", "pieza-1", "Pieza 1"), ("en", "piece-1", "Piece 1")]
+)
+def test_available_detail_uses_edited_general_whatsapp_template(
+    client, make_piece, locale, slug, name
+):
+    piece = make_piece()
+    config = get_solo()
+    config.whatsapp_number = "573001234567"
+    config.whatsapp_general_es = "Consulta ES {name} / {sku} / {url}"
+    config.whatsapp_general_en = "Question EN {name} / {sku} / {url}"
+    config.save()
+    with override_settings(PUBLIC_SITE_URL="https://example.com"):
+        data = client.get(URL + "/" + slug, {"locale": locale}).json()
+    message = parse_qs(urlparse(data["whatsapp_url"]).query)["text"][0]
+    prefix = "Consulta ES" if locale == "es" else "Question EN"
+    segment = "piezas" if locale == "es" else "pieces"
+    assert (
+        message == f"{prefix} {name} / {piece.sku} / https://example.com/{locale}/{segment}/{slug}"
+    )
+    assert data["cta"] == {"kind": "add_to_cart"}

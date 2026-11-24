@@ -4,11 +4,13 @@ from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.contrib import admin, messages
+from django.db import transaction
 from django.http import HttpRequest
 from django.utils.translation import gettext_lazy as _
 from modeltranslation.admin import TabbedTranslationAdmin
 from unfold.admin import ModelAdmin
 
+from apps.audit.services import record
 from apps.catalog.forms import PesosField
 
 from .admin_presentation import ClientPresentationMixin
@@ -101,5 +103,25 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
             )
         return super().changeform_view(request, object_id, form_url, extra_context)
 
+    @transaction.atomic
     def save_model(self, request: HttpRequest, obj: SiteSettings, form: Any, change: bool) -> None:
+        previous = SiteSettings.objects.filter(pk=obj.pk).first()
+        # Only explicitly approved settings can enter the audit log. New fields are redacted.
+        safe_fields = {
+            "title_scale", "text_scale", "whatsapp_number", "instagram_url", "facebook_url",
+            "tiktok_url", "pinterest_url", "support_email", "certificate_price_cents",
+            "online_reservation_minutes", "manual_reservation_hours",
+        }
+        diff = {}
+        if previous:
+            for field in obj._meta.concrete_fields:
+                if field.primary_key:
+                    continue
+                old, new = getattr(previous, field.attname), getattr(obj, field.attname)
+                if old != new:
+                    diff[field.name] = [old, new] if field.name in safe_fields else [
+                        "[redactado]", "[redactado]"
+                    ]
         save_site_settings(obj, actor=request.user)
+        if diff:
+            record("core.settings_updated", actor=request.user, obj=obj, diff=diff, request=request)

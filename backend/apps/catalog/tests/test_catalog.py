@@ -112,7 +112,9 @@ def test_category_depth() -> None:
 
 def test_publication_rules_audit_and_terminal_state(make_piece: Callable[..., Piece]) -> None:
     piece = make_piece(published=False, short_description_es="")
-    with pytest.raises(PublicationError, match=r"descripción corta.*imagen"):
+    with pytest.raises(
+        PublicationError, match=r"descripción corta.*al menos una foto lista.*foto principal lista"
+    ):
         publish_piece(piece, None)
     piece = make_piece(sale_price_cents=90_000)
     first_published = piece.published_at

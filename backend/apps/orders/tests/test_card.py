@@ -419,12 +419,39 @@ def test_card_manual_payment_and_certificate_links(order):
     assert browser.get(certificate).status_code == 200
 
 
-def test_card_state_select_offers_the_allowed_targets(order):
+def test_card_state_select_offers_the_allowed_targets(order, piece):
+    from apps.inventory.models import PieceReservation
     from apps.orders.forms import CardFulfillmentForm
 
+    piece.sale_state = "sold"
+    piece.save(update_fields=["sale_state"])
+    OrderItem.objects.create(order=order, piece=piece, sku=piece.sku, name_es="Anillo",
+                             name_en="Ring", unit_price_cents=100000)
+    PieceReservation.objects.create(piece=piece, order=order, kind="online", status="converted",
+                                    expires_at=timezone.now())
     order.payment_status = "approved"
     order.save(update_fields=["payment_status"])
     html = str(CardFulfillmentForm(order=order, can_cancel=True)["target"])
     assert 'value="preparing"' in html
     assert 'value="cancelled"' in html
     assert 'value="shipped"' not in html
+
+
+def test_unpaid_card_hides_preparing_and_reports_forged_transition(order):
+    browser, _ = staff(PROPIETARIO)
+    order.payment_status = "awaiting_manual_payment"
+    order.save()
+    page = browser.get(card_url(order)).content.decode()
+    assert 'data-choose-state="preparing"' not in page
+    response = browser.post(
+        reverse("admin:orders-card-status", args=[order.pk]), post_data(order),
+        HTTP_X_ORDER_CARD="1",
+    )
+    assert response.status_code == 422
+    assert "No puedes preparar un pedido sin pago aprobado." in response.content.decode()
+
+
+def test_manual_payment_confirmation_title(order):
+    browser, _ = staff(PROPIETARIO)
+    response = browser.get(reverse("admin:orders-confirm-manual", args=[order.pk]))
+    assert f"Confirmar pago manual · {order.number}" in response.content.decode()

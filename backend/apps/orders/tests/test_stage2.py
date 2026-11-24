@@ -95,6 +95,7 @@ def test_cancel_permissions_reason_releases_and_rejects_payments(order):
     order.refresh_from_db()
     piece = order.items.get().piece
     assert order.fulfillment_status == "cancelled"
+    assert order.payment_status == "cancelled"
     assert order.reservations.get().status == "released" and piece.sale_state == "available"
     assert expire_stale_orders() == 0
     assert not order.deliveries.filter(event="reservation_expired").exists()

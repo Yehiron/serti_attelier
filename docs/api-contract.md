@@ -74,7 +74,9 @@ Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`,
 ```
 
 ### `GET /catalog/pieces/{slug}`
-Detalle completo: descripciones, historia, atributos, galería, piedras, materiales, colecciones, relacionadas, SEO (`title`, `description`, `alternates: {es, en}`) y `cta`:
+Detalle completo: descripciones, historia, atributos, galería, piedras, materiales, colecciones, relacionadas, SEO (`title`, `description`, `alternates: {es, en}`) y `cta`. `whatsapp_url` contiene la URL de la plantilla general para la pieza, o `null` si no hay número configurado.
+
+CTA:
 
 ```json
 "cta": { "kind": "add_to_cart" }
@@ -299,3 +301,9 @@ Campos aditivos en un endpoint nuevo: `wine`, `crimson`, `cream`, `paper`, `ink`
 El editor admite `document=brand:identity`, sección `brand`, acciones `update`, `media-select` y `discard`, con `expected_version` obligatorio; conserva 409, sesión, CSRF y capacidades editoriales. El registro añade `brand_document` sin modificar las once secciones. En el almacenamiento las imágenes conservan `{asset,crop,version}`; logos se sirven completos, sin aplicar el recorte fotográfico.
 
 `site/settings.title_scale/text_scale` conserva sus campos numéricos históricos para clientes anteriores; la tienda usa exclusivamente las escalas publicadas del documento de identidad. Las columnas antiguas dejan de aparecer en Configuración del sitio.
+
+### `POST /contact`
+
+Recibe JSON con `name` (máximo 120), `email`, `phone` (opcional, máximo 30), `topic` (`piece`, `custom`, `appointment`, `order`, `other`), `piece_sku` (opcional, máximo 64), `message` (20–2000), `preferred_channel` (`email` o `whatsapp`), `accepted_privacy_version` (entero vigente), `locale` (`es` o `en`), `website` y `elapsed_ms`. Devuelve `201 {"received": true}` sin datos personales. Los errores de validación son `application/problem+json` con `errors` por campo; el consentimiento vencido devuelve `consent_required` y el límite por IP `rate_limited` (429). Los valores de la trampa `website` o tiempos inferiores a tres segundos reciben el mismo 201 sin guardar ni enviar correos: así no se confirma al remitente automatizado que fue detectado. No se guarda la IP.
+
+La cotización acepta `email` opcional y válido; con un cupón comprueba su límite por correo y puede devolver `coupon.reason = "coupon_used_by_email"`.

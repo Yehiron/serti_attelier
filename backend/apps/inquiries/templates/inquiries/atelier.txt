@@ -1,0 +1,14 @@
+Nombre: {{ inquiry.name }}
+Correo: {{ inquiry.email }}
+{% if inquiry.phone %}Celular: {{ inquiry.phone }}
+{% endif %}
+Motivo: {{ inquiry.get_topic_display }}
+{% if inquiry.piece_sku %}Pieza: {{ inquiry.piece_sku }}
+{% endif %}
+Mensaje: {{ inquiry.message }}
+Canal: {{ inquiry.get_preferred_channel_display }}
+Privacidad: {{ inquiry.privacy_version }}
+Idioma: {{ inquiry.locale }}
+Estado: {{ inquiry.get_status_display }}
+Fecha: {{ inquiry.created_at }}
+Registro: {{ url }}

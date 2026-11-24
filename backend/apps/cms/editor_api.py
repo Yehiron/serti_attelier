@@ -40,7 +40,9 @@ def editor(request):
             "api_url": reverse("cms-editor-document"),
             "can_publish": request.user.has_perm("cms.publish_content"),
             "can_restore": request.user.has_perm("cms.restore_content"),
-            "history_url": reverse("cms-history"),
+            "history_url": reverse("cms-history")
+            + "?"
+            + urlencode({"document": request.GET.get("document") or "home"}),
             "photo_widget": PhotoInput().render(
                 "photo", None, attrs={"id": "cms-photo-template", "accept": "image/*"}
             ),
@@ -116,6 +118,7 @@ def state(key, request):
         "preview": preview,
         "choices": choices,
         "review_url": reverse("cms-review-publish", args=[key]),
+        "history_url": reverse("cms-history") + "?" + urlencode({"document": key}),
         "can_discard": request.user.has_perm("cms.restore_content")
         and bool(
             document.brand_publication_id
