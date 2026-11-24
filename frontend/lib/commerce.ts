@@ -1,6 +1,7 @@
 import type { Image, Money, Problem, SaleState, WompiCheckout, PaymentDetails } from './api/types.ts';
 import type { Locale } from './i18n.ts';
 export type CartItem = { sku: string; slug: string; name: string; image: Image | null; price: Money; sale_price: Money | null; effective_price: Money; sale_state: SaleState; purchasable: boolean };
+/** El subtotal incluye únicamente las piezas comprables. */
 export type Cart = { items: CartItem[]; removed: { sku: string; name: string; reason: 'sold' | 'preorder' | 'unavailable' }[]; count: number; subtotal: Money };
 export type Quote = { items: { sku: string; name: string; unit_price_cents: number; discount_cents: number }[]; subtotal_cents: number; discount_cents: number; shipping_cents: number; certificate_cents: number; total_cents: number; currency: 'COP'; coupon: { code: string; applied: boolean; reason: string | null } | null; payment_channels: ('wompi' | 'manual')[] };
 export type CreatedOrder = { wompi: WompiCheckout | null; number: string; public_token: string; payment_channel: 'wompi' | 'manual'; payment_status: string; total_cents: number; reservation_expires_at: string | null; manual_instructions: string | null };

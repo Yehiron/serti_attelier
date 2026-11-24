@@ -12,7 +12,7 @@ import { SocialLinks } from './social-links';
 import { PaymentMethods } from './payment-methods';
 export async function Header({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const [taxonomy, settings, menu, brand] = await Promise.all([getTaxonomy(locale).catch(() => emptyTaxonomy), getSettings(locale).catch(() => emptySettings), getMenu(locale, 'main').catch(() => undefined), getBrand(locale).catch(() => originalBrand)]);
-  return <Navigation brand={brand} locale={locale} dict={dict} taxonomy={taxonomy} items={menu?.items} whatsapp={settings.whatsapp.general_url} />;
+  return <Navigation brand={brand} locale={locale} dict={dict} taxonomy={taxonomy} items={menu?.items} settings={settings} whatsapp={settings.whatsapp.general_url} />;
 }
 export async function Footer({ locale, dict }: { locale: Locale; dict: Dictionary }) {
   const [settings, menu, brand] = await Promise.all([getSettings(locale).catch(() => emptySettings), getMenu(locale, 'footer').catch(() => undefined), getBrand(locale).catch(() => originalBrand)]);

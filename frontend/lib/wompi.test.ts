@@ -36,3 +36,27 @@ test('submits a native GET form with hidden literal inputs in the same tab until
     if (previousForm) Object.defineProperty(globalThis, 'HTMLFormElement', previousForm); else Reflect.deleteProperty(globalThis, 'HTMLFormElement');
   }
 });
+
+test('widget maps validated fields and integer amount', async () => {
+  const { widgetConfig } = await import('./wompi.ts');
+  const input = checkout(); Object.assign(input.fields, { 'customer-data:email': 'ana@example.com', 'customer-data:phone-number': '3001234567', 'shipping-address:phone-number': '3001234567', 'shipping-address:city': 'Medellín' });
+  const config = widgetConfig(input);
+  assert.equal(config.amountInCents, 400000000); assert.equal(config.signature.integrity, 'abc123');
+  assert.deepEqual(config.customerData, { email: 'ana@example.com', fullName: 'Ana <&"', phoneNumber: '3001234567' });
+  assert.deepEqual(config.shippingAddress, { country: 'CO', city: 'Medellín', phoneNumber: '3001234567' });
+  for (const amount of ['1.5', '-1', '1e3', '9007199254740992']) assert.throws(() => widgetConfig({ ...input, fields: { ...input.fields, 'amount-in-cents': amount } }));
+  assert.throws(() => widgetConfig({ ...input, checkout_url: 'https://evil.example/' }));
+  assert.throws(() => widgetConfig({ ...input, fields: { ...input.fields, extra: 'x' } }));
+});
+
+test('widget falls back to the form when script fails', async () => {
+  const { openWompiWidget } = await import('./wompi.ts');
+  const oldDocument = Object.getOwnPropertyDescriptor(globalThis, 'document'); const oldWindow = Object.getOwnPropertyDescriptor(globalThis, 'window'); const oldForm = Object.getOwnPropertyDescriptor(globalThis, 'HTMLFormElement');
+  let submitted = false;
+  const form = { appendChild() {}, remove() {} };
+  Object.defineProperty(globalThis, 'window', { configurable: true, value: { setTimeout, clearTimeout } });
+  Object.defineProperty(globalThis, 'document', { configurable: true, value: { createElement: (tag: string) => tag === 'form' ? form : { remove() {} }, head: { appendChild: (script: { onerror: () => void }) => script.onerror() }, body: { appendChild() {} } } });
+  Object.defineProperty(globalThis, 'HTMLFormElement', { configurable: true, value: { prototype: { submit() { submitted = true; } } } });
+  try { await openWompiWidget(checkout(), () => {}); assert.equal(submitted, true); }
+  finally { for (const [key, descriptor] of [['document', oldDocument], ['window', oldWindow], ['HTMLFormElement', oldForm]] as const) { if (descriptor) Object.defineProperty(globalThis, key, descriptor); else Reflect.deleteProperty(globalThis, key); } }
+});

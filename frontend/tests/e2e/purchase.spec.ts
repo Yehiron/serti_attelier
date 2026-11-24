@@ -23,7 +23,7 @@ test('online payment: declined, retried and approved through Wompi', async ({ pa
   await addToCartAndCheckout(page, piece.slug_es, piece.name);
   await fillCheckout(page, who, 'online');
   await page.getByRole('button', { name: /Confirmar pedido/ }).click();
-  await expect(page.getByRole('heading', { name: 'Wompi stub' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wompi stub' })).toBeVisible();
 
   const first = wompi();
   expect(first.get('reference')).toMatch(/^SRT-\d{6}-01$/);
@@ -35,7 +35,7 @@ test('online payment: declined, retried and approved through Wompi', async ({ pa
   await page.goto(orderUrl);
   await expect(page.getByText(/Tu pago no se completó/)).toBeVisible();
   await page.getByRole('button', { name: 'Intentar de nuevo' }).click();
-  await expect(page.getByRole('heading', { name: 'Wompi stub' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wompi stub' })).toBeVisible();
   const second = wompi();
   expect(second.get('reference')).toMatch(/-02$/);
 

@@ -34,7 +34,7 @@ test('pending PSE updates without reloading, tracking timeline and accessible pa
   await addToCartAndCheckout(page, piece.slug_es, piece.name);
   await fillCheckout(page, who, 'online');
   await page.getByRole('button', { name: /Confirmar pedido/ }).click();
-  await expect(page.getByRole('heading', { name: 'Wompi stub' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Wompi stub' })).toBeVisible();
   const fields = wompi();
   const reference = fields.get('reference')!;
   const orderUrl = localRedirect(fields.get('redirect-url')!, baseURL!);

@@ -39,7 +39,8 @@ def cart_data(cart: Cart | None, removed: list[dict[str, Any]] | None = None) ->
                 "purchasable": piece.status == "published" and piece.sale_state == "available",
             }
         )
-        subtotal += piece.effective_price.amount_cents
+        if piece.status == "published" and piece.sale_state == "available":
+            subtotal += piece.effective_price.amount_cents
     return {
         "items": items,
         "removed": removed or [],

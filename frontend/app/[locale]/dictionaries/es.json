@@ -293,6 +293,18 @@
     "tooManyRequests": "Has consultado este pedido varias veces. Espera un momento y vuelve a intentarlo.",
     "orderInProgress": "Ya creaste un pedido en esta visita. Puedes pagarlo o revisarlo desde su página.",
     "viewOrder": "Ver mi pedido",
-    "newPurchase": "Hacer otra compra"
+    "newPurchase": "Hacer otra compra",
+    "stepSelection": "Selección",
+    "stepDelivery": "Datos y entrega",
+    "stepPayment": "Pago",
+    "back": "Atrás",
+    "widgetOpen": "Completa tu pago en la ventana segura de Wompi",
+    "widgetClosed": "Si cerraste la ventana, puedes volver a abrirla.",
+    "paymentIncomplete": "El pago no se completó. Puedes intentarlo de nuevo.",
+    "paymentResult": "Resultado del pago",
+    "wompiSecure": "Pago seguro con Wompi",
+    "stepData": "Datos",
+    "next": "Siguiente",
+    "yourData": "Tus datos"
   }
 }

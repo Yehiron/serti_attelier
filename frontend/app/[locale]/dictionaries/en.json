@@ -293,6 +293,18 @@
     "tooManyRequests": "You’ve checked this order several times. Please wait a moment and try again.",
     "orderInProgress": "You already placed an order during this visit. You can pay for it or check it on its page.",
     "viewOrder": "View my order",
-    "newPurchase": "Make another purchase"
+    "newPurchase": "Make another purchase",
+    "stepSelection": "Selection",
+    "stepDelivery": "Details and delivery",
+    "stepPayment": "Payment",
+    "back": "Back",
+    "widgetOpen": "Complete your payment in Wompi’s secure window",
+    "widgetClosed": "If you closed the window, you can open it again.",
+    "paymentIncomplete": "Payment was not completed. You can try again.",
+    "paymentResult": "Payment result",
+    "wompiSecure": "Secure payment with Wompi",
+    "stepData": "Details",
+    "next": "Next",
+    "yourData": "Your details"
   }
 }

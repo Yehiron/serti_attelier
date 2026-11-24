@@ -130,7 +130,7 @@ Estado actual de varias piezas (lista de deseos y carrito). Máximo 50 SKU. Resp
 
 | Método y ruta | Cuerpo | Respuesta |
 |---|---|---|
-| `GET /cart` | — | Carrito con piezas, estado de cada una y subtotal. Si alguna dejó de estar disponible, viene con `removed: [{sku, reason}]` |
+| `GET /cart` | — | Carrito con piezas, estado de cada una y subtotal de las piezas comprables. Si alguna dejó de estar disponible, viene con `removed: [{sku, reason}]` |
 | `POST /cart/items` | `{ "sku": "SRT-AN-0012" }` | 201 con el carrito. Crea la cookie si no existe. 409 `piece_sold` / `piece_preorder`. `piece_reserved` **no** impide agregar (se informa en el estado) |
 | `DELETE /cart/items/{sku}` | — | 200 con el carrito |
 

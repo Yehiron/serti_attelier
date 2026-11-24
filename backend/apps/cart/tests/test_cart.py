@@ -131,3 +131,13 @@ def test_query_count_bounded(django_assert_max_num_queries: Any) -> None:
     client.cookies["serti_cart"] = response.cookies["serti_cart"].value
     with django_assert_max_num_queries(9):
         assert client.get("/api/v1/cart").data["count"] == 20
+
+
+def test_subtotal_excludes_reserved_piece() -> None:
+    client = APIClient()
+    available = piece(1)
+    reserved = piece(2, sale_state="reserved")
+    client.post("/api/v1/cart/items", {"sku": available.sku}, format="json")
+    response = client.post("/api/v1/cart/items", {"sku": reserved.sku}, format="json")
+    assert response.data["count"] == 2
+    assert response.data["subtotal"]["amount_cents"] == 1000

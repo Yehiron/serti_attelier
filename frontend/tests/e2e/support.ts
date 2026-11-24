@@ -36,11 +36,15 @@ export async function fillCheckout(page: Page, who: Buyer, channel: 'online' | '
   await page.getByLabel('Nombre completo').fill(who.name);
   await page.getByLabel('Correo electrónico').fill(who.email);
   await page.getByLabel('Celular').fill(who.phone);
+  const drawer = page.locator('dialog.cart-drawer');
+  const stepped = await drawer.isVisible();
+  if (stepped) await drawer.getByRole('button', { name: 'Siguiente' }).click();
   await page.getByLabel('Departamento').selectOption('05');
   const municipality = page.getByLabel('Municipio');
   await municipality.locator('option[value="05001"]').waitFor({ state: 'attached' });
   await municipality.selectOption('05001');
   await page.getByLabel('Dirección').fill(who.address);
+  if (stepped) await drawer.getByRole('button', { name: 'Siguiente' }).click();
   await page.getByLabel(channel === 'manual' ? /Pagar por otro medio/ : /Pago en línea/).check();
   await page.getByLabel(/Acepto los términos/).check();
   await page.getByLabel(/Acepto la política de privacidad/).check();
@@ -68,7 +72,17 @@ export async function waitForEmails(address: string, count: number, timeoutMs = 
 /** Wompi checkout is external: tests stub it and read the signed fields it would receive. */
 export async function stubWompi(page: Page): Promise<() => URLSearchParams> {
   let last = new URLSearchParams();
+  await page.exposeBinding('captureWompi', (_source, config: Record<string, unknown>) => {
+    const mapping: Record<string, string> = { publicKey: 'public-key', amountInCents: 'amount-in-cents', redirectUrl: 'redirect-url', expirationTime: 'expiration-time' };
+    last = new URLSearchParams();
+    for (const [key, value] of Object.entries(config)) if (typeof value === 'string' || typeof value === 'number') last.set(mapping[key] ?? key, String(value));
+    last.set('signature:integrity', String((config.signature as { integrity: string }).integrity));
+  });
   await page.route('https://checkout.wompi.co/**', async (route) => {
+    if (new URL(route.request().url()).pathname === '/widget.js') {
+      await route.fulfill({ contentType: 'application/javascript', body: `window.WidgetCheckout = class { constructor(config) { if (config.shippingAddress && !config.shippingAddress.phoneNumber) throw Error('shipping-address:phone-number'); window.captureWompi(config); window.wompiConfig = config; } open(cb) { /* Mirrors the real widget DOM: closing keeps .waybox-modal and adds waybox-modal-final-close, without calling cb. */ const modal = document.createElement('div'); modal.className = 'waybox-modal waybox-display-block'; modal.style.cssText = 'position:fixed;top:40px;left:0;right:0;z-index:2147483647;background:#fff;padding:16px;display:flex;gap:12px'; const close = () => modal.classList.add('waybox-modal-final-close'); const pay = document.createElement('button'); pay.textContent = 'Wompi stub'; pay.onclick = () => { cb({transaction: {id: window.wompiTransactionId || 'stub-transaction'}}); close(); }; const dismiss = document.createElement('button'); dismiss.textContent = 'Cerrar Wompi'; dismiss.onclick = close; modal.append(pay, dismiss); document.body.appendChild(modal); } };` });
+      return;
+    }
     last = new URL(route.request().url()).searchParams;
     // Same rule as the real sandbox: a shipping address needs its own phone number.
     const missingPhone = [...last.keys()].some((key) => key.startsWith('shipping-address:')) && !last.get('shipping-address:phone-number');
@@ -99,6 +113,7 @@ export async function addToCartAndCheckout(page: import('@playwright/test').Page
   const drawer = page.locator('dialog.cart-drawer');
   await expect(drawer).toBeVisible();
   await expect(drawer.getByText(name)).toBeVisible();
-  await drawer.getByRole('link', { name: /Finalizar compra/ }).click();
+  await page.goto('/es/carrito');
+  await page.getByRole('link', { name: /Finalizar compra/ }).click();
   await expect(page).toHaveURL(/\/es\/checkout$/);
 }

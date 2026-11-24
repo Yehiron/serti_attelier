@@ -8,7 +8,7 @@ import { browserRequest } from '@/lib/cart';
 import { ApiError } from '@/lib/api/problem';
 import { clearAttempt, clearAttemptForOrder, clearPaymentAttempt, paymentAttemptKey } from '@/lib/commerce';
 import { orderViewState } from '@/lib/order-state';
-import { submitWompiCheckout, withoutTransactionId } from '@/lib/wompi';
+import { openWompiWidget, withoutTransactionId } from '@/lib/wompi';
 
 export function OrderPayment({ order, token, locale, t, paused = false }: { paused?: boolean; order: PaymentDetails; token: string; locale: Locale; t: Dictionary['commerce'] }) {
   const view = orderViewState(order); const router = useRouter();
@@ -48,7 +48,7 @@ export function OrderPayment({ order, token, locale, t, paused = false }: { paus
         method: 'POST', headers: { 'Idempotency-Key': paymentAttemptKey(sessionStorage, token, order.payment.last_attempt?.reference ?? '', () => crypto.randomUUID()) },
       })).wompi : order.wompi;
       if (!checkout) { router.refresh(); setMessage(t.onlineUnavailable); }
-      else { await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))); submitWompiCheckout(checkout); return; }
+      else { await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))); await openWompiWidget(checkout, result => { const id = result?.transaction?.id; if (id) void browserRequest(`orders/${encodeURIComponent(token)}/payment-sync`, locale, { method: 'POST', body: JSON.stringify({ transaction_id: id }) }).catch(() => setMessage(t.syncDelayed)).finally(() => router.refresh()); else router.refresh(); }); setMessage(''); }
     } catch (error) {
       if (error instanceof ApiError && error.problem.code === 'payment_not_retryable') { router.refresh(); setMessage(''); }
       else setMessage(error instanceof ApiError && error.status === 429 ? t.tooManyRequests : t.error);

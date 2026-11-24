@@ -37,7 +37,7 @@
 		>Referrer-Policy "no-referrer"
 		>X-Robots-Tag "noindex, nofollow"
 		-X-Frame-Options
-		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self'; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
+		>Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.wompi.co; frame-src 'self' https://checkout.wompi.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'self'; base-uri 'self'; object-src 'none'"
 	}
 
 	@cms_public {
@@ -97,7 +97,7 @@
 		request_body {
 			max_size 1MB
 		}
-		header @cms_public >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
+		header @cms_public >Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://checkout.wompi.co; frame-src 'self' https://checkout.wompi.co; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; form-action 'self' https://checkout.wompi.co; frame-ancestors 'none'; base-uri 'self'; object-src 'none'; upgrade-insecure-requests"
 		reverse_proxy frontend:3000
 	}
 }

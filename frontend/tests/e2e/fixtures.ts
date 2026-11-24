@@ -7,7 +7,7 @@ export async function localOnly(context: BrowserContext, baseURL: string) {
   const origin = new URL(baseURL).origin;
   await context.route('**/*', route => {
     const url = new URL(route.request().url());
-    return url.origin === origin ? route.continue() : route.abort('blockedbyclient');
+    return url.origin === origin || url.href === 'https://checkout.wompi.co/widget.js' ? route.continue() : route.abort('blockedbyclient');
   });
 }
 
