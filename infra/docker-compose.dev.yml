@@ -11,6 +11,10 @@ x-backend: &backend
       REQUIREMENTS: dev
   env_file: ../.env
   environment:
+    # Media live in the bind mount so backend, worker and beat share them (and the
+    # backup profile reads ../backend/media); .env.example's /srv paths are for prod.
+    DJANGO_MEDIA_ROOT: /app/media
+    DJANGO_PRIVATE_MEDIA_ROOT: /app/private_media
     WOMPI_ALLOW_FAKE_API: "true"
     WOMPI_API_URL: http://wompi-fake:8080/v1
     WOMPI_PUBLIC_KEY: pub_test_e2e_public

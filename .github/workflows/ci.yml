@@ -133,6 +133,8 @@ jobs:
         working-directory: frontend
       - name: Start stack
         run: |
+          # The container user differs from the runner's: let it write the bind-mounted media.
+          mkdir -p backend/media backend/private_media && chmod 777 backend/media backend/private_media
           make up
           for i in $(seq 60); do curl -fs http://localhost:8090/api/v1/health/ready && break; sleep 5; done
           make seed
@@ -142,11 +144,12 @@ jobs:
           from apps.accounts.models import User
           from apps.accounts.roles import PROPIETARIO
           from apps.accounts.services import sync_roles
+          from apps.cms.documents import get_document
           from apps.cms.services import publish_home
           sync_roles()
           user = User.objects.create_user(username='ci-publisher', email='ci-publisher@e2e.invalid', is_staff=True)
           user.groups.add(Group.objects.get(name=PROPIETARIO))
-          publish_home(user, note='CI')
+          publish_home(user, note='CI', expected_version=get_document('home').draft_version)
           "
       - name: Playwright
         run: npx playwright test
