@@ -6,7 +6,7 @@ const repo = resolve(__dirname, '../../..');
 const compose = ['compose', '-f', 'infra/docker-compose.dev.yml', 'exec', '-T', 'backend', 'python', 'manage.py'];
 
 export function manage(...args: string[]): string {
-  return execFileSync('docker', [...compose, ...args], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+  return execFileSync('docker', [...compose, ...args], { cwd: repo, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 }
 
 export type Piece = { sku: string; slug_es: string; slug_en: string; name: string };
