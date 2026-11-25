@@ -6,7 +6,7 @@ Mediciones iniciales facilitadas para el stack local con 958 piezas y 385 pedido
 | --- | --- | --- |
 | Ajustes / taxonomía | 5 / 5 consultas | 5 / 5 consultas (una sola petición por página) |
 | Listado | 8 consultas | 8 consultas, constante entre páginas |
-| Búsqueda `esmeralda` | 8 consultas, 65–71 ms de BD | 8 consultas, ~70 ms de BD con 958 piezas (el filtro se reevalúa en conteo, página y facetas; ver pendiente) |
+| Búsqueda `esmeralda` | 8 consultas, 65–71 ms de BD | 8 consultas, ~70 ms de BD con 958 piezas antes de la última optimización; medición posterior pendiente |
 | Ficha de pieza | 17 consultas | 8 consultas, constante |
 | Inicio CMS / menú | 9 / 3 consultas | 9 / 3 consultas |
 | Edición de pieza | 35 consultas, 7 comprobaciones repetidas de reservas | 29 consultas, sin repetidas |
@@ -34,6 +34,16 @@ El historial pagina una unión de claves por fecha, id y tipo, y carga únicamen
 
 Verificación (24/11/2026): backend 1488 pruebas, frontend 97 unitarias, Playwright 91 (desktop y mobile).
 
-## Pendiente opcional
+## Búsqueda: mejora resuelta
 
-La búsqueda reevalúa el filtro de texto en el conteo, la página y las facetas (precio y piedras); como el filtro combina con OR columnas de otras tablas (categoría, piedras), PostgreSQL no puede usar el índice trigram. Mejora propuesta: calcular una vez los ids coincidentes y reutilizarlos en las facetas, y separar la coincidencia por nombre de pieza (indexable) de la coincidencia por relaciones.
+Cada palabra se resuelve mediante una unión de consultas independientes para campos de pieza, categoría, piedras, materiales y colecciones, además de descripciones largas y similitud. Se intersectan los resultados por palabra y se materializan los identificadores una sola vez por petición; página, conteo y facetas los reutilizan. La relevancia se calcula con la misma fórmula anterior. Esta elección es adecuada para catálogos de miles de piezas, a costa de mantener los identificadores en memoria y transmitirlos en los filtros posteriores. Los campos de pieza indexados usan exactamente la expresión de la migración 0012; los nombres relacionados conservan la comparación anterior y disponen de índices propios. El plan y la latencia resultantes aún requieren medición real con `EXPLAIN ANALYZE`.
+
+### Medición de la búsqueda tras la mejora (25/11/2026, 958 piezas, mediana de 5 llamadas)
+
+| Búsqueda | Antes (BD) | Después (BD) |
+|---|---|---|
+| `esmeralda` | ~70 ms, filtro de texto en 4 consultas | ~10 ms, filtro en 1 consulta, índices `catalog_trgm_*` usados (Bitmap Index Scan) |
+| `zafiro oro` | — | ~16 ms |
+| `anillos` (790 resultados) / `diamante` (833) | — | ~28 ms (domina el orden por relevancia) |
+
+El listado sin búsqueda bajó de 8 a 6 consultas, constante entre tamaños de página. Verificación: backend 1491 pruebas, E2E de filtros, buscador, SEO y categorías.

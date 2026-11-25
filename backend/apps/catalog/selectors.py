@@ -19,12 +19,12 @@ from django.db.models import (
     When,
     prefetch_related_objects,
 )
-from django.db.models.functions import Coalesce, Greatest, Lower
+from django.db.models.functions import Coalesce, Greatest, Lower, Upper
 
 from apps.core.exceptions import PieceNotFound
 from apps.core.selectors import whatsapp_url
 
-from .models import Category, Piece, Stone
+from .models import Category, Collection, Material, Piece, Stone
 
 if TYPE_CHECKING:
     from django_stubs_ext import WithAnnotations
@@ -61,8 +61,77 @@ def published_pieces(
     )
 
 
-def filter_pieces(params: dict[str, Any], locale: str, *, facets: bool = False) -> QuerySet[Piece]:
-    qs = published_pieces()
+def search_piece_ids(query: str) -> list[int]:
+    """Resolve each word's union once; different words may match different relations."""
+    postgres = connection.vendor == "postgresql"
+    if postgres:
+        from django.contrib.postgres.lookups import Unaccent
+
+    matches = Piece.objects.order_by()
+    for word in query.split():
+        branches = []
+        for field in ("sku", "name_es", "name_en", "short_description_es", "short_description_en"):
+            pieces = Piece.objects.order_by()
+            if postgres:
+                pieces = pieces.alias(
+                    search_value=Func(Lower(field), function="catalog_immutable_unaccent")
+                ).filter(
+                    search_value__contains=Func(
+                        Lower(Value(word)), function="catalog_immutable_unaccent"
+                    )
+                )
+            else:
+                pieces = pieces.filter(**{f"{field}__icontains": word})
+            branches.append(pieces.values_list("pk", flat=True))
+        lookup = "unaccent__icontains" if postgres else "icontains"
+        long_text = Q(**{f"long_description_es__{lookup}": word}) | Q(
+            **{f"long_description_en__{lookup}": word}
+        )
+        branches.append(Piece.objects.filter(long_text).order_by().values_list("pk", flat=True))
+        for model, relation in (
+            (Category, "category"),
+            (Stone, "stones"),
+            (Material, "materials"),
+            (Collection, "collections"),
+        ):
+            if postgres:
+                taxa = model.objects.alias(
+                    search_es=Upper(Func("name_es", function="catalog_immutable_unaccent")),
+                    search_en=Upper(Func("name_en", function="catalog_immutable_unaccent")),
+                )
+                normalized_word = Upper(Unaccent(Value(word)))
+                names = Q(search_es__contains=normalized_word) | Q(
+                    search_en__contains=normalized_word
+                )
+            else:
+                taxa = model.objects
+                names = Q(name_es__icontains=word) | Q(name_en__icontains=word)
+            taxon_ids = taxa.filter(names).order_by().values("pk")
+            branches.append(
+                Piece.objects.filter(**{f"{relation}__in": taxon_ids})
+                .order_by()
+                .values_list("pk", flat=True)
+            )
+        if postgres:
+            fuzzy = Piece.objects.alias(
+                score=Greatest(
+                    TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(word))),
+                    TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(word))),
+                )
+            ).filter(score__gt=0.3)
+            branches.append(fuzzy.order_by().values_list("pk", flat=True))
+        matches = matches.filter(pk__in=branches[0].union(*branches[1:]))
+    return list(matches.values_list("pk", flat=True))
+
+
+def filter_pieces(
+    params: dict[str, Any],
+    locale: str,
+    *,
+    facets: bool = False,
+    search_ids: list[int] | None = None,
+) -> QuerySet[Piece]:
+    qs = published_pieces(card_only=True)
     if params.get("availability", "available") != "all":
         qs = qs.exclude(sale_state="sold")
     if category := params.get("category"):
@@ -89,69 +158,12 @@ def filter_pieces(params: dict[str, Any], locale: str, *, facets: bool = False) 
     if "is_new" in params:
         qs = qs.filter(is_new=params["is_new"])
     if query := params.get("q"):
-        fields = [
-            "sku",
-            "name_es",
-            "name_en",
-            "category__name_es",
-            "category__name_en",
-            "stones__name_es",
-            "stones__name_en",
-            "materials__name_es",
-            "materials__name_en",
-            "collections__name_es",
-            "collections__name_en",
-            "short_description_es",
-            "short_description_en",
-            "long_description_es",
-            "long_description_en",
-        ]
-        postgres = connection.vendor == "postgresql"
-        if postgres:
+        if search_ids is None:
+            search_ids = search_piece_ids(query)
+        qs = qs.filter(pk__in=search_ids)
+        if connection.vendor == "postgresql":
             from django.contrib.postgres.lookups import Unaccent
 
-        # Separate filters allow words to match different related rows (e.g. two stones).
-        for index, word in enumerate(query.split()):
-            condition = Q()
-            for field in fields:
-                lookup = f"{field}__unaccent__icontains" if postgres else f"{field}__icontains"
-                if postgres and field in {
-                    "sku",
-                    "name_es",
-                    "name_en",
-                    "short_description_es",
-                    "short_description_en",
-                }:
-                    alias = f"search_{field}"
-                    qs = qs.alias(
-                        **{alias: Func(Lower(field), function="catalog_immutable_unaccent")}
-                    )
-                    condition |= Q(
-                        **{
-                            f"{alias}__contains": Func(
-                                Lower(Value(word)), function="catalog_immutable_unaccent"
-                            )
-                        }
-                    )
-                elif field.startswith(("stones__", "materials__", "collections__")):
-                    condition |= Q(
-                        Exists(Piece.objects.filter(pk=OuterRef("pk"), **{lookup: word}))
-                    )
-                else:
-                    condition |= Q(**{lookup: word})
-            if postgres:
-                alias = f"word_similarity_{index}"
-                qs = qs.alias(
-                    **{
-                        alias: Greatest(
-                            TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(word))),
-                            TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(word))),
-                        )
-                    }
-                )
-                condition |= Q(**{f"{alias}__gt": 0.3})
-            qs = qs.filter(condition)
-        if postgres:
             qs = qs.annotate(
                 similarity=Greatest(
                     TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(query))),
@@ -180,8 +192,10 @@ def filter_pieces(params: dict[str, Any], locale: str, *, facets: bool = False) 
     return qs.order_by(*ordering)
 
 
-def piece_facets(params: dict[str, Any], locale: str) -> dict[str, Any]:
-    qs = filter_pieces(params, locale, facets=True)
+def piece_facets(
+    params: dict[str, Any], locale: str, *, search_ids: list[int] | None = None
+) -> dict[str, Any]:
+    qs = filter_pieces(params, locale, facets=True, search_ids=search_ids)
     ids = qs.order_by().values("pk")
     stones = Stone.objects.filter(pieces__in=ids).annotate(count=Count("pieces", distinct=True))
     price = qs.aggregate(min_cents=Min("effective_cents"), max_cents=Max("effective_cents"))

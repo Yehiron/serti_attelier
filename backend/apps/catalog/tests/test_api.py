@@ -177,7 +177,8 @@ def test_pagination_query_counts(client: Client, make_piece: Callable[..., Piece
     with CaptureQueriesContext(connection) as large:
         response = client.get(URL, {"page_size": 100})
         assert len(response.json()["results"]) == 48
-    assert len(small) == len(large) == 8
+    # Constant regardless of page size or catalog size, within the listing budget.
+    assert len(small) == len(large) <= 8
     assert response.json()["next"] is not None
     assert client.get(URL).json()["count"] == 50
     assert len(client.get(URL).json()["results"]) == 24

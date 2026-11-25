@@ -107,12 +107,13 @@ class PieceListView(PublicView):
             for slug in value.split(",")
             if slug
         ]
+        search_ids = selectors.search_piece_ids(params["q"]) if params.get("q") else None
         paginator = CatalogPagination()
         page = paginator.paginate_queryset(
-            selectors.filter_pieces(params, self.locale), request, view=self
+            selectors.filter_pieces(params, self.locale, search_ids=search_ids), request, view=self
         )
         response = paginator.get_paginated_response(PieceListSerializer(page, many=True).data)
-        response.data["facets"] = selectors.piece_facets(params, self.locale)
+        response.data["facets"] = selectors.piece_facets(params, self.locale, search_ids=search_ids)
         return response
 
 
