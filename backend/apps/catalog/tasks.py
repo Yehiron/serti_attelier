@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from uuid import uuid4
 
 from celery import shared_task
@@ -9,6 +10,8 @@ from django.utils.translation import gettext_lazy as _
 
 from .images import build_renditions, validated_image
 from .models import PieceImage
+
+logger = logging.getLogger(__name__)
 
 
 @shared_task  # type: ignore[untyped-decorator]  # Celery has no stubs.
@@ -30,6 +33,8 @@ def process_piece_image(image_id: int) -> None:
             obj.error = ""
             obj.save(update_fields=["renditions", "width", "height", "processing_status", "error"])
         except Exception:
+            # Details stay in the server log; the editor only sees the generic message.
+            logger.exception("Falló el procesamiento de la imagen %s", obj.pk)
             for path in paths:
                 default_storage.delete(path)
             obj.processing_status = PieceImage.ProcessingStatus.FAILED
