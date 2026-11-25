@@ -7,6 +7,8 @@ from rest_framework.response import Response
 
 from apps.core.api.base import PublicView
 from apps.core.api.serializers import public_responses
+from apps.core.models import SiteSettings
+from apps.core.selectors import get_solo
 
 from .. import selectors
 from ..models import Category, Collection, Material, Piece, Stone
@@ -25,6 +27,45 @@ class CatalogPagination(PageNumberPagination):
     max_page_size = 48
 
 
+class CatalogExistsView(PublicView):
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "kind", required=True, enum=["piece", "category", "collection", "stone", "material"]
+            ),
+            OpenApiParameter("slug", required=True),
+            OpenApiParameter("locale", enum=["es", "en"]),
+        ],
+        responses={204: None, 404: None},
+    )
+    def get(self, request: Request) -> Response:
+        kind = request.query_params.get("kind")
+        slug = request.query_params.get("slug", "")
+        models = {
+            "piece": Piece,
+            "category": Category,
+            "collection": Collection,
+            "stone": Stone,
+            "material": Material,
+        }
+        if kind not in models or not slug:
+            raise serializers.ValidationError("Se requieren kind y slug válidos.")
+        qs = models[kind].objects.filter(selectors.localized_slug(self.locale, slug))
+        if kind == "piece":
+            qs = qs.filter(status=Piece.Status.PUBLISHED)
+        elif kind == "category":
+            from django.db.models import Q
+
+            qs = qs.filter(is_active=True).filter(
+                Q(parent__isnull=True) | Q(parent__is_active=True)
+            )
+        elif kind == "collection":
+            qs = qs.filter(is_active=True)
+        response = Response(status=204 if qs.exists() else 404)
+        response["Cache-Control"] = "public, max-age=60"
+        return response
+
+
 class TaxonomyView(PublicView):
     @extend_schema(
         responses=public_responses(TaxonomySerializer),
@@ -34,12 +75,14 @@ class TaxonomyView(PublicView):
         return Response(
             TaxonomySerializer(
                 {
-                    "categories": Category.objects.filter(
-                        is_active=True, parent=None
-                    ).exclude(slug_es__isnull=True).exclude(slug_es="").prefetch_related("children"),
+                    "categories": Category.objects.filter(is_active=True, parent=None)
+                    .exclude(slug_es__isnull=True)
+                    .exclude(slug_es="")
+                    .prefetch_related("children"),
                     "collections": (
                         Collection.objects.filter(is_active=True)
-                        .exclude(slug_es__isnull=True).exclude(slug_es="")
+                        .exclude(slug_es__isnull=True)
+                        .exclude(slug_es="")
                     ),
                     "stones": Stone.objects.exclude(slug_es__isnull=True).exclude(slug_es=""),
                     "materials": Material.objects.exclude(slug_es__isnull=True).exclude(slug_es=""),
@@ -81,7 +124,11 @@ class PieceDetailView(PublicView):
     def get(self, request: Request, slug: str) -> Response:
         return Response(
             PieceDetailSerializer(
-                selectors.piece_detail(slug, self.locale), context={"locale": self.locale}
+                selectors.piece_detail(slug, self.locale),
+                context={
+                    "locale": self.locale,
+                    "settings": SiteSettings.objects.filter(pk=1).first() or get_solo(),
+                },
             ).data
         )
 

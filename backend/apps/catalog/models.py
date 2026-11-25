@@ -55,11 +55,9 @@ class NamedModel(models.Model):
                 kwargs["update_fields"].add("updated_at")
         super().save(*args, **kwargs)
 
-
     def clean(self) -> None:
         super().clean()
         self.populate_slugs()
-
 
     def populate_slugs(self) -> set[str]:
         generated = set()
@@ -76,6 +74,7 @@ class NamedModel(models.Model):
             setattr(self, field, candidate)
             generated.add(field)
         return generated
+
 
 class CoveredModel(NamedModel):
     cover_renditions = models.JSONField(
@@ -262,6 +261,10 @@ class Piece(NamedModel):
             models.Index(fields=["status", "sale_state"]),
             models.Index(fields=["category", "status"]),
             models.Index(fields=["-published_at"]),
+            models.Index(
+                fields=["status", "sale_state", "-published_at", "-id"],
+                name="piece_public_order_idx",
+            ),
         ]
 
     @property

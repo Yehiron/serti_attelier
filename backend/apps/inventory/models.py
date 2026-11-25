@@ -48,7 +48,12 @@ class PieceReservation(models.Model):
                 name="one_active_reservation_per_piece",
             )
         ]
-        indexes = [models.Index(fields=["status", "expires_at"])]
+        indexes = [
+            models.Index(fields=["status", "expires_at"]),
+            models.Index(
+                fields=["piece", "status", "expires_at"], name="reservation_piece_state_idx"
+            ),
+        ]
 
     def __str__(self) -> str:
         return f"{self.piece_id}: {self.status}"

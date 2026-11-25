@@ -441,3 +441,31 @@ def test_history_interleaves_restorations_and_publications(actor):
     assert any("restoration" in entry for entry in entries)
     html = response.content.decode()
     assert html.index("Publicación</p>") < html.index("Restauración del borrador")
+
+
+def test_history_query_count_constant_with_more_publications(actor):
+    from django_otp import DEVICE_ID_SESSION_KEY
+    from django_otp.plugins.otp_totp.models import TOTPDevice
+
+    from apps.cms.models import BrandPublication
+
+    client = Client()
+    client.force_login(actor)
+    session = client.session
+    session[DEVICE_ID_SESSION_KEY] = TOTPDevice.objects.create(
+        user=actor, confirmed=True
+    ).persistent_id
+    session.save()
+    for _ in range(10):
+        BrandPublication.objects.create(snapshot={})
+    url = reverse("cms-history")
+    client.get(url, {"document": "brand:identity"})
+    with CaptureQueriesContext(connection) as small:
+        assert client.get(url, {"document": "brand:identity"}).status_code == 200
+    for _ in range(50):
+        BrandPublication.objects.create(snapshot={})
+    with CaptureQueriesContext(connection) as large:
+        response = client.get(url, {"document": "brand:identity"})
+        assert response.status_code == 200
+    assert len(response.context_data["entries"]) == 20
+    assert len(small) == len(large)

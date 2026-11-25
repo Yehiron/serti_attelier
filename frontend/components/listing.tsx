@@ -8,7 +8,6 @@ import { getDictionary } from '@/app/[locale]/dictionaries';
 import { isLocale } from '@/lib/i18n';
 import { href, type RouteKey } from '@/lib/routes';
 import { getCatalog, getTaxonomy } from '@/lib/api/server';
-import { taxonomyAlternates } from '@/lib/taxonomy';
 import { catalogQuery, type SearchParams } from '@/lib/catalog';
 import { formatCOP } from '@/lib/api/format';
 import { centsToPesos, priceBounds } from '@/lib/price-range';
@@ -28,15 +27,14 @@ async function context(kind: ListingKind, slug?: string) {
 }
 export async function listingMetadata(kind: ListingKind, slug?: string) {
   const { current, dict, title, taxon } = await context(kind, slug);
-  const alternates = await listingAlternates(kind, current, slug);
+  const alternates = listingAlternates(kind, current, slug, taxon);
   const copy = kind === 'search' ? { title, description: dict.meta.description } : listingCopy(kind, title, current);
   return { ...pageMetadata(taxon?.seo_title || copy.title, taxon?.seo_description || copy.description, current, alternates, taxon?.cover?.src), ...(kind === 'search' ? { robots: { index: false, follow: true } } : {}) };
 }
-async function listingAlternates(kind: ListingKind, current: 'es' | 'en', slug?: string) {
+function listingAlternates(kind: ListingKind, current: 'es' | 'en', slug?: string, taxon?: { slugs?: { es: string; en: string } } | null) {
   const other = current === 'es' ? 'en' : 'es';
   if (!slug) return { es: href(kind, 'es'), en: href(kind, 'en') };
-  const [a, b] = await Promise.all([getTaxonomy(current), getTaxonomy(other)]);
-  return taxonomyAlternates(kind as 'category' | 'stone' | 'collection', current, slug, a, b);
+  return { [current]: href(kind as RouteKey, current, slug), [other]: taxon?.slugs?.[other] ? href(kind as RouteKey, other, taxon.slugs[other]) : href('home', other) } as { es: string; en: string };
 }
 export async function Listing({ kind, slug, searchParams }: { kind: ListingKind; slug?: string; searchParams: Promise<SearchParams> }) {
   const { current, dict, taxonomy, taxon, title } = await context(kind, slug);
@@ -44,7 +42,7 @@ export async function Listing({ kind, slug, searchParams }: { kind: ListingKind;
   const fixed = slug ? { [kind === 'category' ? 'category' : kind === 'stone' ? 'stone' : 'collection']: slug } : {};
   const query = catalogQuery(params, fixed);
   const data = await getCatalog(current, query.toString());
-  const alternates = await listingAlternates(kind, current, slug);
+  const alternates = listingAlternates(kind, current, slug, taxon);
   const base = href(kind as RouteKey, current, slug);
   const stones = query.get('stone')?.split(',') ?? [];
   // Option lists shared by the enhanced rows and the no-JS native selects.

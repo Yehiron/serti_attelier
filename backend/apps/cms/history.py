@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db.models import IntegerField, OuterRef, Q, Subquery, Value
 from django.http import HttpResponseRedirect
 from django.shortcuts import get_object_or_404
 from django.template.response import TemplateResponse
@@ -327,20 +328,48 @@ def history(request):
     else:
         if request.method != "GET":
             raise PermissionDenied
-        publications = list(queryset.order_by("-published_at", "-pk"))
-        restorations = content_document.draft_revisions.select_related(
-            "restored_from_home", "restored_from_page", "restored_from_menu", "restored_from_brand"
+        # Page the common keys first; only hydrate the selected records and their
+        # immediate publication predecessors, regardless of the history size.
+        restorations = content_document.draft_revisions.all()
+        publications = queryset.order_by().annotate(
+            entry_kind=Value(1, output_field=IntegerField())
         )
-        entries = [(row.published_at, row.pk, 1, row) for row in publications]
-        entries += [(row.published_at, row.pk, 0, row) for row in restorations]
-        entries.sort(key=lambda entry: entry[:3], reverse=True)
+        restored = restorations.order_by().annotate(
+            entry_kind=Value(0, output_field=IntegerField())
+        )
+        entries = (
+            publications.values("published_at", "pk", "entry_kind")
+            .union(restored.values("published_at", "pk", "entry_kind"), all=True)
+            .order_by("-published_at", "-pk", "-entry_kind")
+        )
         page = Paginator(entries, 20).get_page(request.GET.get("page"))
-        selected = {entry[3].pk for entry in page.object_list if entry[2] == 1}
-        rows = [row for row in publications if row.pk in selected]
-        predecessors = {
-            row.pk: publications[index + 1] if index + 1 < len(publications) else None
-            for index, row in enumerate(publications)
-        }
+        keys = list(page.object_list)
+        publication_ids = [entry["pk"] for entry in keys if entry["entry_kind"]]
+        restoration_ids = [entry["pk"] for entry in keys if not entry["entry_kind"]]
+        previous = (
+            queryset.filter(
+                Q(published_at__lt=OuterRef("published_at"))
+                | Q(published_at=OuterRef("published_at"), pk__lt=OuterRef("pk"))
+            )
+            .order_by("-published_at", "-pk")
+            .values("pk")[:1]
+        )
+        rows = list(
+            queryset.filter(pk__in=publication_ids).annotate(_previous_id=Subquery(previous))
+        )
+        previous_ids = [row._previous_id for row in rows if row._previous_id is not None]
+        previous_rows = queryset.in_bulk(previous_ids)
+        predecessors = {row.pk: previous_rows.get(row._previous_id) for row in rows}
+        restoration_rows = (
+            restorations.filter(pk__in=restoration_ids)
+            .select_related(
+                "restored_from_home",
+                "restored_from_page",
+                "restored_from_menu",
+                "restored_from_brand",
+            )
+            .in_bulk()
+        )
         context["page_obj"] = page
         context["rows"] = [
             {
@@ -396,8 +425,10 @@ def history(request):
                 item["change_groups"].extend(seo_groups(current_seo, old_seo))
         publication_rows = {item["publication"].pk: item for item in context["rows"]}
         context["entries"] = [
-            {"row": publication_rows[entry[3].pk]} if entry[2] else {"restoration": entry[3]}
-            for entry in page.object_list
+            {"row": publication_rows[entry["pk"]]}
+            if entry["entry_kind"]
+            else {"restoration": restoration_rows[entry["pk"]]}
+            for entry in keys
         ]
     return TemplateResponse(
         request, "admin/cms/history.html", context, status=409 if context.get("conflict") else 200

@@ -29,6 +29,7 @@ LIST_KEYS = {
     "is_new",
     "image",
     "hover_image",
+    "alternates",
 }
 DETAIL_KEYS = LIST_KEYS | {
     "published_at",
@@ -175,7 +176,7 @@ def test_http_contract_filters_search_taxonomy_and_visibility(
     assert set(taxonomy) == {"categories", "collections", "stones", "materials"}
     category = next(row for row in taxonomy["categories"] if row["slug"] == root_slug)
     # SEO fields feed listing metadata and the sitemap.
-    seo_keys = {"description", "seo_title", "seo_description", "updated_at"}
+    seo_keys = {"description", "seo_title", "seo_description", "updated_at", "slugs"}
     assert set(category) == {"slug", "name", "cover", "cover_image", "children"} | seo_keys
     assert [
         {key: row[key] for key in ("slug", "name", "cover", "cover_image")}

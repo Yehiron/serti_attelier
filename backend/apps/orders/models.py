@@ -136,6 +136,9 @@ class Order(models.Model):
             models.Index(fields=["payment_status", "-created_at"]),
             models.Index(fields=["payment_status", "paid_at"], name="order_payment_paid_at_idx"),
             models.Index(fields=["fulfillment_status"]),
+            models.Index(
+                fields=["fulfillment_status", "-created_at"], name="order_fulfill_created_idx"
+            ),
         ]
 
     def __str__(self) -> str:

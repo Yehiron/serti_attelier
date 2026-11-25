@@ -59,6 +59,7 @@ Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`,
   "results": [{
     "slug": "anillo-halo-esmeralda",
     "sku": "SRT-AN-0012",
+    "alternates": { "es": "https://serti.localhost/es/piezas/anillo-halo-esmeralda", "en": "https://serti.localhost/en/pieces/emerald-halo-ring" },
     "name": "Anillo halo esmeralda",
     "category": { "slug": "anillos", "name": "Anillos" },
     "stones": [{ "slug": "esmeralda", "name": "Esmeralda" }],
@@ -72,6 +73,8 @@ Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`,
   "facets": { "stones": [{ "slug": "esmeralda", "count": 21 }], "price": { "min_cents": 90000000, "max_cents": 1200000000 } }
 }
 ```
+
+Cada tarjeta, incluidas las destacadas y relacionadas, contiene `alternates` con las URL absolutas ES/EN de la pieza.
 
 ### `GET /catalog/pieces/{slug}`
 Detalle completo: `updated_at` y `published_at` (fechas ISO 8601 o `null`), descripciones, historia, atributos, galería, piedras, materiales, colecciones, relacionadas, SEO (`title`, `description`, `alternates: {es, en}`) y `cta`. `whatsapp_url` contiene la URL de la plantilla general para la pieza, o `null` si no hay número configurado.
@@ -306,3 +309,8 @@ El editor admite `document=brand:identity`, sección `brand`, acciones `update`,
 Recibe JSON con `name` (máximo 120), `email`, `phone` (opcional, máximo 30), `topic` (`piece`, `custom`, `appointment`, `order`, `other`), `piece_sku` (opcional, máximo 64), `message` (20–2000), `preferred_channel` (`email` o `whatsapp`), `accepted_privacy_version` (entero vigente), `locale` (`es` o `en`), `website` y `elapsed_ms`. Devuelve `201 {"received": true}` sin datos personales. Los errores de validación son `application/problem+json` con `errors` por campo; el consentimiento vencido devuelve `consent_required` y el límite por IP `rate_limited` (429). Los valores de la trampa `website` o tiempos inferiores a tres segundos reciben el mismo 201 sin guardar ni enviar correos: así no se confirma al remitente automatizado que fue detectado. No se guarda la IP.
 
 La cotización acepta `email` opcional y válido; con un cupón comprueba su límite por correo y puede devolver `coupon.reason = "coupon_used_by_email"`.
+
+
+### `GET /catalog/exists`
+
+Acepta `kind` (`piece`, `category`, `collection`, `stone` o `material`), `slug` y `locale` (`es` o `en`). Responde 204 o 404 sin cuerpo y con `Cache-Control: public, max-age=60`; aplica el throttle público. Solo considera piezas publicadas y taxonomías visibles. La taxonomía incluye `slugs: {es, en}` para construir enlaces alternativos sin pedir otro idioma.

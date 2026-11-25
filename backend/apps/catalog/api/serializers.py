@@ -36,7 +36,12 @@ class TaxonSerializer(NamedSerializer):
     description = serializers.CharField(default="", allow_blank=True)
     seo_title = serializers.CharField(default="", allow_blank=True)
     seo_description = serializers.CharField(default="", allow_blank=True)
+    slugs = serializers.SerializerMethodField()
     cover = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.DictField(child=serializers.CharField()))
+    def get_slugs(self, obj: Category | Collection | Stone | Material) -> dict[str, str]:
+        return {"es": obj.slug_es, "en": obj.slug_en or obj.slug_es}
 
     @extend_schema_field(CoverSerializer(allow_null=True))
     def get_cover(self, obj: Category | Collection | Stone | Material) -> dict[str, Any] | None:
@@ -101,6 +106,7 @@ class PieceListSerializer(serializers.ModelSerializer[Piece]):
     sale_price = serializers.SerializerMethodField()
     image = serializers.SerializerMethodField()
     hover_image = serializers.SerializerMethodField()
+    alternates = serializers.SerializerMethodField()
 
     class Meta:
         model = Piece
@@ -116,7 +122,12 @@ class PieceListSerializer(serializers.ModelSerializer[Piece]):
             "is_new",
             "image",
             "hover_image",
+            "alternates",
         )
+
+    @extend_schema_field(serializers.DictField(child=serializers.CharField()))
+    def get_alternates(self, obj: Piece) -> dict[str, str]:
+        return {locale: piece_url(obj, locale) for locale in ("es", "en")}
 
     @extend_schema_field(NamedSerializer(allow_null=True))
     def get_category(self, obj: Piece) -> dict[str, str] | None:
@@ -262,7 +273,12 @@ class PieceDetailSerializer(PieceListSerializer):
 
     @extend_schema_field(PieceListSerializer(many=True))
     def get_related(self, obj: Piece) -> list[dict[str, Any]]:
-        return list(PieceListSerializer(related_pieces(obj), many=True).data)
+        related = getattr(obj, "_detail_related", None)
+        return list(
+            PieceListSerializer(
+                related if related is not None else related_pieces(obj), many=True
+            ).data
+        )
 
     @extend_schema_field(SEOSerializer)
     def get_seo(self, obj: Piece) -> dict[str, Any]:
@@ -274,11 +290,11 @@ class PieceDetailSerializer(PieceListSerializer):
 
     @extend_schema_field(serializers.URLField(allow_null=True))
     def get_whatsapp_url(self, obj: Piece) -> str | None:
-        return whatsapp_url("general", obj, self.context["locale"])
+        return whatsapp_url("general", obj, self.context["locale"], self.context.get("settings"))
 
     @extend_schema_field(CTASerializer)
     def get_cta(self, obj: Piece) -> dict[str, Any]:
-        return piece_cta(obj, self.context["locale"])
+        return piece_cta(obj, self.context["locale"], self.context.get("settings"))
 
 
 class CatalogFiltersSerializer(serializers.Serializer[Any]):

@@ -46,8 +46,10 @@ def piece_url(piece: Piece, locale: str) -> str:
         return f"{settings.PUBLIC_SITE_URL}/{locale}/{segment}/{quote(piece.slug)}"
 
 
-def whatsapp_url(kind: str, piece: Piece, locale: str) -> str | None:
-    config = get_solo()
+def whatsapp_url(
+    kind: str, piece: Piece, locale: str, config: SiteSettings | None = None
+) -> str | None:
+    config = config or get_solo()
     if not config.whatsapp_number:
         return None
     if kind not in {"general", "preorder", "reserved", "sold"}:

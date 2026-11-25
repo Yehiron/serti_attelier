@@ -78,6 +78,9 @@ def test_locale_fallback_and_visibility(client: Client, make_piece: Callable[...
     en = client.get(URL, HTTP_ACCEPT_LANGUAGE="en-US,en;q=0.9").json()["results"][0]
     assert (es["name"], es["slug"]) == ("Pieza 1", "pieza-1")
     assert (en["name"], en["slug"]) == ("Piece 1", "piece-1")
+    assert es["alternates"] == en["alternates"]
+    assert es["alternates"]["es"].endswith("/es/piezas/pieza-1")
+    assert es["alternates"]["en"].endswith("/en/pieces/piece-1")
     assert client.get(URL + "/piece-1", {"locale": "en"}).status_code == 200
     Piece.objects.filter(pk=piece.pk).update(name_en="", slug_en="", short_description_en="")
     fallback = client.get(URL + "/pieza-1", {"locale": "en"})
@@ -202,3 +205,89 @@ def test_available_detail_uses_edited_general_whatsapp_template(
         message == f"{prefix} {name} / {piece.sku} / https://example.com/{locale}/{segment}/{slug}"
     )
     assert data["cta"] == {"kind": "add_to_cart"}
+
+
+@pytest.mark.parametrize(
+    "kind,model",
+    [
+        ("category", Category),
+        ("collection", Collection),
+        ("stone", Stone),
+        ("material", Material),
+    ],
+)
+def test_exists_taxonomy_locales(client, django_assert_max_num_queries, kind, model):
+    model.objects.create(name_es="Prueba", name_en="Test", slug_es="prueba", slug_en="test")
+    for locale, slug, expected in [
+        ("es", "prueba", 204),
+        ("en", "test", 204),
+        ("es", "test", 404),
+        ("en", "missing", 404),
+    ]:
+        with django_assert_max_num_queries(1):
+            response = client.get(
+                "/api/v1/catalog/exists", {"kind": kind, "slug": slug, "locale": locale}
+            )
+        assert response.status_code == expected
+        assert response.content == b""
+        assert response["Cache-Control"] == "public, max-age=60"
+
+
+def test_exists_piece_visibility(client, make_piece, django_assert_max_num_queries):
+    piece = make_piece()
+    for locale, slug, expected in [
+        ("es", piece.slug_es, 204),
+        ("en", piece.slug_en, 204),
+        ("es", piece.slug_en, 404),
+        ("en", "missing", 404),
+    ]:
+        with django_assert_max_num_queries(1):
+            response = client.get(
+                "/api/v1/catalog/exists", {"kind": "piece", "slug": slug, "locale": locale}
+            )
+        assert response.status_code == expected
+    for status in (Piece.Status.DRAFT, Piece.Status.HIDDEN):
+        Piece.objects.filter(pk=piece.pk).update(status=status)
+        with django_assert_max_num_queries(1):
+            response = client.get(
+                "/api/v1/catalog/exists", {"kind": "piece", "slug": piece.slug_es, "locale": "es"}
+            )
+        assert response.status_code == 404
+
+
+def test_detail_query_count_constant(client, make_piece, django_assert_max_num_queries):
+    from apps.catalog.models import PieceImage
+
+    get_solo()
+    small = make_piece()
+    large = make_piece()
+    stones = [Stone.objects.create(name_es=f"Piedra {i}", slug_es=f"piedra-{i}") for i in range(3)]
+    small.stones.add(stones[0])
+    large.stones.add(*stones)
+    for position in range(1, 6):
+        PieceImage.objects.create(
+            piece=large,
+            original="test.webp",
+            alt_es="Foto",
+            position=position,
+            processing_status="ready",
+        )
+    related = [make_piece() for _ in range(4)]
+    small.related.add(related[0])
+    large.related.add(*related)
+    counts = []
+    for piece in (small, large):
+        with django_assert_max_num_queries(8), CaptureQueriesContext(connection) as queries:
+            response = client.get(f"{URL}/{piece.slug_es}")
+            assert response.status_code == 200
+            assert len(response.json()["related"]) == (1 if piece == small else 4)
+        counts.append(len(queries))
+    assert counts[0] == counts[1]
+
+
+def test_search_query_budget(client, make_piece, django_assert_max_num_queries):
+    make_piece()
+    with django_assert_max_num_queries(8):
+        response = client.get(URL, {"q": "Pieza"})
+        assert response.status_code == 200
+        assert response.json()["count"] >= 1

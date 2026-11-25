@@ -881,6 +881,14 @@ class PieceAdmin(
             return [item for item in actions if item.action_name != "catalog_piece_detail_publish"]
         return actions
 
+    def _has_active_reservation(self, request: HttpRequest, piece: Piece) -> bool:
+        if request.method != "GET":
+            return piece.reservations.filter(status="active").exists()
+        cache = request.__dict__.setdefault("_catalog_active_reservations", {})
+        if piece.pk not in cache:
+            cache[piece.pk] = piece.reservations.filter(status="active").exists()
+        return cache[piece.pk]
+
     def detail_allowed(self, request: HttpRequest, object_id: Any, operation: str) -> bool:
         piece = self.get_object(request, str(object_id)) if object_id else None
         if not piece or not self.has_commercial_permission(request, piece):
@@ -896,7 +904,7 @@ class PieceAdmin(
                 "preorder_on": piece.status != "archived" and piece.sale_state == "available",
                 "preorder_off": piece.status != "archived" and piece.sale_state == "preorder",
                 "release_cancelled": piece.sale_state == "reserved"
-                and not piece.reservations.filter(status="active").exists()
+                and not self._has_active_reservation(request, piece)
                 and piece.status_changes.filter(from_state="sold", to_state="reserved").exists(),
             }.get(operation, False)
         )

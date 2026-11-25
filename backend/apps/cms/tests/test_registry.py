@@ -65,6 +65,7 @@ def test_registry_typescript_is_current():
     source = (root / "frontend/lib/api/types.ts").read_text()
     assert "export type { Section } from './sections.generated'" in source
     assert "updated_at: string | null; published_at: string | null;" in source
+    assert "export type PieceCard = Named & { alternates: Alternates;" in source
 
 
 def test_registry_metadata_and_openapi_fields():

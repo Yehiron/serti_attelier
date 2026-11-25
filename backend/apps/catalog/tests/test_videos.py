@@ -274,7 +274,8 @@ def test_detail_join_only(make_piece: Any, django_assert_num_queries: Any) -> No
     piece = make_piece()
     joins = published_pieces().query.select_related
     assert isinstance(joins, dict) and "video" not in joins
-    with django_assert_num_queries(5):
+    # Video is joined (no extra query); the other queries are the constant detail prefetches.
+    with django_assert_num_queries(7):
         selected = piece_detail(piece.slug, "es")
         assert PieceDetailSerializer().get_video(selected) is None
 

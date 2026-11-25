@@ -85,8 +85,8 @@ export const getPage = cache((locale: Locale, slug: string, byKind = false) => c
 // Catalog saves (categories, collections, stones, materials, pieces) expire `catalog`.
 export const getTaxonomy = cache((locale: Locale) => cachedRead<Taxonomy>('catalog/taxonomy', locale, '', 'catalog'));
 export const getCatalog = (locale: Locale, query = '') => cachedRead<Catalog>('catalog/pieces', locale, query, 'catalog');
-export const getPiece = (locale: Locale, slug: string) => cachedRead<PieceDetail>(`catalog/pieces/${encodeURIComponent(slug)}`, locale, '', `piece:${slug}`);
-export const getSettings = (locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms:settings');
+export const getPiece = cache((locale: Locale, slug: string) => cachedRead<PieceDetail>(`catalog/pieces/${encodeURIComponent(slug)}`, locale, '', `piece:${slug}`));
+export const getSettings = cache((locale: Locale) => cachedRead<Settings>('site/settings', locale, '', 'cms:settings'));
 export const getPersonalization = (locale: Locale) => cachedRead<Personalization>('cms/personalization', locale, '', 'cms:personalization');
 export const emptyTaxonomy: Taxonomy = { categories: [], collections: [], stones: [], materials: [] };
 export const emptySettings: Settings = { title_scale: 1, text_scale: 1, whatsapp: { number: null, general_url: null }, social: [], support_email: null, legal_pages: [] };

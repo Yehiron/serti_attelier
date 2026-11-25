@@ -70,3 +70,25 @@ def test_query_budgets():
         assert count <= budget
     assert quick == quick_small
     assert quick <= 35
+
+
+def test_piece_edit_checks_active_reservations_once():
+    browser, _ = staff(PROPIETARIO)
+    piece = Piece.objects.create(
+        sku="RES-Q",
+        name_es="Reservada",
+        slug_es="reservada-q",
+        price_cents=10000,
+        sale_state="reserved",
+    )
+    url = reverse("admin:catalog_piece_change", args=[piece.pk])
+    with CaptureQueriesContext(connection) as queries:
+        assert browser.get(url).status_code == 200
+    checks = [
+        query
+        for query in queries
+        if 'SELECT 1 AS "a" FROM "inventory_piecereservation"' in query["sql"]
+    ]
+    # Each distinct reservation check (active hold, any history) may run once; none may repeat.
+    sqls = [query["sql"] for query in checks]
+    assert len(sqls) == len(set(sqls)) and len(sqls) <= 2

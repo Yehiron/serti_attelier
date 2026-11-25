@@ -3,12 +3,11 @@ import type { Dictionary } from '@/app/[locale]/dictionaries';
 import type { Locale } from '@/lib/i18n';
 import type { Alternates, PieceCard as Card } from '@/lib/api/types';
 import { formatCOP } from '@/lib/api/format';
-import { getPiece } from '@/lib/api/server';
 import { href } from '@/lib/routes';
 import { Media } from './media';
 import { WishButton } from './wish-button';
 export async function PieceCard({ piece, locale, dict, alternates }: { piece: Card; locale: Locale; dict: Dictionary; alternates?: Alternates }) {
-  alternates ??= (await getPiece(locale, piece.slug).catch(() => null))?.seo.alternates;
+  alternates ??= piece.alternates;
   const sizes = '(max-width: 700px) 45vw, (max-width: 1100px) 30vw, 23vw';
   const slug = (path: string) => decodeURIComponent(path.split('/').filter(Boolean).at(-1) ?? piece.slug);
   return <article className="piece-card">

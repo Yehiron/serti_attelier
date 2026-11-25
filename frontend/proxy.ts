@@ -55,14 +55,11 @@ export async function proxy(request: NextRequest) {
           const api = (process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '');
           const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
           if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
-          const path = editorial ? `cms/pages/${encodeURIComponent(segment)}` : ['piezas', 'pieces'].includes(segment) ? `catalog/pieces/${encodeURIComponent(slug)}` : 'catalog/taxonomy';
-          const probe = await fetch(`${api}/${path}?locale=${pathLocale}`, { headers, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+          const kind = ['piezas', 'pieces'].includes(segment) ? 'piece' : ['joyeria', 'jewelry'].includes(segment) ? 'category' : ['piedras', 'stones'].includes(segment) ? 'stone' : 'collection';
+          const path = editorial ? `cms/pages/${encodeURIComponent(segment)}` : `catalog/exists?${new URLSearchParams({ kind, slug: decodeURIComponent(slug), locale: pathLocale })}`;
+          const probe = await fetch(`${api}/${path}${editorial ? `?locale=${pathLocale}` : ''}`, { headers, next: { revalidate: 60 }, signal: AbortSignal.timeout(8000) });
           if (probe.status === 404) missingResource = true;
-          else if (probe.ok && dynamic && path === 'catalog/taxonomy') {
-            const data = await probe.json();
-            const items = ['joyeria', 'jewelry'].includes(segment) ? (data.categories ?? []).flatMap((x: { children?: unknown[] }) => [x, ...(x.children ?? [])]) : ['piedras', 'stones'].includes(segment) ? data.stones : data.collections;
-            missingResource = !items?.some((x: { slug: string }) => x.slug === decodeURIComponent(slug));
-          } else if (probe.ok && editorial) {
+          else if (probe.ok && editorial) {
             const data = await probe.json();
             missingResource = data.alternates?.[pathLocale] !== pathname;
           }
