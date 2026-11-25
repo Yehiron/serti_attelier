@@ -1,3 +1,4 @@
 # Falsos positivos revisados a mano (valores de prueba evidentemente falsos).
-# SECRET_KEY="abcdefghij0123456789" * 4 en la prueba de check_production.
+# SECRET_KEY de prueba en test_production.py (texto repetido, no es una llave).
 381b8b04e1d8ee71decc66840745ade83bf47dc9:backend/apps/core/tests/test_production.py:generic-api-key:96
+f75205c1e302c0f60b554d40dd2793a02ce63373:.gitleaksignore:generic-api-key:2
