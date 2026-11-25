@@ -4,6 +4,7 @@ import logging
 from dataclasses import asdict
 from datetime import timedelta
 from functools import partial
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -65,7 +66,7 @@ def enqueue(
     *,
     event_key: str = "",
     audience: str | None = None,
-    metadata: dict | None = None,
+    metadata: dict[str, Any] | None = None,
 ) -> int:
     if event not in EVENTS:
         raise ValueError("Unsupported notification event")
@@ -211,7 +212,7 @@ def resend(delivery_id: int, *, request: HttpRequest) -> bool:
     previous_attempts = delivery.attempts
     if previous == "skipped":
         # Explicit, audited reconfiguration may bind a previously missing recipient.
-        recipient = recipient_for(delivery.order, delivery.channel, delivery.audience)
+        recipient = recipient_for(cast(Order, delivery.order), delivery.channel, delivery.audience)
         delivery.recipient_hash = email_digest(recipient)
         delivery.payload["recipient_label"] = masked_recipient(recipient, delivery.channel)
     delivery.status = "queued"
@@ -264,9 +265,9 @@ def can_resend(delivery: NotificationDelivery) -> bool:
         return False
     if delivery.channel == "whatsapp":
         return not adapters.whatsapp_unavailable(delivery.event)
-    return bool(recipient_for(delivery.order, delivery.channel, delivery.audience)) and not (
-        not settings.EMAIL_HOST and settings.EMAIL_BACKEND.endswith("smtp.EmailBackend")
-    )
+    return bool(
+        recipient_for(cast(Order, delivery.order), delivery.channel, delivery.audience)
+    ) and not (not settings.EMAIL_HOST and settings.EMAIL_BACKEND.endswith("smtp.EmailBackend"))
 
 
 @transaction.atomic
@@ -290,7 +291,7 @@ def send_copy(delivery_id: int, *, request: HttpRequest) -> NotificationDelivery
     ).count()
     if count >= 3:
         raise ValidationError("Este aviso ya tiene el máximo de 3 copias.")
-    content = render_email(original, original.order)
+    content = render_email(original, cast(Order, original.order))
     duplicate = NotificationDelivery.objects.create(
         order=original.order,
         event=original.event,

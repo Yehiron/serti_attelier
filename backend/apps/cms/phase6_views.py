@@ -1,5 +1,6 @@
 """Owner-facing redirect management and untranslated editorial texts."""
 
+from typing import TYPE_CHECKING
 from urllib.parse import urlencode
 
 from django import forms
@@ -18,8 +19,13 @@ from .models import ContentDocument, MediaAsset, Page, Redirect
 from .redirects import save_redirect
 from .visual_documents import read_sections
 
+if TYPE_CHECKING:
+    _RedirectFormBase = forms.ModelForm[Redirect]
+else:
+    _RedirectFormBase = forms.ModelForm
 
-class RedirectForm(forms.ModelForm):
+
+class RedirectForm(_RedirectFormBase):
     expected_version = forms.IntegerField(widget=forms.HiddenInput)
 
     class Meta:

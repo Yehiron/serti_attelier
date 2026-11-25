@@ -1,9 +1,11 @@
 """Admin order card: server rendering is shared by the drawer, page and print view."""
 
 from copy import copy
+from typing import TYPE_CHECKING, Any, cast
 
+from django.contrib import admin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db.models import Prefetch
+from django.db.models import Field, Prefetch
 from django.http import Http404, HttpResponse, HttpResponseNotAllowed
 from django.template.response import TemplateResponse
 from django.urls import reverse
@@ -15,8 +17,25 @@ from .forms import CardFulfillmentForm
 from .models import Order, OrderStatusChange
 from .services import add_order_note, available_fulfillment_transitions, transition_status
 
+if TYPE_CHECKING:
+    _AdminBase = admin.ModelAdmin[Order]
+else:
+    _AdminBase = object
 
-class OrderCardAdminMixin:
+
+class OrderCardAdminMixin(_AdminBase):
+    if TYPE_CHECKING:
+        has_manual_permission: Any
+        has_fulfillment_permission: Any
+        whatsapp_url: Any
+        language: Any
+        destination: Any
+        subtotal_cop: Any
+        discount_cop: Any
+        shipping_cop: Any
+        certificate_cop: Any
+        total_cop: Any
+
     @staticmethod
     def card_url(order):
         return reverse("admin:orders-card", args=[order.pk])
@@ -58,7 +77,7 @@ class OrderCardAdminMixin:
 
         history = []
         for change in order.status_changes.all():
-            labels = dict(Order._meta.get_field(change.field).flatchoices)
+            labels = dict(cast("Field[Any, Any]", Order._meta.get_field(change.field)).flatchoices)
             history.append(
                 {
                     "date": format_bogota_datetime(change.at, "es"),
@@ -119,7 +138,7 @@ class OrderCardAdminMixin:
                     "label": label,
                     "disabled": key == "preparing" and order.payment_status != "approved",
                 }
-                for key, label in Order._meta.get_field("fulfillment_status").choices
+                for key, label in cast(Any, Order._meta.get_field("fulfillment_status").choices)
                 if key in allowed
                 and (key != "cancelled" or can_cancel)
                 and not (key in {"preparing", "shipped"} and order.payment_status != "approved")
@@ -641,7 +660,7 @@ class OrderCardAdminMixin:
             return JsonResponse({"detail": "Sin permiso."}, status=403)
         if request.method != "GET":
             return HttpResponseNotAllowed(["GET"])
-        from django.contrib.admin.views.main import IncorrectLookupParameters
+        from django.contrib.admin.options import IncorrectLookupParameters
 
         try:
             tabs = self.center_tabs(request)

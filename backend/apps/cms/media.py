@@ -4,6 +4,7 @@ import hashlib
 import math
 import uuid
 from copy import deepcopy
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
@@ -135,7 +136,7 @@ def render(asset_id, version):
         return
     with asset.original.open("rb") as source:
         image = validated_image(source)
-    payloads = {}
+    payloads: dict[str, Any] = {}
     for ratio in ratios():
         box = asset.crops.get(ratio) or default_crop(asset, ratio)
         x, y, w, h = (box[k] for k in ("x", "y", "w", "h"))
@@ -198,10 +199,10 @@ def validate_reference(value, *, selecting=False):
         or value["crop"] not in ratios()
     ):
         raise ValidationError("Selecciona una foto y un recorte de la biblioteca.")
-    rows = MediaAsset.objects
+    rows = MediaAsset.objects.filter(pk=value["asset"])
     if connection.in_atomic_block:
         rows = rows.select_for_update(of=("self",))
-    asset = rows.filter(pk=value["asset"]).first()
+    asset = rows.first()
     if not asset or (selecting and asset.archived):
         raise ValidationError("Esta foto está archivada o ya no está disponible.")
     generation = asset.versions.get(str(value["version"]), {}).get(value["crop"])
@@ -232,19 +233,23 @@ def all_usage():
     """One scan per request, independent of page size. Includes legacy URLs/paths."""
     from .services import section_source
 
-    sources = [
+    sources: list[tuple[str, str, Any]] = [
         ("Borrador", str(row), section_source(row))
         for row in HomeSection.objects.prefetch_related("slides")
     ]
     publications = list(HomePublication.objects.all())
     revisions = list(PageRevision.objects.order_by("page_id", "-version"))
-    current_pages = {}
+    current_pages: dict[int, int] = {}
     for row in revisions:
         current_pages.setdefault(row.page_id, row.pk)
-    for row in publications:
-        label = "Publicado" if row.pk == publications[0].pk else "Historial"
+    for publication in publications:
+        label = "Publicado" if publication.pk == publications[0].pk else "Historial"
         sources.append(
-            (label, f"Inicio · publicación {row.pk}", [row.snapshot, row.draft_snapshot, row.seo])
+            (
+                label,
+                f"Inicio · publicación {publication.pk}",
+                [publication.snapshot, publication.draft_snapshot, publication.seo],
+            )
         )
     for row in revisions:
         sources.append(
@@ -306,12 +311,12 @@ def all_usage():
     # Personalization services are CMS images but independent from home documents.
     from .models import PersonalizationService
 
-    for row in PersonalizationService.objects.all():
+    for service in PersonalizationService.objects.all():
         sources.append(
             (
                 "Borrador",
-                str(row),
-                {"image": row.image.name, "image_reference": row.image_reference},
+                str(service),
+                {"image": service.image.name, "image_reference": service.image_reference},
             )
         )
     return UsageIndex(sources)
@@ -325,8 +330,8 @@ class UsageIndex:
 
     def __init__(self, sources):
         self.sources = sources
-        self.assets = {}
-        self.strings = {}
+        self.assets: dict[int, set[int]] = {}
+        self.strings: dict[str, set[int]] = {}
 
         def walk(value, index):
             if isinstance(value, dict):
@@ -347,7 +352,7 @@ class UsageIndex:
 
 def used_by(asset, sources):
     paths = {asset.original.name, asset.legacy_key}
-    legacy_urls = set()
+    legacy_urls: set[str] = set()
 
     def collect(value):
         if isinstance(value, dict):

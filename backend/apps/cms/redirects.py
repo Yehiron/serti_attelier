@@ -66,7 +66,7 @@ def destination_exists(path):
             if tail[0] == ROUTES[key][lang == "en"]:
                 rows = model.objects.all()
                 if key == "piece":
-                    rows = rows.filter(status="published")
+                    rows = rows.filter(**{"status": "published"})
                 return rows.filter(**{f"slug_{lang}": tail[1]}).exists()
     return False
 

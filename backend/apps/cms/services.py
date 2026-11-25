@@ -4,7 +4,7 @@ import html
 import uuid
 from copy import deepcopy
 from string import Formatter
-from typing import Any
+from typing import Any, cast
 
 import markdown  # type: ignore[import-untyped]
 import nh3
@@ -223,7 +223,7 @@ def _library_processed(obj, asset):
     from .selectors import image_data
 
     asset = MediaAsset.objects.select_for_update(of=("self",)).get(pk=asset.pk)
-    payloads = [image_data(obj, lang) for lang in ("es", "en")]
+    payloads = [cast(dict[str, Any], image_data(obj, lang)) for lang in ("es", "en")]
     payload = {
         **payloads[0],
         "alt": {lang: payloads[i]["alt"] for i, lang in enumerate(("es", "en"))},
@@ -355,7 +355,9 @@ def save_page(obj: Page, actor=None, request=None) -> None:
     if obj.pk and Page.objects.filter(pk=obj.pk).exclude(kind=obj.kind).exists():
         raise ValidationError("El tipo de una página existente no se puede cambiar.")
     before = editorial_before(obj)
-    image_changed = bool(getattr(obj, "image", None) and not getattr(obj.image, "_committed", True))
+    image_changed = bool(
+        getattr(obj, "image", None) and not getattr(cast(Any, obj).image, "_committed", True)
+    )
     from .page_options import prepare_slugs
 
     prepare_slugs(obj)

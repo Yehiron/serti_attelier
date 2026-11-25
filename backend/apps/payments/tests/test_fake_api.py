@@ -17,6 +17,7 @@ from apps.payments.wompi import WompiTransaction, event_checksum
 def fake():
     path = Path(__file__).resolve().parents[4] / "infra/wompi-fake/server.py"
     spec = importlib.util.spec_from_file_location("local_wompi_fake", path)
+    assert spec is not None and spec.loader is not None
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
     return module
@@ -47,7 +48,9 @@ def test_fake_canonical_contract_and_lookup(fake, status):
     assert handle(fake, "POST", "/control", {"transaction": tx}) == (200, {})
     result = handle(fake, "GET", "/v1/transactions/dev-1")
     assert result == (200, {"data": tx})
-    assert WompiTransaction.parse(result[1]["data"]).status == status
+    transaction = WompiTransaction.parse(result[1]["data"])
+    assert transaction is not None
+    assert transaction.status == status
     assert handle(fake, "GET", "/v1/transactions?reference=SRT-000001-01") == (200, {"data": [tx]})
     assert handle(fake, "GET", "/v1/transactions?reference=unknown") == (200, {"data": []})
     assert handle(fake, "GET", "/v1/transactions/unknown")[0] == 404

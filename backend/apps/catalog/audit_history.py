@@ -1,7 +1,9 @@
 """Presentación española de eventos; no expone direcciones IP ni datos de sesión."""
 
 import json
+from typing import TYPE_CHECKING, Any, ClassVar, cast
 
+from django.contrib import admin
 from django.template.response import TemplateResponse
 
 ACTIONS = {
@@ -140,8 +142,14 @@ def describe_event(event):
     return [title, *lines]
 
 
-class CatalogAuditHistoryMixin:
-    object_history_template = "admin/catalog/piece/object_history.html"
+if TYPE_CHECKING:
+    _HistoryBase = admin.ModelAdmin[Any]
+else:
+    _HistoryBase = object
+
+
+class CatalogAuditHistoryMixin(_HistoryBase):
+    object_history_template: ClassVar[str | None] = "admin/catalog/piece/object_history.html"
 
     def history_view(self, request, object_id, extra_context=None):
         from django.contrib.contenttypes.models import ContentType
@@ -159,8 +167,8 @@ class CatalogAuditHistoryMixin:
                 (event, description) for event in events if (description := describe_event(event))
             ]
             page = Paginator(visible, 50).get_page(request.GET.get("audit_page"))
-            response.context_data["catalog_audit_page"] = page
-            response.context_data["catalog_audit_events"] = [
+            cast(dict[str, Any], response.context_data)["catalog_audit_page"] = page
+            cast(dict[str, Any], response.context_data)["catalog_audit_events"] = [
                 {
                     "at": event.at,
                     "actor": event.actor_repr or "Sistema",

@@ -2,6 +2,7 @@
 
 import re
 from copy import deepcopy
+from typing import Any
 from urllib.parse import unquote, urlsplit
 
 from django.core.exceptions import ValidationError
@@ -140,7 +141,7 @@ def validate_seo(value, previous, actor):
 
     if not isinstance(value, dict) or set(value) - {"title", "description", "image", "noindex"}:
         raise ValidationError("Revisa las opciones para buscadores.")
-    cleaned = {}
+    cleaned: dict[str, Any] = {}
     for field, limit in (("title", 60), ("description", 155)):
         texts = value.get(field, {})
         if not isinstance(texts, dict) or set(texts) - {"es", "en"}:

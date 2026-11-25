@@ -2,6 +2,7 @@
 
 import logging
 from copy import deepcopy
+from typing import Any
 
 from .registry import REGISTRY
 
@@ -53,7 +54,7 @@ def localize_props(kind, props, locale):
     from .services import render_markdown
 
     def localize(fields, values):
-        result = {}
+        result: dict[str, Any] = {}
         for field in fields:
             value = values.get(field.key, field.default)
             if field.translated:
@@ -81,7 +82,7 @@ def localize_props(kind, props, locale):
                         "stone": Stone,
                         "page": Page,
                     }[value["kind"]]
-                    target = model.objects.filter(pk=value["target"]).first()
+                    target = model._default_manager.filter(pk=value["target"]).first()
                     if target is None:
                         result[field.key] = None
                         continue

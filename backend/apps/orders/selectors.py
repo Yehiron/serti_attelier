@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import timedelta
-from typing import Any
+from typing import Any, cast
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
@@ -103,7 +103,7 @@ def order_detail(token: str) -> dict[str, Any]:
         **{f: getattr(order, f) for f in fields},
         "items": items,
         "fulfillment": fulfillment_data(order),
-        "payment_review": order._payment_review,
+        "payment_review": cast(Any, order)._payment_review,
         "shipping": {
             "department": place_name(order.shipping_municipality.department.name),
             "municipality": place_name(order.shipping_municipality.name),

@@ -3,6 +3,7 @@
 import json
 import re
 from pathlib import Path
+from typing import Any, cast
 from urllib.parse import unquote, urlsplit
 
 from django.conf import settings
@@ -55,7 +56,7 @@ class Command(BaseCommand):
                         raise CommandError(f"Falta archivo de biblioteca: {path}")
                     checked.add(path)
 
-        assets = {}
+        assets: dict[int, MediaAsset] = {}
 
         def walk(value):
             if isinstance(value, dict):
@@ -108,11 +109,11 @@ class Command(BaseCommand):
                         continue
                     root = (
                         private
-                        if Path(field.storage.location).resolve()
+                        if Path(cast(Any, field.storage).location).resolve()
                         == Path(settings.PRIVATE_MEDIA_ROOT).resolve()
                         else media
                     )
-                    for path in model.objects.exclude(**{field.name: ""}).values_list(
+                    for path in model._default_manager.exclude(**{field.name: ""}).values_list(
                         field.name, flat=True
                     ):
                         if not path:

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from types import SimpleNamespace
-from typing import Any
+from typing import Any, cast
 from urllib.parse import urlencode
 
 from django.conf import settings
@@ -48,7 +48,7 @@ def image_data(
     if getattr(obj, "image_reference", None):
         from .media import resolve
 
-        return resolve(obj.image_reference, locale)
+        return cast(dict[str, Any] | None, resolve(obj.image_reference, locale))
     image = obj.image
     prefix = ""
     if not image:
@@ -228,6 +228,7 @@ def resolve_live(sections: list[dict[str, Any]], locale: str) -> list[dict[str, 
 def home(locale: str, preview: bool = False) -> dict[str, Any]:
     from django.db.models import Subquery
 
+    publication: SimpleNamespace | HomePublication | None
     if preview:
         document = (
             ContentDocument.objects.filter(key="home")

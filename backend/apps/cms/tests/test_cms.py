@@ -173,7 +173,7 @@ def test_home_snapshot_restore_and_preview(cms_actor, actor: User, client: Clien
     assert preview["Cache-Control"] == "private, no-store"
     services.restore_home(first, actor, expected_version=cms_version())
     assert HomeSection.objects.count() == 2
-    assert HomeSection.objects.first().title_es == "Tierra"  # type: ignore[union-attr]
+    assert HomeSection.objects.first().title_es == "Tierra"
     assert HomePublication.objects.count() == 1
     services.publish_home(actor, expected_version=cms_version())
     assert get(client, "cms/home").json()["sections"][0]["title"] == "Tierra"
@@ -630,7 +630,7 @@ def test_admin_forms_reject_invalid_content() -> None:
 def test_schema_documents_cms_contract() -> None:
     from drf_spectacular.generators import SchemaGenerator
 
-    schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]
+    schema = SchemaGenerator().get_schema(request=None, public=True)
     assert schema is not None
     for path in (
         "cms/home",

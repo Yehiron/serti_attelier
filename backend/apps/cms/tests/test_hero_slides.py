@@ -115,7 +115,7 @@ def test_snapshot_api_restore_and_schema(cms_actor, actor: User, client: Client)
     assert selectors.home("es", preview=True)["sections"][0] == payload
     services.publish_home(actor, expected_version=cms_version())
     assert client.get("/api/v1/cms/home").json()["sections"][0] == payload
-    schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]
+    schema = SchemaGenerator().get_schema(request=None, public=True)
     assert schema is not None
     components = schema["components"]["schemas"]
     assert components["Hero"]["properties"]["slides"]["items"]["$ref"].endswith("HeroSlide")

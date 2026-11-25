@@ -1,6 +1,8 @@
+from typing import TYPE_CHECKING
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import transaction
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import extend_schema, extend_schema_serializer
 from rest_framework import serializers
 from rest_framework.response import Response
 
@@ -20,7 +22,15 @@ class HourThrottle(BrowserThrottle):
     scope = "contact_hour"
 
 
-class ContactSerializer(serializers.ModelSerializer):
+if TYPE_CHECKING:
+    _ContactSerializerBase = serializers.ModelSerializer[ContactInquiry]
+else:
+    _ContactSerializerBase = serializers.ModelSerializer
+
+
+# Distinct schema name: orders already exposes a "Contact" component.
+@extend_schema_serializer(component_name="ContactMessage")
+class ContactSerializer(_ContactSerializerBase):
     accepted_privacy_version = serializers.IntegerField(required=False, allow_null=True)
     website = serializers.CharField(required=False, allow_blank=True, max_length=2048)
     elapsed_ms = serializers.IntegerField(min_value=0)

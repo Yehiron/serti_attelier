@@ -307,7 +307,7 @@ def test_video_schema_contract() -> None:
     from drf_spectacular.generators import SchemaGenerator
 
     with override_settings(API_SCHEMA_PUBLIC=True):
-        schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]
+        schema = SchemaGenerator().get_schema(request=None, public=True)
     assert schema is not None
     schemas = schema["components"]["schemas"]
     assert schemas["PieceDetail"]["properties"]["video"]["nullable"]

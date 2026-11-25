@@ -2,9 +2,11 @@
 
 import json
 from functools import wraps
+from typing import Any, cast
 
 from django.contrib import admin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.files.storage import default_storage
 from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q
@@ -15,6 +17,7 @@ from django.urls import reverse
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_protect
 from rest_framework.throttling import SimpleRateThrottle
+from rest_framework.views import APIView
 
 from apps.audit.services import record
 
@@ -65,11 +68,9 @@ def protected(view):
 
 def payload(asset, sources=None):
     generation = asset.versions.get(str(asset.version), {})
-    image = next(iter(generation.values()), {})
+    image: dict[str, Any] = next(iter(generation.values()), {})
     paths = image.get("paths", {})
-    thumbnail = (
-        media.default_storage.url(paths[min(paths, key=int)]) if paths else image.get("src", "")
-    )
+    thumbnail = default_storage.url(paths[min(paths, key=int)]) if paths else image.get("src", "")
     return {
         "id": asset.pk,
         "title": asset.title,
@@ -108,7 +109,7 @@ def library(request):
 @protected
 def assets(request):
     if request.method == "GET":
-        rows = MediaAsset.objects.all()
+        rows: Any = MediaAsset.objects.all()
         search = request.GET.get("q", "")[:300]
         if search:
             rows = rows.filter(
@@ -131,7 +132,7 @@ def assets(request):
             }
         )
     if request.method == "POST":
-        if not UploadThrottle().allow_request(request, None):
+        if not UploadThrottle().allow_request(request, cast(APIView, None)):
             return JsonResponse(
                 {"error": "Has subido muchas fotos. Espera un minuto antes de continuar."},
                 status=429,

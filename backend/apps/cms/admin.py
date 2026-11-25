@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, ClassVar
+from typing import TYPE_CHECKING, Any, ClassVar
 from urllib.parse import urlencode
 
 from django import forms
@@ -112,7 +112,7 @@ class ContentAdmin(ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAd
         version = get_document(key).draft_version
         url = request.path
 
-        class VersionedForm(base):
+        class VersionedForm(base):  # type: ignore[valid-type, misc]  # Runtime-generated form subclass.
             expected_version = forms.IntegerField(
                 min_value=0, initial=version, widget=forms.HiddenInput
             )
@@ -365,7 +365,13 @@ class HomeSectionAdmin(ContentAdmin):
         )
 
 
-class PageItemInline(TranslationTabularInline, TabularInline):
+if TYPE_CHECKING:
+    _TranslationInlineBase = TranslationTabularInline[Any, Any]
+else:
+    _TranslationInlineBase = TranslationTabularInline
+
+
+class PageItemInline(_TranslationInlineBase, TabularInline):  # type: ignore[misc]  # Unfold has no stubs.
     ordering_field = "position"
     hide_ordering_field = False
     extra = 0
@@ -580,10 +586,10 @@ class PublicationAdmin(ReadOnlyAdmin):
         return request.user.has_perm("cms.restore_content")
 
     @admin.action(description=_("Restaurar como borrador"), permissions=["restore"])
-    def restore(self, request: HttpRequest, queryset: QuerySet[Any]) -> None:
+    def restore(self, request: HttpRequest, queryset: QuerySet[Any]) -> HttpResponseRedirect | None:
         if queryset.count() != 1:
             self.message_user(request, _("Selecciona una sola publicación."), messages.ERROR)
-            return
+            return None
         obj = queryset.get()
         key = "home" if isinstance(obj, HomePublication) else f"page:{obj.page.kind}"
         return HttpResponseRedirect(reverse("cms-history") + f"?document={key}&restore={obj.pk}")

@@ -34,7 +34,7 @@ class CmsConfig(AppConfig):
             post_save.connect(
                 publication_saved, sender=model, dispatch_uid=f"cms.publish.{model.__name__}"
             )
-        for model in (
+        for live_model in (
             SiteSettings,
             PersonalizationService,
             Category,
@@ -45,9 +45,11 @@ class CmsConfig(AppConfig):
             PieceImage,
             CollectionPiece,
         ):
-            post_save.connect(live_saved, sender=model, dispatch_uid=f"cms.live.{model.__name__}")
+            post_save.connect(
+                live_saved, sender=live_model, dispatch_uid=f"cms.live.{live_model.__name__}"
+            )
             post_delete.connect(
-                live_saved, sender=model, dispatch_uid=f"cms.delete.{model.__name__}"
+                live_saved, sender=live_model, dispatch_uid=f"cms.delete.{live_model.__name__}"
             )
 
         for relation in (Piece.collections, Piece.stones, Piece.materials):

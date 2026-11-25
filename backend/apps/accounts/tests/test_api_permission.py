@@ -26,7 +26,7 @@ def call(user: User | AnonymousUser, *, verified: bool = False) -> int:
     if isinstance(user, User):
         # OTPMiddleware normally attaches this; the request factory skips middleware.
         is_verified: Callable[[], bool] = lambda: verified  # noqa: E731
-        user.is_verified = is_verified  # type: ignore[attr-defined]
+        user.is_verified = is_verified
     request = APIRequestFactory().get("/probe")
     force_authenticate(request, user=user)
     return int(StaffProbe.as_view()(request).status_code)

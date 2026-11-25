@@ -47,6 +47,8 @@ class Municipality(models.Model):
 
 class SiteSettings(models.Model):
     if TYPE_CHECKING:
+        whatsapp_general_es: str
+        manual_payment_instructions_es: str
         whatsapp_general_en: str
         manual_payment_instructions_en: str
 

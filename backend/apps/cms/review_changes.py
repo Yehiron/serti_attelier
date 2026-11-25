@@ -1,5 +1,7 @@
 """Semantic editorial comparison shared by review, history and the pending count."""
 
+from typing import Any, cast
+
 from .registry import REGISTRY, editorial_props
 
 
@@ -45,12 +47,12 @@ def display(value):
 def home_groups(current, previous):
     before = {row["id"]: comparable(row) for row in previous}
     after = {row["id"]: comparable(row) for row in current}
-    groups = []
+    groups: list[dict[str, Any]] = []
     for key in dict.fromkeys((*after, *before)):
         row, old = after.get(key), before.get(key)
-        source = row or old
-        spec = REGISTRY.get(source.get("kind"))
-        group = {
+        source = cast(dict[str, Any], row or old)
+        spec = REGISTRY.get(cast(str, source.get("kind")))
+        group: dict[str, Any] = {
             "name": spec.name if spec else "Sección",
             "icon": spec.icon if spec else "article",
             "rows": [],
@@ -183,7 +185,7 @@ def page_groups(current, previous, *, kind=None):
     if kind is not None:
         current = page_comparison(current, kind)
         previous = page_comparison(previous, kind)
-    groups = []
+    groups: list[dict[str, Any]] = []
     if bool(current.get("_body_enabled")) != bool((previous or {}).get("_body_enabled")):
         groups.append(
             {
@@ -214,7 +216,7 @@ def page_groups(current, previous, *, kind=None):
         "steps": "Paso",
         "source": "",
     }
-    group = {"name": "Contenido de la página", "icon": "article", "rows": []}
+    group: dict[str, Any] = {"name": "Contenido de la página", "icon": "article", "rows": []}
 
     def visit(left, right, path, language):
         if equivalent(left, right):

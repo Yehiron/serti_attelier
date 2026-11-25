@@ -8,7 +8,7 @@ from rest_framework import serializers
 from apps.catalog.api.serializers import PieceListSerializer
 
 
-class CmsFocalSerializer(serializers.Serializer):
+class CmsFocalSerializer(serializers.Serializer[Any]):
     x = serializers.FloatField(min_value=0, max_value=1)
     y = serializers.FloatField(min_value=0, max_value=1)
 
@@ -64,23 +64,23 @@ class CmsAlternatesSerializer(serializers.Serializer[Any]):
     en = serializers.CharField()
 
 
-class ProcessStepSerializer(serializers.Serializer):
+class ProcessStepSerializer(serializers.Serializer[Any]):
     title = serializers.CharField()
     description = serializers.CharField()
 
 
-class ProcessSerializer(serializers.Serializer):
+class ProcessSerializer(serializers.Serializer[Any]):
     schema_version = serializers.IntegerField()
     title = serializers.CharField()
     steps = ProcessStepSerializer(many=True)
 
 
-class FaqItemSerializer(serializers.Serializer):
+class FaqItemSerializer(serializers.Serializer[Any]):
     question = serializers.CharField()
     answer_html = serializers.CharField()
 
 
-class FaqSerializer(serializers.Serializer):
+class FaqSerializer(serializers.Serializer[Any]):
     schema_version = serializers.IntegerField()
     title = serializers.CharField()
     items = FaqItemSerializer(many=True)
@@ -122,7 +122,7 @@ def section_serializers():
     }
     result = {}
     for spec in REGISTRY.values():
-        fields = {
+        fields: dict[str, Any] = {
             "kind": serializers.ChoiceField(choices=[spec.kind]),
             "schema_version": serializers.ChoiceField(choices=[spec.schema_version]),
         }
@@ -142,7 +142,7 @@ def section_serializers():
 SECTION_SERIALIZERS = section_serializers()
 
 
-class SeoSerializer(serializers.Serializer):
+class SeoSerializer(serializers.Serializer[Any]):
     title = serializers.CharField(allow_blank=True)
     description = serializers.CharField(allow_blank=True)
     image = CmsImageSerializer(allow_null=True)
@@ -238,7 +238,7 @@ class PreviewSerializer(serializers.Serializer[Any]):
     expires_at = serializers.DateTimeField()
 
 
-class RedirectSerializer(serializers.Serializer):
+class RedirectSerializer(serializers.Serializer[Any]):
     from_path = serializers.CharField()
     to_path = serializers.CharField()
     status_code = serializers.ChoiceField(choices=[301, 308])
@@ -250,18 +250,18 @@ class MenuItemSerializer(CtaSerializer):
     )
 
 
-class MenuSerializer(serializers.Serializer):
+class MenuSerializer(serializers.Serializer[Any]):
     items = MenuItemSerializer(many=True)
     preview = serializers.BooleanField()
 
 
-class BrandLogoSerializer(serializers.Serializer):
+class BrandLogoSerializer(serializers.Serializer[Any]):
     src = serializers.CharField()
     width = serializers.IntegerField()
     height = serializers.IntegerField()
 
 
-class BrandSerializer(serializers.Serializer):
+class BrandSerializer(serializers.Serializer[Any]):
     wine = serializers.RegexField(r"^#[0-9a-f]{6}$")
     crimson = serializers.RegexField(r"^#[0-9a-f]{6}$")
     cream = serializers.RegexField(r"^#[0-9a-f]{6}$")

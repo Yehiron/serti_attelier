@@ -18,12 +18,25 @@ ignore = ["RUF012"]
 [tool.mypy]
 python_version = "3.13"
 strict = true
+# Código existente sin anotaciones: se revisa su cuerpo (check_untyped_defs) pero no se exige
+# anotar cada función. El código nuevo debe llevar tipos.
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+disallow_untyped_calls = false
 plugins = ["mypy_django_plugin.main", "mypy_drf_plugin.main"]
 exclude = ["migrations/", "\\.venv/"]
 
 [[tool.mypy.overrides]]
-module = ["celery.*", "environ.*", "django_otp.*", "axes.*", "unfold.*", "qrcode.*"]
+module = ["celery.*", "environ.*", "django_otp.*", "axes.*", "unfold.*", "qrcode.*", "gunicorn.*"]
 ignore_missing_imports = true
+
+# Las pruebas se validan ejecutándolas: no se revisa el cuerpo de sus funciones sin anotar.
+[[tool.mypy.overrides]]
+module = ["apps.*.tests.*", "conftest"]
+check_untyped_defs = false
+# Serializadores de secciones generados dinámicamente (apps/cms/api/serializers.py) y
+# resultados opcionales que la propia prueba garantiza.
+disable_error_code = ["attr-defined", "union-attr"]
 
 [tool.django-stubs]
 django_settings_module = "config.settings.test"

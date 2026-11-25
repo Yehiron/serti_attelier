@@ -1,22 +1,36 @@
 from datetime import datetime, time, timedelta
 from decimal import Decimal, InvalidOperation
+from typing import TYPE_CHECKING, cast
 
 from django.contrib import admin
-from django.contrib.admin.views.main import IncorrectLookupParameters
+from django.contrib.admin.options import IncorrectLookupParameters
 from django.db.models import Exists, OuterRef
 from django.utils.dateparse import parse_date
 from unfold.contrib.filters.admin import RangeDateFilter, RangeNumericFilter
 
 from apps.core.formatting import BOGOTA
 
+if TYPE_CHECKING:
 
-class OrderDateFilter(RangeDateFilter):
+    class _FilterBase(admin.FieldListFilter):
+        parameter_name: str
+
+        def __init__(self, *args, **kwargs): ...
+
+    _DateFilterBase = _FilterBase
+    _NumericFilterBase = _FilterBase
+else:
+    _DateFilterBase = RangeDateFilter
+    _NumericFilterBase = RangeNumericFilter
+
+
+class OrderDateFilter(_DateFilterBase):
     """Include both calendar dates, in the shop's timezone."""
 
     def queryset(self, request, queryset):
         try:
             for suffix, lookup in (("from", "gte"), ("to", "lt")):
-                raw = self.used_parameters.get(f"{self.parameter_name}_{suffix}")
+                raw = cast(str, self.used_parameters.get(f"{self.parameter_name}_{suffix}"))
                 if not raw:
                     continue
                 day = parse_date(raw)
@@ -36,7 +50,7 @@ class OrderDateFilter(RangeDateFilter):
             raise IncorrectLookupParameters("Selecciona fechas válidas.") from exc
 
 
-class OrderTotalFilter(RangeNumericFilter):
+class OrderTotalFilter(_NumericFilterBase):
     """Show pesos to the owner; storage remains in cents."""
 
     def __init__(self, *args, **kwargs):
@@ -46,7 +60,7 @@ class OrderTotalFilter(RangeNumericFilter):
     def queryset(self, request, queryset):
         try:
             for suffix, lookup in (("from", "gte"), ("to", "lte")):
-                value = self.used_parameters.get(f"{self.parameter_name}_{suffix}")
+                value = cast(str, self.used_parameters.get(f"{self.parameter_name}_{suffix}"))
                 if value in (None, ""):
                     continue
                 amount = Decimal(value)

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from copy import copy
-from typing import Any, ClassVar
+from typing import Any, ClassVar, cast
 from urllib.parse import quote
 
 from django.conf import settings
@@ -91,8 +91,11 @@ def deletion_icon(obj, reason, label):
 
 
 class TranslatedAdmin(
-    CatalogAuditHistoryMixin, ClientPresentationMixin, TabbedTranslationAdmin[Any], ModelAdmin
-):  # type: ignore[misc]  # Unfold is untyped.
+    CatalogAuditHistoryMixin,
+    ClientPresentationMixin,
+    TabbedTranslationAdmin[Any],
+    ModelAdmin,  # type: ignore[misc]  # Unfold has no stubs.
+):
     prepopulated_fields = {"slug": ("name",)}
     search_fields: ClassVar[tuple[str, ...]] = ("name_es", "name_en")
     list_display: tuple[str, ...] = ("name", "position")
@@ -104,7 +107,7 @@ class TranslatedAdmin(
     class Media:
         css = {"all": ("catalog/catalog-admin.css",)}
 
-    def get_actions(self, request):
+    def get_actions(self, request, *args, **kwargs):
         return super().get_actions(request) if self.model is Material else {}
 
     delete_confirmation_template = "admin/catalog/delete_confirmation.html"
@@ -298,7 +301,11 @@ class CategoryAdmin(TranslatedAdmin):
                         errors,
                     )
             else:
-                label = f"{obj.parent.name_es} → {obj.name_es}" if obj.parent_id else obj.name_es
+                label = (
+                    f"{cast(Category, obj.parent).name_es} → {obj.name_es}"
+                    if obj.parent_id
+                    else obj.name_es
+                )
                 return JsonResponse({"id": obj.pk, "label": label})
         return JsonResponse({"errors": dict(form.errors)}, status=400)
 
@@ -431,7 +438,7 @@ class PieceAdmin(
     CatalogAuditHistoryMixin,
     ClientPresentationMixin,
     TranslationAdmin[Piece],
-    ModelAdmin,
+    ModelAdmin,  # type: ignore[misc]  # Unfold has no stubs.
 ):
     prepopulated_fields = {"slug": ("name",)}
     ordering_field = None
@@ -615,7 +622,7 @@ class PieceAdmin(
         if not category:
             return "—"
         return (
-            f"{category.parent.name} → {category.name}"
+            f"{cast(Category, category.parent).name} → {category.name}"
             if category.parent_id
             else str(category.name)
         )
@@ -789,8 +796,8 @@ class PieceAdmin(
             and request.user.has_perm("catalog.publish_piece")
         )
 
-    def get_actions(self, request: HttpRequest) -> Any:
-        actions = super().get_actions(request)
+    def get_actions(self, request: HttpRequest, *args: Any, **kwargs: Any) -> Any:
+        actions: Any = super().get_actions(request)
         if not self.has_commercial_permission(request):
             for name in self.actions:
                 actions.pop(name, None)
@@ -836,19 +843,21 @@ class PieceAdmin(
                 return super().changeform_view(request, object_id, form_url, extra_context)
         except (ValidationError, DomainError) as exc:
             # Roll back all model/inline writes before rendering the same bound form.
-            request._catalog_form_error = exc
+            setattr(request, "_catalog_form_error", exc)  # noqa: B010 -- request attribute is dynamic.
             for uploads in request.FILES.lists():
                 for upload in uploads[1]:
                     upload.seek(0)
             return super().changeform_view(request, object_id, form_url, extra_context)
 
-    def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
-        base = super().get_form(request, obj, **kwargs)
+    def get_form(
+        self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        base = super().get_form(request, obj, change=change, **kwargs)
         error = getattr(request, "_catalog_form_error", None)
         if error is None:
             return base
 
-        class ServiceErrorForm(base):
+        class ServiceErrorForm(base):  # type: ignore[valid-type, misc]  # Runtime-generated form subclass.
             def clean(self) -> Any:
                 cleaned = super().clean()
                 if isinstance(error, ValidationError) and hasattr(error, "error_dict"):
@@ -887,7 +896,7 @@ class PieceAdmin(
         cache = request.__dict__.setdefault("_catalog_active_reservations", {})
         if piece.pk not in cache:
             cache[piece.pk] = piece.reservations.filter(status="active").exists()
-        return cache[piece.pk]
+        return cast(bool, cache[piece.pk])
 
     def detail_allowed(self, request: HttpRequest, object_id: Any, operation: str) -> bool:
         piece = self.get_object(request, str(object_id)) if object_id else None
@@ -1017,7 +1026,7 @@ class PieceAdmin(
         from django.utils.safestring import SafeData, mark_safe
 
         if isinstance(message, SafeData) and "El pieza “" in str(message):
-            message = message.replace("El pieza “", "La pieza “")
+            message = cast(Any, message).replace("El pieza “", "La pieza “")
             message = message.replace("fue agregado correctamente", "se agregó correctamente")
             message = message.replace("se cambió correctamente", "se guardó correctamente")
             # Django constructs these messages with format_html; preserve its escaped markup.
@@ -1411,13 +1420,13 @@ class PieceImageAdmin(ClientPresentationMixin, TabbedTranslationAdmin[PieceImage
             request._catalog_photo_error = exc
             return super().changeform_view(request, object_id, form_url, extra_context)
 
-    def get_form(self, request, obj=None, **kwargs):
-        base = super().get_form(request, obj, **kwargs)
+    def get_form(self, request, obj=None, change=False, **kwargs):
+        base = super().get_form(request, obj, change=change, **kwargs)
         error = getattr(request, "_catalog_photo_error", None)
         if error is None:
             return base
 
-        class PhotoErrorForm(base):
+        class PhotoErrorForm(base):  # type: ignore[valid-type, misc]  # Runtime-generated form subclass.
             def clean(self):
                 cleaned = super().clean()
                 self.add_error(None, error)

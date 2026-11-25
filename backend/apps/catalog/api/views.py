@@ -1,3 +1,5 @@
+from typing import Any
+
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import serializers
@@ -50,7 +52,7 @@ class CatalogExistsView(PublicView):
         }
         if kind not in models or not slug:
             raise serializers.ValidationError("Se requieren kind y slug válidos.")
-        qs = models[kind].objects.filter(selectors.localized_slug(self.locale, slug))
+        qs: Any = models[kind]._default_manager.filter(selectors.localized_slug(self.locale, slug))
         if kind == "piece":
             qs = qs.filter(status=Piece.Status.PUBLISHED)
         elif kind == "category":

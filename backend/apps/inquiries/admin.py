@@ -1,4 +1,5 @@
 import re
+from typing import TYPE_CHECKING
 from urllib.parse import quote
 
 from django.contrib import admin
@@ -11,9 +12,14 @@ from apps.audit.services import record
 
 from .models import ContactInquiry, normalize_phone
 
+if TYPE_CHECKING:
+    _InquiryAdminBase = admin.ModelAdmin[ContactInquiry]
+else:
+    _InquiryAdminBase = ModelAdmin
+
 
 @admin.register(ContactInquiry)
-class ContactInquiryAdmin(ModelAdmin):
+class ContactInquiryAdmin(_InquiryAdminBase):
     list_display = ("created_at", "name", "topic", "preferred_channel", "status")
     list_filter = ("status", "topic")
     search_fields = ("name", "email")

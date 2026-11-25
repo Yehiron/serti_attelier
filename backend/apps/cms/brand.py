@@ -2,6 +2,7 @@
 
 import re
 from copy import deepcopy
+from typing import Any
 
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
@@ -255,7 +256,7 @@ def public_identity(locale="es", preview=False):
     from .media import resolve
 
     doc = ContentDocument.objects.select_related("brand_publication").filter(key=KEY).first()
-    value = deepcopy(
+    value: dict[str, Any] = deepcopy(
         doc.brand_identity
         if doc and preview
         else doc.brand_publication.snapshot

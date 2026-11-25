@@ -262,7 +262,7 @@ def test_taxonomy_http_and_schema_contract(client: Client) -> None:
     assert category["cover"]["alt"] == "Photo"
     assert category["cover_image"] == category["cover"]["src"]
     assert category["cover"]["srcset"]
-    schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]
+    schema = SchemaGenerator().get_schema(request=None, public=True)
     assert schema is not None
     properties = schema["components"]["schemas"]["Taxon"]["properties"]
     assert properties["cover"]["nullable"]

@@ -1,9 +1,11 @@
 """The document lock is the serialization boundary for every editorial write."""
 
+from collections.abc import Callable
 from contextlib import contextmanager
 from contextvars import ContextVar
 from functools import wraps
 from inspect import signature
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -12,7 +14,7 @@ from django.utils import timezone
 
 from .models import ContentDocument, Page
 
-_batch = ContextVar("cms_document_batch", default=None)
+_batch: ContextVar[dict[str, list[Any]] | None] = ContextVar("cms_document_batch", default=None)
 
 
 class ContentConflict(ValidationError):
@@ -122,7 +124,9 @@ def edit_document(key, actor, expected_version):
             _batch.reset(token)
 
 
-def draft_mutation(key_from_args):
+def draft_mutation(
+    key_from_args: Callable[..., str],
+) -> Callable[[Callable[..., Any]], Callable[..., Any]]:
     def decorate(function):
         parameters = signature(function)
 

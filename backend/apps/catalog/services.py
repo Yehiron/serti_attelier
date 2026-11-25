@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 from datetime import datetime
-from typing import Any
+from typing import Any, cast
 from uuid import uuid4
 from zlib import crc32
 
@@ -44,7 +44,7 @@ Taxonomy = Category | Collection | Stone | Material
 
 
 # Archived pieces are terminal, including for superusers.
-EDITORIAL_TRANSITIONS = {
+EDITORIAL_TRANSITIONS: dict[str, frozenset[str]] = {
     Piece.Status.DRAFT: frozenset({Piece.Status.PUBLISHED, Piece.Status.ARCHIVED}),
     Piece.Status.PUBLISHED: frozenset({Piece.Status.HIDDEN, Piece.Status.ARCHIVED}),
     Piece.Status.HIDDEN: frozenset({Piece.Status.PUBLISHED, Piece.Status.ARCHIVED}),
@@ -120,7 +120,7 @@ def snapshot(piece: Piece) -> dict[str, object]:
         field.name: (
             getattr(piece, field.attname).isoformat()
             if isinstance(getattr(piece, field.attname), datetime)
-            else (piece.category.name_es if piece.category_id else None)
+            else (cast(Category, piece.category).name_es if piece.category_id else None)
             if field.name == "category"
             else getattr(piece, field.attname)
         )
@@ -335,7 +335,7 @@ def save_taxonomy(
         ).exclude(pk=obj.pk)
         if duplicate.exists():
             location = (
-                f" dentro de {obj.parent.name_es}"
+                f" dentro de {cast(Category, obj.parent).name_es}"
                 if obj.parent_id
                 else " entre las categorías principales"
             )
@@ -351,14 +351,18 @@ def save_taxonomy(
     obj.save()
     diff = compute_diff(before, taxonomy_snapshot(obj))
     # Presence alone cannot distinguish replacement of two existing covers.
-    if old and hasattr(obj, "cover_image") and old.cover_image.name != obj.cover_image.name:
+    if (
+        old
+        and hasattr(obj, "cover_image")
+        and cast(Any, old).cover_image.name != cast(Any, obj).cover_image.name
+    ):
         diff.pop("Portada", None)
         diff[f"Portada de {obj.name_es}"] = [
-            "Portada anterior" if old.cover_image else "Sin portada",
+            "Portada anterior" if cast(Any, old).cover_image else "Sin portada",
             "Portada reemplazada"
-            if old.cover_image and obj.cover_image
+            if cast(Any, old).cover_image and cast(Any, obj).cover_image
             else "Portada añadida"
-            if obj.cover_image
+            if cast(Any, obj).cover_image
             else "Sin portada",
         ]
     if diff:
@@ -504,7 +508,9 @@ def apply_photo_changes(
     for key in ("principal", "hover", "orden", "borradas"):
         if key in diff:
             diff[key] = [
-                [labels[pk] for pk in value] if isinstance(value, list) else labels.get(value)
+                [labels[pk] for pk in value]
+                if isinstance(value, list)
+                else labels.get(cast(int, value))
                 for value in diff[key]
             ]
     if diff:
@@ -571,7 +577,7 @@ def save_collection_piece(
     )
     obj.full_clean()
     obj.save()
-    extra_diff = {}
+    extra_diff: dict[str, list[object]] = {}
     if old and old.position != obj.position:
         extra_diff[f"Posición en {obj.collection.name_es}"] = [old.position, obj.position]
     record_collections(piece, before, actor=actor, request=request, extra_diff=extra_diff)
@@ -634,7 +640,7 @@ def save_piece_relations(
     piece: Piece, values: dict[str, Any], *, actor: Actor = None, request: HttpRequest | None = None
 ) -> None:
     Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
-    diff = {}
+    diff: dict[str, list[object]] = {}
     for name, label in (
         ("stones", "Piedras"),
         ("materials", "Materiales"),

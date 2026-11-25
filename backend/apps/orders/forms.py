@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from typing import TYPE_CHECKING, Any, cast
+
 from django import forms
 from django.core.validators import URLValidator
 from django.utils.translation import gettext_lazy as _
@@ -45,8 +47,8 @@ class FulfillmentForm(forms.Form):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields["target"].choices = [
-            (k, v) for k, v in self.fields["target"].choices if k != "cancelled"
+        cast(forms.ChoiceField, self.fields["target"]).choices = [
+            (k, v) for k, v in cast(Any, self.fields["target"]).choices if k != "cancelled"
         ]
 
     def clean_carrier(self) -> str:
@@ -56,7 +58,13 @@ class FulfillmentForm(forms.Form):
         return value
 
 
-class CardStateSelect(UnfoldAdminSelectWidget):
+if TYPE_CHECKING:
+    _SelectBase = forms.Select
+else:
+    _SelectBase = UnfoldAdminSelectWidget
+
+
+class CardStateSelect(_SelectBase):
     disable_preparing = False
 
     def create_option(self, name, value, label, selected, index, subindex=None, attrs=None):
@@ -83,9 +91,11 @@ class CardFulfillmentForm(FulfillmentForm):
         allowed = available_fulfillment_transitions(order)
         # Swap the widget first: assigning choices also copies them onto the current widget.
         self.fields["target"].widget = CardStateSelect()
-        self.fields["target"].choices = [
+        cast(forms.ChoiceField, self.fields["target"]).choices = [
             (key, label)
-            for key, label in Order._meta.get_field("fulfillment_status").choices
+            for key, label in cast(
+                list[tuple[str, str]], Order._meta.get_field("fulfillment_status").choices
+            )
             if key in allowed
             and (key != "cancelled" or can_cancel)
             and not (key in {"preparing", "shipped"} and order.payment_status != "approved")
@@ -97,7 +107,7 @@ class CardFulfillmentForm(FulfillmentForm):
             and self.data.get("target") in {"preparing", "shipped"}
             and order.payment_status != "approved"
         ):
-            self.fields["target"].choices += [(self.data["target"], "")]
+            cast(Any, self.fields["target"]).choices += [(self.data["target"], "")]
         if not order.customer_email.strip():
             self.fields["notify"].disabled = True
             self.fields["notify"].initial = False

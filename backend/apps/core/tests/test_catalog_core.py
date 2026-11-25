@@ -87,7 +87,7 @@ def test_schema_has_public_contract(client: Client) -> None:
     from drf_spectacular.generators import SchemaGenerator
 
     with override_settings(API_SCHEMA_PUBLIC=True):
-        schema = SchemaGenerator().get_schema(request=None, public=True)  # type: ignore[no-untyped-call]  # drf-spectacular generator has no annotations.
+        schema = SchemaGenerator().get_schema(request=None, public=True)
     assert schema is not None
     for path in (
         "/api/v1/catalog/pieces",

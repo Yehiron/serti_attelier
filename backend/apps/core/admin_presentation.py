@@ -70,8 +70,10 @@ MULTI_SELECT = {"stones", "materials", "related"}
 
 
 class ClientPresentationMixin:
-    def get_form(self, request: HttpRequest, obj: Any = None, **kwargs: Any) -> Any:
-        form = super().get_form(request, obj, **kwargs)  # type: ignore[misc]
+    def get_form(
+        self, request: HttpRequest, obj: Any = None, change: bool = False, **kwargs: Any
+    ) -> Any:
+        form = super().get_form(request, obj, change=change, **kwargs)  # type: ignore[misc]
         for name, field in form.base_fields.items():
             if hasattr(field, "empty_label"):
                 field.empty_label = _("Selecciona una opción")

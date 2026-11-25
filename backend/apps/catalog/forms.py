@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, cast
 
 from django import forms
 from django.contrib.admin.widgets import FilteredSelectMultiple
@@ -20,10 +20,19 @@ from .images import validated_image
 from .models import Category, Piece, PieceImage, PieceVideo
 from .validators import ATTRIBUTE_FIELDS
 
+if TYPE_CHECKING:
+    _CategoryChoiceBase = forms.ModelChoiceField[Category]
+else:
+    _CategoryChoiceBase = forms.ModelChoiceField
 
-class CategoryChoiceField(forms.ModelChoiceField):
+
+class CategoryChoiceField(_CategoryChoiceBase):
     def label_from_instance(self, obj: Category) -> str:
-        return f"{obj.parent.name_es} → {obj.name_es}" if obj.parent_id else str(obj.name_es)
+        return (
+            f"{cast(Category, obj.parent).name_es} → {obj.name_es}"
+            if obj.parent_id
+            else str(obj.name_es)
+        )
 
 
 class PesosField(forms.IntegerField):
@@ -115,7 +124,9 @@ class PieceForm(BasePieceForm):
                     field.widget.attrs.update(step="any", inputmode="decimal")
         if "category" in self.fields:
             self.fields["category"].widget = UnfoldAdminSelectWidget()
-            self.fields["category"].widget.choices = self.fields["category"].choices
+            self.fields["category"].widget.choices = cast(
+                "forms.ModelChoiceField[Category]", self.fields["category"]
+            ).choices
         self._original_attributes = dict(self.instance.attributes or {})
         for key in ATTRIBUTE_FIELDS:
             self.initial[key] = self._original_attributes.get(key)
@@ -137,7 +148,7 @@ class PieceForm(BasePieceForm):
         return value
 
     def _get_validation_exclusions(self) -> set[str]:
-        excluded = super()._get_validation_exclusions()
+        excluded = cast(set[str], super()._get_validation_exclusions())  # type: ignore[misc]  # django-stubs omite este método privado
         if not self.instance.pk and not self.cleaned_data.get("sku"):
             excluded.add("sku")
         return excluded
@@ -212,9 +223,9 @@ class CategoryForm(ValidatedImageForm):
         if "is_active" in self.fields:
             self.fields["is_active"].help_text = self.visibility_help()
         if "parent" in self.fields:
-            self.fields["parent"].queryset = Category.objects.filter(parent=None).exclude(
-                pk=self.instance.pk
-            )
+            cast(
+                "forms.ModelChoiceField[Category]", self.fields["parent"]
+            ).queryset = Category.objects.filter(parent=None).exclude(pk=self.instance.pk)
             self.fields["parent"].help_text = (
                 "Déjalo vacío si es una categoría principal (p. ej. Anillos). "
                 "Elige una si es subcategoría (p. ej. Solitarios dentro de Anillos)."
@@ -257,7 +268,7 @@ class PieceImageForm(ValidatedImageForm):
 
     def _get_validation_exclusions(self) -> set[str]:
         # These constraints belong to the final formset state, not the old database rows.
-        excluded = super()._get_validation_exclusions()
+        excluded = cast(set[str], super()._get_validation_exclusions())  # type: ignore[misc]  # django-stubs omite este método privado
         if getattr(self, "_photo_final_state", False):
             excluded |= {"position", "is_primary", "is_hover"}
         return excluded

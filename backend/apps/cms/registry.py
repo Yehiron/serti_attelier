@@ -41,7 +41,7 @@ class Field:
     min: int | None = None
     max: int | None = None
     default: Any = ""
-    options: tuple[str, ...] = ()
+    options: tuple[str | int, ...] = ()
     fields: tuple[Field, ...] = ()
     sortable: bool = False
     option_labels: tuple[tuple[str, str], ...] = ()
@@ -333,7 +333,7 @@ def validate_cta(value):
     if kind in models:
         if set(value) != {"kind", "label", "target"} or type(value["target"]) is not int:
             raise ValidationError("Selecciona el destino del enlace.")
-        rows = models[kind].objects.filter(pk=value["target"])
+        rows = models[kind]._default_manager.filter(pk=value["target"])
         if kind == "page":
             rows = rows.filter(kind__in=("terms", "privacy", "returns", "shipping", "cookies"))
         if not rows.exists():
@@ -374,14 +374,14 @@ def validate_image(value):
     return deepcopy(value)
 
 
-def validate_fields(fields: tuple[Field, ...], values: Any, prefix: str = "") -> dict:
+def validate_fields(fields: tuple[Field, ...], values: Any, prefix: str = "") -> dict[str, Any]:
     if not isinstance(values, dict):
         raise ValidationError({prefix or "props": "Escribe los campos de la sección."})
-    errors = {
+    errors: dict[str, Any] = {
         f"{prefix}{key}": "Este campo no pertenece a esta sección."
         for key in values.keys() - {f.key for f in fields}
     }
-    result = {}
+    result: dict[str, Any] = {}
     for field in fields:
         key = f"{prefix}{field.key}"
         value = values.get(field.key, deepcopy(field.default))
@@ -435,7 +435,7 @@ def validate_fields(fields: tuple[Field, ...], values: Any, prefix: str = "") ->
                 from apps.catalog.models import Category, Collection, Piece
 
                 model = {"collection": Collection, "category": Category, "piece": Piece}[field.type]
-                if type(value) is not int or not model.objects.filter(pk=value).exists():
+                if type(value) is not int or not model._default_manager.filter(pk=value).exists():
                     raise ValidationError("Selecciona un elemento existente del catálogo.")
                 result[field.key] = value
         except ValidationError as exc:

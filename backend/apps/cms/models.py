@@ -102,6 +102,9 @@ class Page(Timestamped):
 
 
 class ProcessStep(Timestamped):
+    if TYPE_CHECKING:
+        title_es: str
+
     page = models.ForeignKey(
         Page,
         on_delete=models.CASCADE,
@@ -130,6 +133,9 @@ class ProcessStep(Timestamped):
 
 
 class FaqItem(Timestamped):
+    if TYPE_CHECKING:
+        question_es: str
+
     page = models.ForeignKey(
         Page, on_delete=models.CASCADE, related_name="faq_items", verbose_name=_("Página")
     )
@@ -154,6 +160,7 @@ class FaqItem(Timestamped):
 
 class HomeSection(Illustrated):
     if TYPE_CHECKING:
+        image_alt_es: str
         title_es: str
         title_en: str
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from contextlib import contextmanager
 from contextvars import ContextVar
+from functools import partial
 from typing import Any
 
 from django.core.files.storage import default_storage
@@ -101,7 +102,7 @@ def batch_file_cleanup():
                 parent.setdefault(using, set()).update(paths)
             else:
                 transaction.on_commit(
-                    lambda paths=set(paths), using=using: delete_unreferenced(paths, using),
+                    partial(delete_unreferenced, set(paths), using),
                     using=using,
                 )
     finally:

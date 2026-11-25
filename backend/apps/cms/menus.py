@@ -1,6 +1,7 @@
 """Fixed menu documents reuse document versions, review and immutable publications."""
 
 from copy import deepcopy
+from typing import cast
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
@@ -9,7 +10,7 @@ from apps.audit.services import record
 from apps.core.routes import href
 
 from .documents import check_version, lock_document, require_capability
-from .models import ContentDocument, DraftRevision, MenuPublication, Page
+from .models import ContentDocument, DraftRevision, MenuPublication, Page, PageRevision
 from .page_options import draft_path, snapshot_path
 from .registry import validate_cta
 
@@ -196,7 +197,7 @@ def public_menu(key, locale, preview=False):
                 url = (
                     draft_path(page, locale)
                     if preview
-                    else snapshot_path(page, revision.snapshot, locale)
+                    else snapshot_path(page, cast(PageRevision, revision).snapshot, locale)
                 )
         elif kind in taxonomies:
             target = taxonomies[kind].get(link["target"])

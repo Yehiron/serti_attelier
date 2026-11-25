@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, TypedDict
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from django.contrib.postgres.search import TrigramSimilarity
 from django.db import connection
@@ -46,7 +46,7 @@ class PriceAnnotation(TypedDict):
 def published_pieces(
     *, card_only: bool = False
 ) -> QuerySet[WithAnnotations[Piece, PriceAnnotation]]:
-    prefetch = ("stones", "images")
+    prefetch: tuple[str, ...] = ("stones", "images")
     if not card_only:
         prefetch += ("materials", "collections")
     return (
@@ -94,12 +94,13 @@ def search_piece_ids(query: str) -> list[int]:
             (Material, "materials"),
             (Collection, "collections"),
         ):
+            taxa: Any
             if postgres:
                 taxa = model.objects.alias(
                     search_es=Upper(Func("name_es", function="catalog_immutable_unaccent")),
                     search_en=Upper(Func("name_en", function="catalog_immutable_unaccent")),
                 )
-                normalized_word = Upper(Unaccent(Value(word)))
+                normalized_word = Upper(cast(str, Unaccent(Value(word))))
                 names = Q(search_es__contains=normalized_word) | Q(
                     search_en__contains=normalized_word
                 )
@@ -115,8 +116,8 @@ def search_piece_ids(query: str) -> list[int]:
         if postgres:
             fuzzy = Piece.objects.alias(
                 score=Greatest(
-                    TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(word))),
-                    TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(word))),
+                    TrigramSimilarity(Unaccent("name_es"), cast(str, Unaccent(Value(word)))),
+                    TrigramSimilarity(Unaccent("name_en"), cast(str, Unaccent(Value(word)))),
                 )
             ).filter(score__gt=0.3)
             branches.append(fuzzy.order_by().values_list("pk", flat=True))
@@ -166,8 +167,8 @@ def filter_pieces(
 
             qs = qs.annotate(
                 similarity=Greatest(
-                    TrigramSimilarity(Unaccent("name_es"), Unaccent(Value(query))),
-                    TrigramSimilarity(Unaccent("name_en"), Unaccent(Value(query))),
+                    TrigramSimilarity(Unaccent("name_es"), cast(str, Unaccent(Value(query)))),
+                    TrigramSimilarity(Unaccent("name_en"), cast(str, Unaccent(Value(query)))),
                 )
             )
     if not facets:
@@ -214,8 +215,9 @@ def piece_detail(slug: str, locale: str) -> Piece:
     )
     if piece is None:
         raise PieceNotFound()
-    piece._detail_related = related_pieces(piece)
-    prefetch_related_objects([piece, *piece._detail_related], "stones", "images")
+    related = related_pieces(piece)
+    cast(Any, piece)._detail_related = related
+    prefetch_related_objects([piece, *related], "stones", "images")
     prefetch_related_objects([piece], "materials", "collections")
     return piece
 

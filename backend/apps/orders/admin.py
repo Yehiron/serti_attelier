@@ -433,7 +433,7 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
     @admin.display(description=_("Pago"))
     def payment_summary(self, obj: Order) -> str:
         badge = display_for_label(self.payment_badge(obj), "—", self.payment_badge.label)
-        if obj.payment_status == "pending" and obj.last_attempt_status == "DECLINED":
+        if obj.payment_status == "pending" and cast(Any, obj).last_attempt_status == "DECLINED":
             return format_html("{}<br><small>Último intento: rechazado</small>", badge)
         return cast(str, badge)
 

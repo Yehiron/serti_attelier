@@ -68,7 +68,12 @@ class NamedModel(models.Model):
             name = getattr(self, f"name_{language}") or self.name_es
             base = (slugify(name or "") or "pieza")[:210]
             candidate, suffix = base, 2
-            while type(self).objects.filter(**{field: candidate}).exclude(pk=self.pk).exists():
+            while (
+                type(self)
+                ._default_manager.filter(**{field: candidate})
+                .exclude(pk=self.pk)
+                .exists()
+            ):
                 candidate = f"{base}-{suffix}"
                 suffix += 1
             setattr(self, field, candidate)
@@ -168,6 +173,10 @@ class Material(NamedModel):
 
 
 class Piece(NamedModel):
+    if TYPE_CHECKING:
+        short_description_es: str
+        short_description_en: str | None
+
     updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Piece] = MultilingualManager()
 
@@ -299,6 +308,10 @@ class CollectionPiece(models.Model):
 
 
 class PieceImage(models.Model):
+    if TYPE_CHECKING:
+        alt_es: str
+        alt_en: str | None
+
     objects: MultilingualManager[PieceImage] = MultilingualManager()
 
     class ProcessingStatus(models.TextChoices):
