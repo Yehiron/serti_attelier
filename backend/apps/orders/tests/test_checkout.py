@@ -215,7 +215,10 @@ def test_quote_checks_coupon_email_limit(client, piece, payload):
     assert submit(client, payload).status_code == 201
     second = APIClient()
     other = Piece.objects.create(
-        sku="QUOTE-OTHER", name_es="Otra", slug_es="quote-other", price_cents=100,
+        sku="QUOTE-OTHER",
+        name_es="Otra",
+        slug_es="quote-other",
+        price_cents=100,
         status="published",
     )
     add(second, other)

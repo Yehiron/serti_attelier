@@ -120,7 +120,8 @@ class OrderCardAdminMixin:
                     "disabled": key == "preparing" and order.payment_status != "approved",
                 }
                 for key, label in Order._meta.get_field("fulfillment_status").choices
-                if key in allowed and (key != "cancelled" or can_cancel)
+                if key in allowed
+                and (key != "cancelled" or can_cancel)
                 and not (key in {"preparing", "shipped"} and order.payment_status != "approved")
             ],
             "pieces": [

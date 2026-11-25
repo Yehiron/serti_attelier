@@ -65,8 +65,13 @@ class ContactInquiryAdmin(ModelAdmin):
         action = {"answered": "inquiries.answered", "archived": "inquiries.archived"}.get(
             obj.status, "inquiries.status_changed"
         )
-        record(action, actor=request.user, obj=obj, diff={"status": [previous, obj.status]},
-               request=request)
+        record(
+            action,
+            actor=request.user,
+            obj=obj,
+            diff={"status": [previous, obj.status]},
+            request=request,
+        )
 
     @transaction.atomic
     def save_model(self, request, obj, form, change):

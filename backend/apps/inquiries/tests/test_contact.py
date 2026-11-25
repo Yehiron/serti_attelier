@@ -152,13 +152,17 @@ def test_admin_actions(payload):
 @pytest.mark.django_db
 @pytest.mark.parametrize(
     "phone,expected",
-    [("3001112233", "+573001112233"), ("+573001112233", "+573001112233"),
-     ("(300) 111-2233", "+573001112233")],
+    [
+        ("3001112233", "+573001112233"),
+        ("+573001112233", "+573001112233"),
+        ("(300) 111-2233", "+573001112233"),
+    ],
 )
 def test_phone_normalization(payload, phone, expected):
     payload["phone"] = phone
-    with patch("apps.inquiries.api.notify_atelier.delay"), patch(
-        "apps.inquiries.api.send_acknowledgement.delay"
+    with (
+        patch("apps.inquiries.api.notify_atelier.delay"),
+        patch("apps.inquiries.api.send_acknowledgement.delay"),
     ):
         response = APIClient().post("/api/v1/contact", payload, format="json")
     assert response.status_code == 201
@@ -212,11 +216,14 @@ def test_admin_status_audit_individual_and_bulk(payload):
     model_admin.save_model(request, inquiry, None, True)
     events = AuditLog.objects.filter(object_id=str(inquiry.pk), action__startswith="inquiries.")
     assert set(events.values_list("action", flat=True)) == {
-        "inquiries.answered", "inquiries.archived", "inquiries.status_changed"
+        "inquiries.answered",
+        "inquiries.archived",
+        "inquiries.status_changed",
     }
     assert events.count() == 3
-    assert all(set(event.diff) == {"status"} and inquiry.message not in str(event.diff)
-               for event in events)
+    assert all(
+        set(event.diff) == {"status"} and inquiry.message not in str(event.diff) for event in events
+    )
 
 
 @pytest.mark.django_db

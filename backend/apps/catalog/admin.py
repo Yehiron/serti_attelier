@@ -1006,8 +1006,14 @@ class PieceAdmin(
             else:
                 self.message_user(request, str(exc), messages.ERROR)
 
-    def message_user(self, request: HttpRequest, message: Any, level: Any = messages.INFO,
-                     extra_tags: str = "", fail_silently: bool = False) -> None:
+    def message_user(
+        self,
+        request: HttpRequest,
+        message: Any,
+        level: Any = messages.INFO,
+        extra_tags: str = "",
+        fail_silently: bool = False,
+    ) -> None:
         from django.utils.safestring import SafeData, mark_safe
 
         if isinstance(message, SafeData) and "El pieza “" in str(message):

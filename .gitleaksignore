@@ -1,0 +1,3 @@
+# Falsos positivos revisados a mano (valores de prueba evidentemente falsos).
+# SECRET_KEY="abcdefghij0123456789" * 4 en la prueba de check_production.
+381b8b04e1d8ee71decc66840745ade83bf47dc9:backend/apps/core/tests/test_production.py:generic-api-key:96

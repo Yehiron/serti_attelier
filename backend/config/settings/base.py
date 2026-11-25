@@ -305,8 +305,10 @@ CELERY_BEAT_SCHEDULE["prune-cms-invalidation"] = {
     "schedule": 86400.0,
 }
 
-INSTALLED_APPS.append('apps.inquiries')
-REST_FRAMEWORK['DEFAULT_THROTTLE_RATES'].update({
-    'contact_minute': env('THROTTLE_CONTACT_MINUTE', default='3/min'),
-    'contact_hour': env('THROTTLE_CONTACT_HOUR', default='10/hour'),
-})
+INSTALLED_APPS.append("apps.inquiries")
+REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"].update(
+    {
+        "contact_minute": env("THROTTLE_CONTACT_MINUTE", default="3/min"),
+        "contact_hour": env("THROTTLE_CONTACT_HOUR", default="10/hour"),
+    }
+)

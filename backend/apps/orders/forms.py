@@ -86,13 +86,17 @@ class CardFulfillmentForm(FulfillmentForm):
         self.fields["target"].choices = [
             (key, label)
             for key, label in Order._meta.get_field("fulfillment_status").choices
-            if key in allowed and (key != "cancelled" or can_cancel)
+            if key in allowed
+            and (key != "cancelled" or can_cancel)
             and not (key in {"preparing", "shipped"} and order.payment_status != "approved")
         ]
         self.fields["target"].widget.disable_preparing = order.payment_status != "approved"
         self.fields["expected_status"].initial = order.fulfillment_status
-        if (self.is_bound and self.data.get("target") in {"preparing", "shipped"}
-                and order.payment_status != "approved"):
+        if (
+            self.is_bound
+            and self.data.get("target") in {"preparing", "shipped"}
+            and order.payment_status != "approved"
+        ):
             self.fields["target"].choices += [(self.data["target"], "")]
         if not order.customer_email.strip():
             self.fields["notify"].disabled = True

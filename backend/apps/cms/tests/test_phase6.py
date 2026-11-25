@@ -822,18 +822,22 @@ def test_home_reorder_lists_editor_section_names():
 @pytest.mark.parametrize(
     ("count", "notice"),
     [
-        (1, "Falta 1 texto en inglés. Si publicas así, "
-         "los visitantes en inglés lo verán en español."),
-        (2, "Faltan 2 textos en inglés. Si publicas así, "
-         "los visitantes en inglés los verán en español."),
+        (
+            1,
+            "Falta 1 texto en inglés. Si publicas así, "
+            "los visitantes en inglés lo verán en español.",
+        ),
+        (
+            2,
+            "Faltan 2 textos en inglés. Si publicas así, "
+            "los visitantes en inglés los verán en español.",
+        ),
     ],
 )
 def test_review_translation_notice_agrees_with_count(count, notice):
     from django.template.loader import render_to_string
 
-    html = render_to_string(
-        "admin/cms/review_publish.html", {"missing_translations": [{}] * count}
-    )
+    html = render_to_string("admin/cms/review_publish.html", {"missing_translations": [{}] * count})
     assert notice in html
 
 

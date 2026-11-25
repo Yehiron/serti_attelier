@@ -471,8 +471,12 @@ def cancel_order(order, *, actor, reason, notify, expected_status, include_reaso
         order.payment_status = "cancelled"
         order.save(update_fields=["payment_status", "updated_at"])
         OrderStatusChange.objects.create(
-            order=order, field="payment_status", from_state=payment_previous,
-            to_state="cancelled", actor=actor, note="Pedido cancelado.",
+            order=order,
+            field="payment_status",
+            from_state=payment_previous,
+            to_state="cancelled",
+            actor=actor,
+            note="Pedido cancelado.",
         )
     order.fulfillment_status = "cancelled"
     order.save(update_fields=["fulfillment_status", "updated_at"])

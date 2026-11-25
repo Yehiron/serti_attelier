@@ -96,8 +96,10 @@ NAVIGATION: list[dict[str, Any]] = [
         "title": _("Pedidos"),
         "items": [
             item("Pedidos", "shopping_bag", "orders.order"),
-            {**item("Mensajes de contacto", "mail", "inquiries.contactinquiry"),
-             "badge": "apps.core.dashboard.new_contact_count"},
+            {
+                **item("Mensajes de contacto", "mail", "inquiries.contactinquiry"),
+                "badge": "apps.core.dashboard.new_contact_count",
+            },
             {
                 "title": _("Avisos de pedidos"),
                 "icon": "notifications",

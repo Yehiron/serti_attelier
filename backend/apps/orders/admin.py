@@ -629,8 +629,12 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
         return TemplateResponse(
             request,
             "admin/payments/confirm.html",
-            {**self.admin_site.each_context(request), "form": form, "order": order,
-             "title": f"Confirmar pago manual · {order.number}"},
+            {
+                **self.admin_site.each_context(request),
+                "form": form,
+                "order": order,
+                "title": f"Confirmar pago manual · {order.number}",
+            },
         )
 
     @admin.display(description=_("Certificado de autenticidad"))
