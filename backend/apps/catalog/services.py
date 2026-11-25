@@ -375,6 +375,7 @@ def taxonomy_snapshot(obj: Taxonomy) -> dict[str, object]:
             "description",
             "seo_title",
             "seo_description",
+            "updated_at",  # bookkeeping timestamp, not an editorial change
         }:
             continue  # translated originals alias the active language
         if field.name.startswith("cover_"):

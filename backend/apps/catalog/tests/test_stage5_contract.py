@@ -31,6 +31,8 @@ LIST_KEYS = {
     "hover_image",
 }
 DETAIL_KEYS = LIST_KEYS | {
+    "published_at",
+    "updated_at",
     "video",
     "piece_number",
     "short_description",
@@ -172,8 +174,13 @@ def test_http_contract_filters_search_taxonomy_and_visibility(
     taxonomy = client.get("/api/v1/catalog/taxonomy", {"locale": locale}).json()
     assert set(taxonomy) == {"categories", "collections", "stones", "materials"}
     category = next(row for row in taxonomy["categories"] if row["slug"] == root_slug)
-    assert set(category) == {"slug", "name", "cover", "cover_image", "children"}
-    assert category["children"] == [
+    # SEO fields feed listing metadata and the sitemap.
+    seo_keys = {"description", "seo_title", "seo_description", "updated_at"}
+    assert set(category) == {"slug", "name", "cover", "cover_image", "children"} | seo_keys
+    assert [
+        {key: row[key] for key in ("slug", "name", "cover", "cover_image")}
+        for row in category["children"]
+    ] == [
         {
             "slug": child_slug,
             "name": child.name_en if locale == "en" else child.name_es,

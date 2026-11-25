@@ -86,6 +86,32 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
                     },
                 )
             )
+        business_fields = {
+            "business_locality",
+            "business_region",
+            "business_country",
+            "appointment_only",
+            "service_area",
+            "opening_hours_es",
+            "opening_hours_en",
+            "seo_home_title_es",
+            "seo_home_title_en",
+            "seo_home_description_es",
+            "seo_home_description_en",
+        }
+        result = [
+            (
+                label,
+                {
+                    **options,
+                    "fields": [
+                        field for field in options["fields"] if field not in business_fields
+                    ],
+                },
+            )
+            for label, options in result
+        ]
+        result.append((_("Negocio y buscadores"), {"fields": list(sorted(business_fields))}))
         return result
 
     def changeform_view(
@@ -108,9 +134,17 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
         previous = SiteSettings.objects.filter(pk=obj.pk).first()
         # Only explicitly approved settings can enter the audit log. New fields are redacted.
         safe_fields = {
-            "title_scale", "text_scale", "whatsapp_number", "instagram_url", "facebook_url",
-            "tiktok_url", "pinterest_url", "support_email", "certificate_price_cents",
-            "online_reservation_minutes", "manual_reservation_hours",
+            "title_scale",
+            "text_scale",
+            "whatsapp_number",
+            "instagram_url",
+            "facebook_url",
+            "tiktok_url",
+            "pinterest_url",
+            "support_email",
+            "certificate_price_cents",
+            "online_reservation_minutes",
+            "manual_reservation_hours",
         }
         diff = {}
         if previous:
@@ -119,9 +153,9 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
                     continue
                 old, new = getattr(previous, field.attname), getattr(obj, field.attname)
                 if old != new:
-                    diff[field.name] = [old, new] if field.name in safe_fields else [
-                        "[redactado]", "[redactado]"
-                    ]
+                    diff[field.name] = (
+                        [old, new] if field.name in safe_fields else ["[redactado]", "[redactado]"]
+                    )
         save_site_settings(obj, actor=request.user)
         if diff:
             record("core.settings_updated", actor=request.user, obj=obj, diff=diff, request=request)

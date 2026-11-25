@@ -19,7 +19,7 @@ import { OrderLive } from '@/components/order-live';
 export const instant = false;
 export async function generateMetadata() {
   const dict = await getDictionary();
-  return { title: dict.commerce.order, robots: { index: false, follow: false } };
+  return { title: dict.commerce.order, robots: { index: false, follow: true } };
 }
 export default async function Page({ params }: { params: Promise<{ token: string }> }) {
   const current = await locale(); if (!isLocale(current)) notFound(); const { token } = await params;

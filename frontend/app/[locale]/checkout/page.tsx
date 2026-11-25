@@ -12,7 +12,7 @@ import { href } from '@/lib/routes';
 export const instant = false;
 export async function generateMetadata() {
   const dict = await getDictionary();
-  return { title: dict.commerce.checkout, robots: { index: false, follow: false } };
+  return { title: dict.commerce.checkout, robots: { index: false, follow: true } };
 }
 export default async function Page() {
   const current = await locale(); if (!isLocale(current)) notFound();

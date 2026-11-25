@@ -20,8 +20,8 @@ type SectionOf<K extends Section['kind']> = Extract<Section, { kind: K }>;
 function HeroSection({ section, dict, first }: { section: SectionOf<'hero'>; dict: Dictionary; first: boolean }) {
   const content = <>
     <div className="hero-copy">
-      <p className="eyebrow">{dict.home.eyebrow}</p>
-      {first ? <h1 className="title-reveal"><EditorialTitle text={section.title} /></h1> : <h2><EditorialTitle text={section.title} /></h2>}
+      {first ? <h1 className="eyebrow">{dict.home.seoHeading}</h1> : <p className="eyebrow">{dict.home.eyebrow}</p>}
+      {first ? <h2 className="title-reveal"><EditorialTitle text={section.title} /></h2> : <h2><EditorialTitle text={section.title} /></h2>}
       <p>{section.subtitle}</p><Action cta={section.cta} />
     </div>
     <div className="hero-caption"><span>{dict.home.status}</span><span>01 / SERTI</span></div>

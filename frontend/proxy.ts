@@ -42,6 +42,34 @@ export async function proxy(request: NextRequest) {
     const decision = routeDecision(pathname);
     const url = request.nextUrl.clone();
     url.pathname = decision.pathname;
+    // Resolve missing dynamic resources before the React shell commits status 200.
+    const parts = pathname.split('/').filter(Boolean);
+    let missingResource = false;
+    const staticSegments = new Set(['joyeria', 'jewelry', 'personaliza', 'customize', 'historia', 'story', 'contacto', 'contact', 'carrito', 'cart', 'checkout', 'deseos', 'wishlist', 'buscar', 'search', 'pedido', 'order', 'legal']);
+    if (decision.kind !== 'redirect' && !request.cookies.has('__prerender_bypass')) {
+      const segment = parts[1]; const slug = parts[2];
+      const dynamic = slug && parts.length === 3 && ['piezas', 'pieces', 'joyeria', 'jewelry', 'piedras', 'stones', 'colecciones', 'collections'].includes(segment);
+      const editorial = parts.length === 2 && segment && !staticSegments.has(segment);
+      if (dynamic || editorial) {
+        try {
+          const api = (process.env.API_INTERNAL_URL ?? 'http://backend:8000/api/v1').replace(/\/$/, '');
+          const headers: Record<string, string> = { Accept: 'application/json', 'X-Forwarded-Proto': 'https' };
+          if (process.env.INTERNAL_API_TOKEN) headers['X-Internal-Token'] = process.env.INTERNAL_API_TOKEN;
+          const path = editorial ? `cms/pages/${encodeURIComponent(segment)}` : ['piezas', 'pieces'].includes(segment) ? `catalog/pieces/${encodeURIComponent(slug)}` : 'catalog/taxonomy';
+          const probe = await fetch(`${api}/${path}?locale=${pathLocale}`, { headers, cache: 'no-store', signal: AbortSignal.timeout(8000) });
+          if (probe.status === 404) missingResource = true;
+          else if (probe.ok && dynamic && path === 'catalog/taxonomy') {
+            const data = await probe.json();
+            const items = ['joyeria', 'jewelry'].includes(segment) ? (data.categories ?? []).flatMap((x: { children?: unknown[] }) => [x, ...(x.children ?? [])]) : ['piedras', 'stones'].includes(segment) ? data.stones : data.collections;
+            missingResource = !items?.some((x: { slug: string }) => x.slug === decodeURIComponent(slug));
+          } else if (probe.ok && editorial) {
+            const data = await probe.json();
+            missingResource = data.alternates?.[pathLocale] !== pathname;
+          }
+        } catch { /* API failures remain application errors, never false 404s. */ }
+      }
+    }
+    if (missingResource) return new NextResponse('<!doctype html><html><head><meta name="robots" content="noindex, follow"></head><body><h1>404</h1></body></html>', { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
     let missingOrder = false;
     const tracking = trackingPath(pathname);
     if (tracking && decision.kind !== 'redirect') {

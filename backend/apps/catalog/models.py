@@ -51,6 +51,8 @@ class NamedModel(models.Model):
         generated = self.populate_slugs()
         if kwargs.get("update_fields") is not None:
             kwargs["update_fields"] = set(kwargs["update_fields"]) | generated
+            if hasattr(self, "updated_at"):
+                kwargs["update_fields"].add("updated_at")
         super().save(*args, **kwargs)
 
 
@@ -95,6 +97,7 @@ class CoveredModel(NamedModel):
 
 
 class Category(CoveredModel):
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Category] = MultilingualManager()
     seo_title = models.CharField(verbose_name=_("Título SEO"), max_length=200, blank=True)
     seo_description = models.TextField(verbose_name=_("Descripción SEO"), blank=True)
@@ -130,6 +133,7 @@ class Category(CoveredModel):
 
 
 class Collection(CoveredModel):
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Collection] = MultilingualManager()
     seo_title = models.CharField(verbose_name=_("Título SEO"), max_length=200, blank=True)
     seo_description = models.TextField(verbose_name=_("Descripción SEO"), blank=True)
@@ -145,6 +149,7 @@ class Collection(CoveredModel):
 
 
 class Stone(CoveredModel):
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Stone] = MultilingualManager()
 
     class Meta(CoveredModel.Meta):
@@ -154,6 +159,7 @@ class Stone(CoveredModel):
 
 
 class Material(NamedModel):
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Material] = MultilingualManager()
 
     class Meta(NamedModel.Meta):
@@ -163,6 +169,7 @@ class Material(NamedModel):
 
 
 class Piece(NamedModel):
+    updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Piece] = MultilingualManager()
 
     class Status(models.TextChoices):

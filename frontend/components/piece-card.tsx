@@ -12,7 +12,7 @@ export async function PieceCard({ piece, locale, dict, alternates }: { piece: Ca
   const sizes = '(max-width: 700px) 45vw, (max-width: 1100px) 30vw, 23vw';
   const slug = (path: string) => decodeURIComponent(path.split('/').filter(Boolean).at(-1) ?? piece.slug);
   return <article className="piece-card">
-    <div className="piece-photo"><Link href={href('piece', locale, piece.slug)} aria-label={piece.name}>{piece.image ? <Media image={piece.image} sizes={sizes} /> : <span className="image-placeholder">{dict.ui.image}</span>}
+    <div className="piece-photo"><Link href={href('piece', locale, piece.slug)} aria-label={piece.name}>{piece.image ? <Media image={{ ...piece.image, alt: piece.image.alt || [piece.name, ...piece.stones.map(x => x.name)].join(' · ') }} sizes={sizes} /> : <span className="image-placeholder">{dict.ui.image}</span>}
       {/* Desktop-only alternate view; lazy, so it loads with the card and is ready before hover. */}
       {piece.image && piece.hover_image && <Media className="hover-image" image={{ ...piece.hover_image, alt: '' }} sizes={sizes} />}</Link>
     <WishButton wish={{ sku: piece.sku, slugs: { es: alternates ? slug(alternates.es) : piece.slug, en: alternates ? slug(alternates.en) : piece.slug }, name: piece.name, image: piece.image, price: piece.sale_price ?? piece.price, addedAt: 0 }} save={dict.ui.save} remove={dict.ui.remove} /></div>

@@ -215,6 +215,14 @@ class LegalPageSerializer(serializers.Serializer[Any]):
 
 
 class SiteSettingsSerializer(serializers.Serializer[Any]):
+    business_locality = serializers.CharField()
+    business_region = serializers.CharField()
+    business_country = serializers.CharField()
+    appointment_only = serializers.BooleanField()
+    service_area = serializers.CharField()
+    opening_hours = serializers.CharField()
+    seo_home_title = serializers.CharField()
+    seo_home_description = serializers.CharField()
     title_scale = serializers.FloatField()
     text_scale = serializers.FloatField()
     whatsapp = WhatsappSerializer()

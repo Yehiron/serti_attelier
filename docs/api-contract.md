@@ -74,7 +74,7 @@ Filtros: `category`, `collection`, `stone` (múltiple), `material`, `price_min`,
 ```
 
 ### `GET /catalog/pieces/{slug}`
-Detalle completo: descripciones, historia, atributos, galería, piedras, materiales, colecciones, relacionadas, SEO (`title`, `description`, `alternates: {es, en}`) y `cta`. `whatsapp_url` contiene la URL de la plantilla general para la pieza, o `null` si no hay número configurado.
+Detalle completo: `updated_at` y `published_at` (fechas ISO 8601 o `null`), descripciones, historia, atributos, galería, piedras, materiales, colecciones, relacionadas, SEO (`title`, `description`, `alternates: {es, en}`) y `cta`. `whatsapp_url` contiene la URL de la plantilla general para la pieza, o `null` si no hay número configurado.
 
 CTA:
 
@@ -111,8 +111,7 @@ No se modifican las rutas, filtros ni tipos públicos. Las pruebas HTTP de
   `null`. Categorías/piedras conservan la proporción; colecciones se procesan a 16:9.
 
 Lectura de coherencia: `frontend/lib/api/types.ts` mantiene `Image`, `Money`,
-`SaleState`, `PieceCard`, `PieceDetail` y `Category` compatibles. No se modificó el
-frontend. `photos/status`, creación rápida y `taxonomy-cover` son rutas privadas del
+`SaleState`, `PieceCard`, `PieceDetail` y `Category` compatibles. El detalle expone las fechas para que el sitemap calcule `lastModified` sin otra consulta ni endpoint; `updated_at` usa `published_at` como respaldo cuando falta. `photos/status`, creación rápida y `taxonomy-cover` son rutas privadas del
 dashboard; no forman parte de `/api/v1/catalog`.
 
 ### `GET /catalog/pieces/status?skus=SRT-AN-0012,SRT-DJ-0004`

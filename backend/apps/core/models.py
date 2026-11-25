@@ -77,6 +77,55 @@ class SiteSettings(models.Model):
             "Ajusta el texto de lectura de toda la tienda. Elige Grande para facilitar su lectura."
         ),
     )
+    business_locality = models.CharField(
+        _("Ciudad"), max_length=100, default="Armenia", db_default="Armenia"
+    )
+    business_region = models.CharField(
+        _("Departamento"), max_length=100, default="Quindío", db_default="Quindío"
+    )
+    business_country = models.CharField(
+        _("Código del país"), max_length=2, default="CO", db_default="CO"
+    )
+    appointment_only = models.BooleanField(
+        _("Atención solo con cita"), default=True, db_default=True
+    )
+    service_area = models.CharField(
+        _("Área de servicio"), max_length=100, default="Colombia", db_default="Colombia"
+    )
+    opening_hours_es = models.CharField(
+        _("Horario (español)"),
+        max_length=250,
+        default="Atención 24 horas por WhatsApp · Citas con agendamiento previo",
+        db_default="Atención 24 horas por WhatsApp · Citas con agendamiento previo",
+    )
+    opening_hours_en = models.CharField(
+        _("Horario (inglés)"),
+        max_length=250,
+        default="24-hour WhatsApp support · Visits by appointment",
+        db_default="24-hour WhatsApp support · Visits by appointment",
+    )
+    seo_home_title_es = models.CharField(
+        _("Título SEO del inicio (español)"),
+        max_length=200,
+        default="SERTI · Joyería en Armenia, Quindío | Esmeraldas colombianas y oro 18k",
+        db_default="SERTI · Joyería en Armenia, Quindío | Esmeraldas colombianas y oro 18k",
+    )
+    seo_home_title_en = models.CharField(
+        _("Título SEO del inicio (inglés)"),
+        max_length=200,
+        default="SERTI · Fine jewelry from Armenia, Colombia | Colombian emeralds & 18k gold",
+        db_default="SERTI · Fine jewelry from Armenia, Colombia | Colombian emeralds & 18k gold",
+    )
+    seo_home_description_es = models.TextField(
+        _("Descripción SEO del inicio (español)"),
+        default="Joyería de autor en Armenia, Quindío: anillos, cadenas, aretes y dijes en oro 18k con esmeraldas colombianas. Atención con cita y envíos a toda Colombia.",  # noqa: E501
+        db_default="Joyería de autor en Armenia, Quindío: anillos, cadenas, aretes y dijes en oro 18k con esmeraldas colombianas. Atención con cita y envíos a toda Colombia.",  # noqa: E501
+    )
+    seo_home_description_en = models.TextField(
+        _("Descripción SEO del inicio (inglés)"),
+        default="Fine jewelry from Armenia, Colombia: rings, chains, earrings and pendants in 18k gold with Colombian emeralds. By appointment, shipping across Colombia.",  # noqa: E501
+        db_default="Fine jewelry from Armenia, Colombia: rings, chains, earrings and pendants in 18k gold with Colombian emeralds. By appointment, shipping across Colombia.",  # noqa: E501
+    )
     whatsapp_number = models.CharField(
         verbose_name=_("Número de WhatsApp"),
         max_length=15,

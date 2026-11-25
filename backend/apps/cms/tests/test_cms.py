@@ -29,6 +29,7 @@ from apps.cms.models import HomePublication, HomeSection, Page, PageRevision, Pe
 from apps.cms.preview import PreviewInvalid, make_token, verify_token
 from apps.cms.tests.helpers import cms_version
 from apps.core.api.base import PublicReadThrottle, PublicView
+from apps.core.models import SiteSettings
 from apps.core.routes import href
 from apps.core.selectors import get_solo
 
@@ -587,6 +588,14 @@ def test_empty_markdown_and_raw_source_restore(cms_actor, actor: User, client: C
 def test_settings_without_number_or_published_pages(client: Client) -> None:
     data = get(client, "site/settings").json()
     assert data == {
+        "business_locality": "Armenia",
+        "business_region": "Quindío",
+        "business_country": "CO",
+        "appointment_only": True,
+        "service_area": "Colombia",
+        "opening_hours": "Atención 24 horas por WhatsApp · Citas con agendamiento previo",
+        "seo_home_title": "SERTI · Joyería en Armenia, Quindío | Esmeraldas colombianas y oro 18k",
+        "seo_home_description": SiteSettings._meta.get_field("seo_home_description_es").default,
         "whatsapp": {"number": None, "general_url": None},
         "social": [],
         "support_email": None,

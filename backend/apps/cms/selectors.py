@@ -375,6 +375,14 @@ def site_settings(locale: str) -> dict[str, Any]:
             for network in ("instagram", "facebook", "tiktok", "pinterest")
             if getattr(config, f"{network}_url")
         ],
+        "business_locality": config.business_locality,
+        "business_region": config.business_region,
+        "business_country": config.business_country,
+        "appointment_only": config.appointment_only,
+        "service_area": config.service_area,
+        "opening_hours": getattr(config, f"opening_hours_{locale}"),
+        "seo_home_title": getattr(config, f"seo_home_title_{locale}"),
+        "seo_home_description": getattr(config, f"seo_home_description_{locale}"),
         "title_scale": config.title_scale / 100,
         "text_scale": config.text_scale / 100,
         "support_email": config.support_email or None,

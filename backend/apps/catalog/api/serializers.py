@@ -32,6 +32,10 @@ class CoverSerializer(serializers.Serializer[Any]):
 
 
 class TaxonSerializer(NamedSerializer):
+    updated_at = serializers.DateTimeField(read_only=True)
+    description = serializers.CharField(default="", allow_blank=True)
+    seo_title = serializers.CharField(default="", allow_blank=True)
+    seo_description = serializers.CharField(default="", allow_blank=True)
     cover = serializers.SerializerMethodField()
 
     @extend_schema_field(CoverSerializer(allow_null=True))
@@ -196,6 +200,8 @@ class PieceDetailSerializer(PieceListSerializer):
         fields = (
             *PieceListSerializer.Meta.fields,
             "video",
+            "updated_at",
+            "published_at",
             "piece_number",
             "short_description",
             "long_description",
@@ -261,8 +267,8 @@ class PieceDetailSerializer(PieceListSerializer):
     @extend_schema_field(SEOSerializer)
     def get_seo(self, obj: Piece) -> dict[str, Any]:
         return {
-            "title": obj.seo_title or obj.name,
-            "description": obj.seo_description or obj.short_description,
+            "title": obj.seo_title or "",
+            "description": obj.seo_description or "",
             "alternates": {locale: piece_url(obj, locale) for locale in ("es", "en")},
         }
 

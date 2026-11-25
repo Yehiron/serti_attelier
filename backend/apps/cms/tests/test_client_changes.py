@@ -79,3 +79,16 @@ def test_category_conversion_preserves_publication_until_publish():
         {key: value for key, value in section.items() if key != "schema_version"}
         for section in selectors.home("es")["sections"]
     ] == snapshot["es"]
+
+
+def test_business_settings_contract_in_both_languages():
+    config = get_solo()
+    config.business_locality = "Armenia"
+    config.seo_home_title_en = "Custom English title"
+    config.save()
+    es = SiteSettingsSerializer(selectors.site_settings("es")).data
+    en = SiteSettingsSerializer(selectors.site_settings("en")).data
+    assert es["business_locality"] == en["business_locality"] == "Armenia"
+    assert es["appointment_only"] is True
+    assert en["seo_home_title"] == "Custom English title"
+    assert "streetAddress" not in es

@@ -1,7 +1,7 @@
 export type Image = { src: string; srcset: string; width: number; height: number; alt: string; focal?: { x: number; y: number } };
 export type Money = { amount_cents: number; currency: 'COP' };
 export type Named = { slug: string; name: string };
-export type Taxon = Named & { cover_image: string | null; cover?: Image | null };
+export type Taxon = Named & { updated_at?: string | null; cover_image: string | null; cover?: Image | null; description?: string; seo_title?: string; seo_description?: string };
 export type Category = Taxon & { children: Taxon[] };
 export type Taxonomy = { categories: Category[]; collections: Taxon[]; stones: Taxon[]; materials: Taxon[] };
 export type SaleState = 'available' | 'reserved' | 'sold' | 'preorder';
@@ -11,7 +11,7 @@ export type PieceCard = Named & { sku: string; category: Named | null; stones: N
 export type PieceVideo = { src: string; type: string; width: number; height: number; duration_seconds: number; alt: string; poster: Image };
 export type PieceDetail = PieceCard & {
   video?: PieceVideo | null;
-  piece_number: string; short_description: string; long_description: string; story: string; care: string;
+  updated_at: string | null; published_at: string | null; piece_number: string; short_description: string; long_description: string; story: string; care: string;
   attributes: { ring_size?: string | number; length_mm?: number; metal?: string; metal_purity?: string; carats?: number; weight_g?: number; dimensions_mm?: string }; materials: Named[]; collections: Named[];
   gallery: Image[]; related: PieceCard[]; seo: { title: string; description: string; alternates: Alternates };
   whatsapp_url: string | null;
@@ -31,7 +31,7 @@ export type Home = { seo?: CmsSeo; sections: Section[]; published_at: string | n
 export type PageKind = 'terms' | 'privacy' | 'returns' | 'shipping' | 'cookies' | 'manufacturer' | 'personalize' | 'contact';
 export type CmsPage = { body_visible?: boolean; seo?: CmsSeo; process?: { schema_version?: 1; title: string; steps: { title: string; description: string }[] }; faq?: { schema_version?: 1; title: string; items: { question: string; answer_html: string }[] }; kind: PageKind; slug: string; title: string; body_html: string; version: number; updated_at: string; alternates: Alternates };
 export type Personalization = { services: { id: string | number; title: string; description: string; image: Image | null; whatsapp_url: string | null }[] };
-export type Settings = { title_scale: number; text_scale: number; legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
+export type Settings = { business_locality?: string; business_region?: string; business_country?: string; appointment_only?: boolean; service_area?: string; opening_hours?: string; seo_home_title?: string; seo_home_description?: string; title_scale: number; text_scale: number; legal_versions?: { terms: number | null; privacy: number | null }; certificate_price_cents?: number; manual_reservation_hours?: number; whatsapp: { number: string | null; general_url: string | null }; social: { network: 'instagram' | 'facebook' | 'tiktok' | 'pinterest'; url: string }[]; support_email: string | null; legal_pages: { kind: PageKind; title: string; href: string }[] };
 export type Problem = { code: string; title?: string; detail?: string; status?: number; skus?: string[]; errors?: Record<string, string[] | Record<string, string[]>> };
 
 export type WompiCheckout = { checkout_url: string; fields: Record<string, string> };

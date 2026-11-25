@@ -8,7 +8,7 @@ import { supportedSections } from '@/lib/section-compat';
 import { needsHomeFallback } from '@/lib/cms-preview';
 import { locale } from 'next/root-params';
 import { getDictionary } from './dictionaries';
-import { getBrand, getHome, getCatalog, getTaxonomy } from '@/lib/api/server';
+import { getBrand, getHome, getCatalog, getTaxonomy, getSettings } from '@/lib/api/server';
 import type { Section } from '@/lib/api/types';
 import { isLocale } from '@/lib/i18n';
 import { notFound } from 'next/navigation';
@@ -22,8 +22,11 @@ export const instant = false;
 export async function generateMetadata() {
   const current = await locale(); if (!isLocale(current)) notFound(); const dict = await getDictionary();
   const home = await getHome(current);
+  const settings = await getSettings(current);
   const brand = await getBrand(current).catch(() => originalBrand);
-  return applyCmsSeo(brandMetadata({...brand, icon: null}, pageMetadata(dict.meta.title, dict.meta.description, current, { es: '/es', en: '/en' })), home.seo, siteUrl, (await draftMode()).isEnabled);
+  const hero = home.sections.find(section => section.kind === 'hero');
+  const heroImage = hero?.kind === 'hero' ? hero.image?.src : undefined;
+  return applyCmsSeo(brandMetadata({...brand, icon: null}, pageMetadata(settings.seo_home_title || dict.meta.title, settings.seo_home_description || dict.meta.description, current, { es: '/es', en: '/en' }, heroImage)), home.seo, siteUrl, (await draftMode()).isEnabled);
 }
 export default async function Home() {
   const current = await locale(); if (!isLocale(current)) notFound();
