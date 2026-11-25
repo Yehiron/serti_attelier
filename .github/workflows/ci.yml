@@ -126,15 +126,16 @@ jobs:
             echo "THROTTLE_ORDERS_MINUTE=60/min"
             echo "THROTTLE_ORDERS_HOUR=1000/hour"
           } >> .env
+      # Before the stack: Docker would create frontend/node_modules as root (anonymous volume mount point).
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
       - name: Start stack
         run: |
           make up
           for i in $(seq 60); do curl -fs http://localhost:8090/api/v1/health/ready && break; sleep 5; done
           make seed
-      - run: npm ci
-        working-directory: frontend
-      - run: npx playwright install --with-deps chromium
-        working-directory: frontend
       - name: Playwright
         run: npx playwright test
         working-directory: frontend
