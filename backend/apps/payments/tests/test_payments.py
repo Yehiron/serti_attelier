@@ -31,6 +31,7 @@ from apps.payments.admin import PaymentAttemptAdmin
 from apps.payments.models import PaymentAttempt, PaymentEvent
 from apps.payments.services import apply_transaction, confirm_manual_payment, create_wompi_attempt
 from apps.payments.tasks import reconcile_pending
+from apps.payments.tests.fakes import FAKE_PROD_EVENTS
 from apps.payments.wompi import (
     WompiClient,
     WompiTransaction,
@@ -78,7 +79,7 @@ def test_integrity(expiration: str) -> None:
     assert integrity_signature("SRT-000123-01", 4000, "COP", expiration) == expected
 
 
-@override_settings(WOMPI_EVENTS_SECRET="prod_events_OcHnIzeBl5socpwByQ4hA52Em3USQ93Z")
+@override_settings(WOMPI_EVENTS_SECRET=FAKE_PROD_EVENTS)
 def test_official_event_vector() -> None:
     body: dict[str, Any] = {
         "data": {
@@ -97,7 +98,7 @@ def test_official_event_vector() -> None:
     # The supplied official vector is inconsistent with its stated inputs.
     assert not verify_event(body)
     assert (
-        event_checksum(body) == "5a18ec5e8fdb7df463e9f94774cba8f583ba21bd04a09ceff2ea68a4bc0aefbe"
+        event_checksum(body) == "17ce456bc54f1653be0042686f7f4610e53e0e38a2d202d3fda550018095fb25"
     )
     body["signature"]["checksum"] = event_checksum(body)
     assert verify_event(body)

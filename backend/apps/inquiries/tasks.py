@@ -1,4 +1,5 @@
 import logging
+import unicodedata
 from urllib.parse import urlencode, urlsplit
 
 from celery import shared_task
@@ -14,6 +15,12 @@ from .models import ContactInquiry
 logger = logging.getLogger(__name__)
 
 
+def subject_name(name):
+    clean = "".join(" " if unicodedata.category(char).startswith("C") else char
+                    for char in name if char not in "<>")
+    return " ".join(clean.split())[:80].rstrip()
+
+
 @shared_task(autoretry_for=(Exception,), retry_backoff=True, retry_kwargs={"max_retries": 3})
 def notify_atelier(pk):
     inquiry = ContactInquiry.objects.get(pk=pk)
@@ -24,7 +31,7 @@ def notify_atelier(pk):
     context = {"inquiry": inquiry, "url": url}
     if config.support_email:
         email = EmailMultiAlternatives(
-            f"Nuevo mensaje · {inquiry.get_topic_display()} · {inquiry.name}",
+            f"Nuevo mensaje · {inquiry.get_topic_display()} · {subject_name(inquiry.name)}",
             render_to_string("inquiries/atelier.txt", context),
             settings.DEFAULT_FROM_EMAIL,
             [config.support_email],

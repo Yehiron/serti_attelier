@@ -32,3 +32,11 @@ Revisión de la rama `fase-9-produccion` en el entorno de desarrollo, sin servic
 - Rutas inexistentes de la tienda responden 200 con `noindex` (streaming de Next; documentado en `api-contract.md`).
 
 La auditoría registra cambios en Datos del sitio con campos sensibles redactados y cambios de estado de mensajes de contacto sin copiar el mensaje. La lista omite la IP y el navegador; el detalle conserva los datos técnicos existentes. Operaciones y Contenido no tienen acceso a la auditoría general.
+
+## Decisión: CSP de la tienda sin nonce (25/11/2026)
+
+Se evaluó una CSP con nonce por petición para quitar `'unsafe-inline'` de `script-src`. Según la [guía oficial de Next.js](https://nextjs.org/docs/app/guides/content-security-policy), el nonce es incompatible con el prerenderizado parcial: obliga a renderizar cada página por petición y a servir el HTML con `Cache-Control: private, no-store`, lo que revierte parte de la mejora de rendimiento (ver `docs/rendimiento.md`). La cliente eligió **mantener la política anterior** (`script-src 'self' 'unsafe-inline' https://checkout.wompi.co`, sin `unsafe-eval` en producción, `object-src 'none'`, `base-uri 'self'`, `frame-ancestors 'none'`).
+
+Mitigaciones de XSS verificadas con ataques reales en local: React escapa todo el texto dinámico, el contenido del CMS se limpia con `nh3`, el JSON-LD escapa `<`, y los datos de clientes (mensajes de contacto, nombres en pedidos) se muestran escapados en el panel y en los correos. Si en el futuro se necesita la CSP estricta, la alternativa es hashes/SRI de scripts, aún experimental en Next.
+
+CI incluye Gitleaks para detectar secretos; los valores de prueba se mantienen claramente ficticios (`backend/apps/payments/tests/fakes.py`).

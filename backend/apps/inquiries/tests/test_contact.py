@@ -217,3 +217,18 @@ def test_admin_status_audit_individual_and_bulk(payload):
     assert events.count() == 3
     assert all(set(event.diff) == {"status"} and inquiry.message not in str(event.diff)
                for event in events)
+
+
+@pytest.mark.django_db
+def test_atelier_subject_sanitizes_name(payload, settings):
+    settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
+    config = get_solo()
+    config.support_email = "atelier@example.com"
+    config.save()
+    for key in ("accepted_privacy_version", "elapsed_ms", "website"):
+        payload.pop(key)
+    payload["name"] = "<img>\n\x01  " + "A" * 100
+    inquiry = ContactInquiry.objects.create(privacy_version=3, **payload)
+    notify_atelier(inquiry.pk)
+    assert mail.outbox[0].subject.endswith(" · " + "img " + "A" * 76)
+    assert "<" not in mail.outbox[0].subject and ">" not in mail.outbox[0].subject
