@@ -378,5 +378,27 @@
       "accepted_privacy_version": "Privacidad: acepta la política vigente.",
       "preferred_channel": "Canal: elige cómo responderte."
     }
+  },
+  "customize": {
+    "heroStart": "Diseña",
+    "heroEnd": "la tuya",
+    "heroSubtitle": "Elige el tipo de joya, la piedra y el metal. Te enviamos la propuesta y la cotización por WhatsApp, sin compromiso.",
+    "start": "Empezar a diseñar ↓",
+    "builderTitle": "Arma tu idea",
+    "builderIntro": "No tiene que ser definitivo: es un punto de partida para conversar. Lo afinamos juntos.",
+    "type": "Tipo de joya",
+    "stone": "Piedra",
+    "metal": "Metal",
+    "note": "Cuéntanos más",
+    "optional": "opcional",
+    "placeholder": "Ej.: es para un aniversario en marzo, me gustaría algo delicado…",
+    "advice": "Asesórenme",
+    "summary": "Tu idea",
+    "jewel": "Joya",
+    "with": "con",
+    "send": "Enviar mi idea por WhatsApp",
+    "response": "Te respondemos a cualquier hora. Sin compromiso.",
+    "contact": "Contactar con SERTI",
+    "empty": "Tu joya"
   }
 }

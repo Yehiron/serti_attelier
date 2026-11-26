@@ -1,0 +1,126 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Personaliza · Prototipo C · Recorrido</title>
+<link rel="stylesheet" href="base.css">
+<style>
+body { background: var(--ink); color: var(--cream); }
+.intro { text-align: center; padding: clamp(80px, 12vw, 170px) var(--gutter) clamp(56px, 8vw, 110px); position: relative; }
+.intro img.mono { width: 92px; margin: 0 auto 30px; opacity: .9; }
+.intro .eyebrow { color: var(--gold); }
+.intro h1 { font-size: clamp(58px, 10vw, 160px); margin: 22px auto 26px; max-width: 11ch; }
+.intro h1 em { font-style: italic; color: var(--gold); }
+.intro p { max-width: 46ch; margin: 0 auto 36px; font-size: 18px; opacity: .8; }
+.scroll-hint { display: block; margin-top: 56px; font-size: 12px; letter-spacing: .2em; text-transform: uppercase; opacity: .5; }
+.scroll-hint::after { content: ""; display: block; width: 1px; height: 48px; margin: 14px auto 0; background: linear-gradient(var(--cream), transparent); animation: drip 2.2s var(--ease) infinite; transform-origin: top; }
+@keyframes drip { 0% { transform: scaleY(0); } 60% { transform: scaleY(1); } 100% { transform: scaleY(1); opacity: 0; } }
+
+.journey { display: grid; grid-template-columns: 1fr 1fr; padding: 0 var(--gutter); gap: clamp(32px, 6vw, 100px); }
+.stage { position: sticky; top: 90px; height: calc(100svh - 120px); border-radius: 220px 220px 4px 4px; overflow: hidden; }
+.stage img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transform: scale(1.06); transition: opacity 1s var(--ease), transform 1.6s var(--ease); }
+.stage img.on { opacity: 1; transform: none; }
+.stage .count { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); display: flex; gap: 8px; z-index: 2; }
+.stage .count i { width: 28px; height: 2px; background: rgba(234,217,203,.35); transition: background .4s; }
+.stage .count i.on { background: var(--cream); }
+.chapters { padding: 10svh 0 20svh; }
+.chapter { min-height: 78svh; display: flex; flex-direction: column; justify-content: center; opacity: .28; transition: opacity .6s var(--ease); }
+.chapter.on { opacity: 1; }
+.chapter .eyebrow { color: var(--gold); }
+.chapter h2 { font: 400 clamp(42px, 5vw, 78px)/1 var(--serif); margin: 18px 0 22px; }
+.chapter p { max-width: 40ch; font-size: 17px; opacity: .85; margin: 0 0 22px; }
+.chapter ul { list-style: none; padding: 0; margin: 0; display: flex; gap: 10px; flex-wrap: wrap; }
+.chapter li { font-size: 12px; padding: 7px 14px; border: 1px solid rgba(234,217,203,.3); border-radius: 99px; }
+
+.gallery { padding: clamp(80px, 10vw, 140px) 0; background: var(--wine); }
+.gallery-head { padding: 0 var(--gutter); display: flex; justify-content: space-between; align-items: end; gap: 20px; flex-wrap: wrap; margin-bottom: 40px; }
+.gallery h2 { font-size: clamp(40px, 5.4vw, 80px); }
+.gallery-head p { max-width: 32ch; opacity: .8; margin: 0; }
+.rail { display: flex; gap: 18px; overflow-x: auto; padding: 0 var(--gutter) 12px; scroll-snap-type: x mandatory; scroll-padding-inline: var(--gutter); scrollbar-width: none; }
+.rail::-webkit-scrollbar { display: none; }
+.rail figure { flex: 0 0 clamp(240px, 26vw, 360px); margin: 0; scroll-snap-align: start; }
+.rail img { aspect-ratio: 3/4; width: 100%; object-fit: cover; border-radius: 2px; }
+.rail figcaption { margin-top: 12px; font: italic 400 20px/1.2 var(--serif); }
+.rail figcaption small { display: block; font: 300 13px/1.4 var(--sans); opacity: .7; font-style: normal; margin-top: 4px; }
+
+.close { display: grid; grid-template-columns: 1.1fr .9fr; gap: clamp(32px, 6vw, 96px); padding: clamp(80px, 10vw, 140px) var(--gutter); background: var(--cream); color: var(--wine); }
+.close h2 { font-size: clamp(40px, 5vw, 72px); margin-bottom: 30px; }
+.invite { background: var(--wine); color: var(--cream); border-radius: 220px 220px 18px 18px; padding: 120px 40px 48px; text-align: center; align-self: start; position: sticky; top: 100px; }
+.invite img { width: 150px; margin: 0 auto 26px; }
+.invite h3 { font: 400 clamp(30px, 3vw, 42px)/1.05 var(--serif); margin: 0 0 16px; }
+.invite p { opacity: .8; margin: 0 0 30px; }
+.invite small { display: block; margin-top: 16px; opacity: .6; font-size: 12px; }
+
+@media (max-width: 900px) {
+  .journey { grid-template-columns: 1fr; }
+  .stage { top: 70px; height: 46svh; border-radius: 160px 160px 4px 4px; z-index: 1; }
+  .chapters { padding-top: 4svh; } .chapter { min-height: 62svh; }
+  .close { grid-template-columns: 1fr; } .invite { position: static; }
+}
+</style>
+</head>
+<body>
+<span class="proto-tag">Prototipo C · Recorrido</span>
+<header class="nav"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><ul><li><a href="#">Joyería</a></li><li><a href="#">Piedras</a></li><li><a href="#">Colecciones</a></li><li class="on"><a href="#">Personaliza tus joyas</a></li><li><a href="#">Nuestra historia</a></li><li><a href="#">Contacto</a></li></ul></header>
+
+<section class="intro">
+  <img class="mono" src="../../../frontend/public/brand/logo/monogram-gold.webp" alt="">
+  <span class="eyebrow">Personaliza tus joyas</span>
+  <h1 class="display">De una idea a <em>tu joya</em></h1>
+  <p>Una pieza pensada para ti, hecha a mano en nuestro taller. Así es el camino que recorremos juntos.</p>
+  <a class="cta cream" href="#">Cuéntanos tu idea por WhatsApp</a>
+  <span class="scroll-hint">Descubre el proceso</span>
+</section>
+
+<section class="journey">
+  <div class="stage" aria-hidden="true">
+    <img class="on" src="img/anillo-cafe.jpg" alt="">
+    <img src="img/esmeraldas-dedos.jpg" alt="">
+    <img src="img/anillo-mano.jpg" alt="">
+    <img src="img/aretes-rostro.jpg" alt="">
+    <div class="count"><i class="on"></i><i></i><i></i><i></i></div>
+  </div>
+  <div class="chapters">
+    <article class="chapter on"><span class="eyebrow">Paso 01</span><h2>Conversamos sobre tu idea</h2><p>Escríbenos por WhatsApp con una foto, un recuerdo o solo una intuición. Escuchamos la historia detrás de la pieza y la ocasión.</p><ul><li>WhatsApp 24 h</li><li>Sin compromiso</li></ul></article>
+    <article class="chapter"><span class="eyebrow">Paso 02</span><h2>Elegimos piedra y metal</h2><p>Te mostramos piedras y metales reales para que elijas con calma: esmeraldas colombianas, rubíes, oro de 18k…</p><ul><li>Asesoría personal</li><li>Opciones reales</li></ul></article>
+    <article class="chapter"><span class="eyebrow">Paso 03</span><h2>Apruebas el boceto</h2><p>Recibes el diseño y la cotización final. Ajustamos lo que haga falta; el taller empieza solo cuando digas «sí».</p><ul><li>Precio confirmado antes</li><li>Tú decides</li></ul></article>
+    <article class="chapter"><span class="eyebrow">Paso 04</span><h2>Taller y entrega</h2><p>Nuestros orfebres la elaboran a mano. Te la entregamos con cita en Armenia o la enviamos a cualquier ciudad de Colombia.</p><ul><li>Hecha a mano</li><li>Envío gratis en Colombia</li></ul></article>
+  </div>
+</section>
+
+<section class="gallery">
+  <div class="gallery-head"><h2 class="display">Nacidas de<br>una idea</h2><p>Algunas piezas que empezaron como una conversación.</p></div>
+  <div class="rail">
+    <figure><img src="img/banda-esmeralda.jpg" alt=""><figcaption>Banda de esmeraldas<small>Oro amarillo 18k</small></figcaption></figure>
+    <figure><img src="img/arete-rubi.jpg" alt=""><figcaption>Flor de rubí<small>Aretes · oro amarillo 18k</small></figcaption></figure>
+    <figure><img src="img/collar.jpg" alt=""><figcaption>Gota de esmeralda<small>Collar · oro amarillo 18k</small></figcaption></figure>
+    <figure><img src="img/pulseras.jpg" alt=""><figcaption>Tennis esmeralda<small>Pulsera · oro amarillo 18k</small></figcaption></figure>
+    <figure><img src="img/anillo-cafe-2.jpg" alt=""><figcaption>Anillo halo<small>Oro amarillo 18k</small></figcaption></figure>
+  </div>
+</section>
+
+<section class="close">
+  <div>
+    <h2 class="display">Preguntas frecuentes</h2>
+    <details class="faq" open><summary>¿Cuánto cuesta una pieza a medida?</summary><p>El precio depende de la piedra, el metal y el trabajo de taller. Conversaremos contigo antes de cotizar.</p></details>
+    <details class="faq"><summary>¿Cuánto tiempo toma?</summary><p>Confirmamos el tiempo de taller y entrega antes de comenzar. Cuéntanos si tienes una fecha especial.</p></details>
+    <details class="faq"><summary>¿Puedo devolver una pieza personalizada?</summary><p>Consulta la política de devoluciones publicada y confirma las condiciones de tu encargo con nuestro equipo.</p></details>
+    <details class="faq"><summary>¿Puedo solicitar un certificado?</summary><p>Consulta con nuestro equipo la disponibilidad y las condiciones del certificado de autenticidad.</p></details>
+  </div>
+  <aside class="invite">
+    <img src="../../../frontend/public/brand/logo/ornament-gold.webp" alt="">
+    <h3>¿Empezamos tu pieza?</h3>
+    <p>Cuéntanos tu idea. Te respondemos a cualquier hora.</p>
+    <a class="cta cream" href="#">Escribir por WhatsApp</a>
+    <small>Atención con cita en Armenia · Envíos a toda Colombia</small>
+  </aside>
+</section>
+<footer class="foot"><img src="../../../frontend/public/brand/logo/monogram-tagline-gold.webp" alt=""><span>Joyas colombianas, hechas a mano · Armenia, Quindío</span></footer>
+<script>
+const chapters=[...document.querySelectorAll('.chapter')],imgs=[...document.querySelectorAll('.stage img')],dots=[...document.querySelectorAll('.count i')];
+const io=new IntersectionObserver(es=>es.forEach(e=>{if(!e.isIntersecting)return;const i=chapters.indexOf(e.target);chapters.forEach((c,j)=>c.classList.toggle('on',j===i));imgs.forEach((im,j)=>im.classList.toggle('on',j===i));dots.forEach((d,j)=>d.classList.toggle('on',j===i));}),{rootMargin:'-45% 0px -45% 0px'});
+chapters.forEach(c=>io.observe(c));
+</script>
+</body>
+</html>

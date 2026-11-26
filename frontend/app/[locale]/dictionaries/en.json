@@ -378,5 +378,27 @@
       "accepted_privacy_version": "Privacy: accept the current policy.",
       "preferred_channel": "Channel: choose how we should reply."
     }
+  },
+  "customize": {
+    "heroStart": "Design",
+    "heroEnd": "yours",
+    "heroSubtitle": "Choose the kind of jewelry, stone and metal. We will send you a proposal and quote via WhatsApp, with no obligation.",
+    "start": "Start designing ↓",
+    "builderTitle": "Build your idea",
+    "builderIntro": "It doesn’t have to be final: it is a starting point for a conversation. We will refine it together.",
+    "type": "Type of jewelry",
+    "stone": "Stone",
+    "metal": "Metal",
+    "note": "Tell us more",
+    "optional": "optional",
+    "placeholder": "E.g. it is for an anniversary in March, I would like something delicate…",
+    "advice": "Advise me",
+    "summary": "Your idea",
+    "jewel": "Jewelry",
+    "with": "with",
+    "send": "Send my idea via WhatsApp",
+    "response": "We reply at any time. No obligation.",
+    "contact": "Contact SERTI",
+    "empty": "Your jewelry"
   }
 }
