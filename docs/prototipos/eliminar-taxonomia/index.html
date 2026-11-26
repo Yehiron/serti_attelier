@@ -1,0 +1,194 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototipos · Eliminar piedra</title>
+<style>
+:root{--bg:#f6f4f1;--panel:#fff;--ink:#1f1a17;--muted:#6f655e;--line:#e8e2dc;--soft:#faf8f6;--accent:#7a1631;--accent-soft:#f6e9ed;--ok:#2f6b4f;--ok-soft:#e7f2ec;--warn:#8a5a12;--warn-soft:#fbf1df;--danger:#a3303a;--danger-soft:#fbeced;--r:12px;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-size:14px;line-height:1.45}
+.page{max-width:1080px;margin:0 auto;padding:32px 16px 80px}
+.proto-head{display:flex;align-items:baseline;gap:12px;margin:56px 0 14px}.proto-head:first-of-type{margin-top:8px}
+.proto-head b{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}.proto-head span{color:var(--muted)}
+.frame{background:var(--panel);border:1px solid var(--line);border-radius:16px;box-shadow:0 1px 2px rgba(31,26,23,.04),0 12px 32px -18px rgba(31,26,23,.18);overflow:hidden}
+.crumbs{display:flex;gap:8px;align-items:center;padding:14px 24px;border-bottom:1px solid var(--line);color:var(--muted);font-size:13px}.crumbs strong{color:var(--ink);font-weight:600}
+.body{padding:24px}
+h2{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:28px;letter-spacing:-.01em;margin:0 0 6px}
+.sub{color:var(--muted);margin:0 0 22px;max-width:62ch}
+.thumb{width:52px;height:52px;border-radius:10px;flex:none;background:radial-gradient(circle at 35% 30%,#fff 0 12%,transparent 13%),linear-gradient(145deg,#efe6dc,#d9c6b1);border:1px solid var(--line);position:relative}
+.thumb.b{background:radial-gradient(circle at 60% 40%,#fff 0 10%,transparent 11%),linear-gradient(145deg,#ece9f2,#c9c2d6)}
+.thumb.c{background:radial-gradient(circle at 40% 55%,#fff 0 9%,transparent 10%),linear-gradient(145deg,#e6efe9,#b9d0c2)}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:3px 10px;border-radius:99px;font-size:12px;font-weight:600;white-space:nowrap}
+.pill::before{content:"";width:6px;height:6px;border-radius:50%;background:currentColor}
+.pub{background:var(--ok-soft);color:var(--ok)}.draft{background:var(--soft);color:var(--muted);border:1px solid var(--line)}.sold{background:var(--warn-soft);color:var(--warn)}
+.sku{font-variant-numeric:tabular-nums;color:var(--muted);font-size:12px;letter-spacing:.02em}
+.name{font-weight:600;color:var(--ink);text-decoration:none}.name:hover{color:var(--accent);text-decoration:underline;text-underline-offset:3px}
+.btn{appearance:none;border:1px solid var(--line);background:#fff;color:var(--ink);border-radius:8px;min-height:38px;padding:0 14px;font:inherit;font-weight:600;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:border-color .15s,background .15s}
+.btn:hover{border-color:#cfc5bb;background:var(--soft)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff}.btn.primary:hover{background:#651129}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--muted)}.btn.ghost:hover{background:var(--soft);color:var(--ink)}
+.btn.danger{color:var(--danger);border-color:#f0c9cc}.btn.danger:hover{background:var(--danger-soft)}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+select{appearance:none;border:1px solid var(--line);border-radius:8px;min-height:38px;padding:0 34px 0 12px;font:inherit;background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%236f655e' stroke-width='2.5'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E") no-repeat right 12px center;color:var(--ink);cursor:pointer}
+.note{font-size:12px;color:var(--muted);display:flex;gap:6px;align-items:center}
+.lock{width:14px;height:14px;flex:none}
+input[type=checkbox]{width:18px;height:18px;accent-color:var(--accent);cursor:pointer}
+
+/* A · Tarjetas */
+.a-summary{display:flex;gap:16px;align-items:center;padding:16px 18px;border-radius:var(--r);background:var(--accent-soft);margin-bottom:20px}
+.a-summary .gem{width:44px;height:44px;border-radius:50%;background:conic-gradient(from 30deg,#fff,#e8d6dc,#fff,#d4b4bf,#fff);border:1px solid #e2c8d0;flex:none}
+.a-summary p{margin:0}.a-summary strong{display:block;font-size:15px}
+.a-list{display:grid;gap:12px}
+.a-card{display:grid;grid-template-columns:auto 1fr auto;gap:16px;align-items:center;padding:14px 16px;border:1px solid var(--line);border-radius:var(--r);transition:box-shadow .15s,border-color .15s}
+.a-card:hover{border-color:#d9cfc5;box-shadow:0 6px 18px -12px rgba(31,26,23,.25)}
+.a-meta{display:flex;gap:10px;align-items:center;margin-top:4px;flex-wrap:wrap}
+.a-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.a-foot{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:22px;padding-top:18px;border-top:1px solid var(--line);flex-wrap:wrap}
+
+/* B · Tabla con menú */
+.b-table{width:100%;border-collapse:separate;border-spacing:0}
+.b-table th{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:600;text-align:left;padding:10px 14px;background:var(--soft);border-bottom:1px solid var(--line)}
+.b-table th:first-child{border-top-left-radius:10px}.b-table th:last-child{border-top-right-radius:10px}
+.b-table td{padding:12px 14px;border-bottom:1px solid var(--line);vertical-align:middle}
+.b-table tr.sel td{background:#fdf7f9}
+.b-wrap{border:1px solid var(--line);border-radius:12px;overflow:visible}
+.b-piece{display:flex;gap:12px;align-items:center}.b-piece .thumb{width:40px;height:40px;border-radius:8px}
+.menu{position:relative;display:inline-block}
+.menu>button{width:38px;padding:0;justify-content:center}
+.menu-pop{position:absolute;right:0;top:calc(100% + 6px);min-width:240px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 18px 40px -16px rgba(31,26,23,.35);padding:6px;z-index:5;display:none}
+.menu.open .menu-pop{display:block}
+.menu-pop button{display:flex;width:100%;gap:10px;align-items:center;border:0;background:none;padding:9px 10px;border-radius:8px;font:inherit;text-align:left;cursor:pointer;color:var(--ink)}
+.menu-pop button:hover{background:var(--soft)}.menu-pop .d{color:var(--danger)}.menu-pop hr{border:0;border-top:1px solid var(--line);margin:6px 0}
+.menu-pop small{display:block;color:var(--muted);padding:4px 10px 8px;font-size:12px}
+.bulkbar{position:sticky;bottom:16px;margin-top:16px;display:flex;gap:10px;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;border-radius:12px;padding:10px 12px 10px 18px;box-shadow:0 18px 40px -16px rgba(0,0,0,.5);transform:translateY(8px);opacity:0;pointer-events:none;transition:.2s;flex-wrap:wrap}
+.bulkbar.on{transform:none;opacity:1;pointer-events:auto}
+.bulkbar select{background-color:#2c2521;color:#fff;border-color:#3d3430}
+.bulkbar .btn{background:#2c2521;border-color:#3d3430;color:#fff}.bulkbar .btn.primary{background:#fff;color:var(--ink);border-color:#fff}.bulkbar .btn.danger{color:#ffb3b9}
+
+/* C · Guiado */
+.c-grid{display:grid;grid-template-columns:280px 1fr;gap:0}
+.c-side{background:var(--soft);border-right:1px solid var(--line);padding:24px}
+.c-steps{list-style:none;padding:0;margin:20px 0 0;display:grid;gap:18px}
+.c-steps li{display:grid;grid-template-columns:28px 1fr;gap:12px}
+.c-steps .n{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:700;font-size:13px;border:1.5px solid var(--line);background:#fff;color:var(--muted)}
+.c-steps li.now .n{background:var(--accent);border-color:var(--accent);color:#fff}
+.c-steps li.done .n{background:var(--ok);border-color:var(--ok);color:#fff}
+.c-steps b{display:block}.c-steps span{color:var(--muted);font-size:13px}
+.c-main{padding:24px}
+.c-row{display:grid;grid-template-columns:auto 1fr 220px;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+.c-row:last-of-type{border-bottom:0}
+.c-row select{width:100%}
+.c-row.resolved{opacity:.55}
+.c-bar{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-top:20px;padding:14px 16px;border-radius:var(--r);background:var(--soft);flex-wrap:wrap}
+.meter{height:6px;border-radius:99px;background:var(--line);overflow:hidden;width:160px}.meter i{display:block;height:100%;background:var(--ok);width:0;transition:width .25s}
+
+@media (max-width:760px){
+ .a-card{grid-template-columns:auto 1fr}.a-actions{grid-column:1/-1;justify-content:flex-start}
+ .b-table thead{display:none}.b-table tr{display:grid;grid-template-columns:auto 1fr auto;gap:6px 12px;padding:12px;border-bottom:1px solid var(--line)}.b-table td{border:0;padding:0}.b-table td.st{grid-column:2}.b-table td.sk{display:none}
+ .c-grid{grid-template-columns:1fr}.c-side{border-right:0;border-bottom:1px solid var(--line)}
+ .c-row{grid-template-columns:auto 1fr}.c-row select{grid-column:1/-1}
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<!-- ============ PROTOTIPO A ============ -->
+<div class="proto-head"><b>Prototipo A</b><span>Tarjetas · cada pieza con sus acciones a la vista</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › Piedras › <strong>Circón</strong></div>
+  <div class="body">
+    <h2>Antes de eliminar «Circón»</h2>
+    <p class="sub">Esta piedra está en 3 piezas. Muévelas a otra piedra o quítale «Circón»; cuando no quede ninguna podrás eliminarla.</p>
+    <div class="a-summary"><span class="gem"></span><p><strong>3 piezas usan esta piedra</strong><span class="sku">Puedes resolverlas una por una o todas a la vez.</span></p></div>
+    <div class="a-list">
+      <article class="a-card">
+        <span class="thumb"></span>
+        <div><a class="name" href="#">Pinky Ring</a><div class="a-meta"><span class="sku">SERTI-029</span><span class="pill pub">Publicada</span></div></div>
+        <div class="a-actions"><select><option>Mover a…</option><option>Rubí</option><option>Esmeralda</option><option>Zafiro</option></select><button class="btn primary">Mover</button><button class="btn">Quitar Circón</button></div>
+      </article>
+      <article class="a-card">
+        <span class="thumb b"></span>
+        <div><a class="name" href="#">Solitario Aurora</a><div class="a-meta"><span class="sku">SERTI-033</span><span class="pill sold">Vendida</span></div></div>
+        <div class="a-actions"><select><option>Mover a…</option><option>Rubí</option><option>Esmeralda</option></select><button class="btn primary">Mover</button><button class="btn">Quitar Circón</button></div>
+      </article>
+      <article class="a-card">
+        <span class="thumb c"></span>
+        <div><a class="name" href="#">Anillo prueba</a><div class="a-meta"><span class="sku">SERTI-040</span><span class="pill draft">Borrador</span></div></div>
+        <div class="a-actions"><select><option>Mover a…</option><option>Rubí</option></select><button class="btn primary">Mover</button><button class="btn">Quitar Circón</button><button class="btn danger">Eliminar</button></div>
+      </article>
+    </div>
+    <div class="a-foot">
+      <a class="btn ghost" href="#">← Volver a Piedras</a>
+      <div class="a-actions"><span class="note">Mover todas a</span><select><option>Elige piedra…</option><option>Rubí</option></select><button class="btn primary">Mover las 3</button></div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ PROTOTIPO B ============ -->
+<div class="proto-head"><b>Prototipo B</b><span>Tabla limpia · acciones en menú «⋯» y barra flotante al seleccionar</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › Piedras › <strong>Circón</strong></div>
+  <div class="body">
+    <h2>«Circón» tiene 3 piezas</h2>
+    <p class="sub">Selecciona piezas para moverlas en grupo, o usa el menú de cada fila.</p>
+    <div class="b-wrap">
+    <table class="b-table" id="btable">
+      <thead><tr><th style="width:44px"><input type="checkbox" id="ball" aria-label="Seleccionar todas"></th><th>Pieza</th><th>SKU</th><th>Estado</th><th style="width:60px"></th></tr></thead>
+      <tbody>
+        <tr><td><input type="checkbox" class="bsel"></td><td><div class="b-piece"><span class="thumb"></span><a class="name" href="#">Pinky Ring</a></div></td><td class="sk sku">SERTI-029</td><td class="st"><span class="pill pub">Publicada</span></td>
+          <td><div class="menu"><button class="btn ghost" aria-label="Acciones">⋯</button><div class="menu-pop"><button>↪︎ Mover a otra piedra…</button><button>✕ Quitar «Circón»</button><button>↗ Abrir ficha</button><hr><small>No se puede eliminar: está publicada. Archívala desde su ficha.</small></div></div></td></tr>
+        <tr><td><input type="checkbox" class="bsel"></td><td><div class="b-piece"><span class="thumb b"></span><a class="name" href="#">Solitario Aurora</a></div></td><td class="sk sku">SERTI-033</td><td class="st"><span class="pill sold">Vendida</span></td>
+          <td><div class="menu"><button class="btn ghost" aria-label="Acciones">⋯</button><div class="menu-pop"><button>↪︎ Mover a otra piedra…</button><button>✕ Quitar «Circón»</button><button>↗ Abrir ficha</button><hr><small>No se puede eliminar: tiene ventas.</small></div></div></td></tr>
+        <tr><td><input type="checkbox" class="bsel"></td><td><div class="b-piece"><span class="thumb c"></span><a class="name" href="#">Anillo prueba</a></div></td><td class="sk sku">SERTI-040</td><td class="st"><span class="pill draft">Borrador</span></td>
+          <td><div class="menu"><button class="btn ghost" aria-label="Acciones">⋯</button><div class="menu-pop"><button>↪︎ Mover a otra piedra…</button><button>✕ Quitar «Circón»</button><button>↗ Abrir ficha</button><hr><button class="d">🗑 Eliminar pieza</button></div></div></td></tr>
+      </tbody>
+    </table>
+    </div>
+    <div class="bulkbar" id="bbar"><span id="bcount">1 seleccionada</span><div style="display:flex;gap:8px;flex-wrap:wrap"><select><option>Mover a…</option><option>Rubí</option></select><button class="btn primary">Mover</button><button class="btn">Quitar Circón</button><button class="btn danger">Eliminar</button></div></div>
+    <p style="margin-top:18px"><a class="btn ghost" href="#">← Volver a Piedras</a></p>
+  </div>
+</section>
+
+<!-- ============ PROTOTIPO C ============ -->
+<div class="proto-head"><b>Prototipo C</b><span>Guiado · eliges un destino por pieza y aplicas todo de una vez</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › Piedras › <strong>Circón</strong></div>
+  <div class="c-grid">
+    <aside class="c-side">
+      <h2 style="font-size:24px">Eliminar «Circón»</h2>
+      <p class="sub" style="margin:0">Dos pasos y listo.</p>
+      <ol class="c-steps">
+        <li class="now" id="s1"><span class="n">1</span><div><b>Reasignar piezas</b><span>Elige qué pasa con cada una.</span></div></li>
+        <li id="s2"><span class="n">2</span><div><b>Eliminar la piedra</b><span>Se habilita al terminar el paso 1.</span></div></li>
+      </ol>
+    </aside>
+    <div class="c-main">
+      <div id="crows">
+        <div class="c-row"><span class="thumb"></span><div><a class="name" href="#">Pinky Ring</a><div class="a-meta"><span class="sku">SERTI-029</span><span class="pill pub">Publicada</span></div></div>
+          <select class="cdest"><option value="">¿Qué hacemos?</option><option>Cambiar a Rubí</option><option>Cambiar a Esmeralda</option><option>Solo quitar Circón</option></select></div>
+        <div class="c-row"><span class="thumb b"></span><div><a class="name" href="#">Solitario Aurora</a><div class="a-meta"><span class="sku">SERTI-033</span><span class="pill sold">Vendida</span></div></div>
+          <select class="cdest"><option value="">¿Qué hacemos?</option><option>Cambiar a Rubí</option><option>Solo quitar Circón</option></select></div>
+        <div class="c-row"><span class="thumb c"></span><div><a class="name" href="#">Anillo prueba</a><div class="a-meta"><span class="sku">SERTI-040</span><span class="pill draft">Borrador</span></div></div>
+          <select class="cdest"><option value="">¿Qué hacemos?</option><option>Cambiar a Rubí</option><option>Solo quitar Circón</option><option>Eliminar la pieza</option></select></div>
+      </div>
+      <div class="c-bar">
+        <div style="display:flex;gap:12px;align-items:center"><div class="meter"><i id="cmeter"></i></div><span class="note" id="ctext">0 de 3 piezas listas</span></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost">Cancelar</button><button class="btn primary" id="capply" disabled>Aplicar y eliminar Circón</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+</main>
+<script>
+document.querySelectorAll('.menu>button').forEach(b=>b.addEventListener('click',e=>{e.stopPropagation();const m=b.parentElement;const o=m.classList.contains('open');document.querySelectorAll('.menu').forEach(x=>x.classList.remove('open'));if(!o)m.classList.add('open')}));
+document.addEventListener('click',()=>document.querySelectorAll('.menu').forEach(x=>x.classList.remove('open')));
+const sels=[...document.querySelectorAll('.bsel')],bar=document.getElementById('bbar'),cnt=document.getElementById('bcount');
+const upd=()=>{const n=sels.filter(s=>s.checked).length;sels.forEach(s=>s.closest('tr').classList.toggle('sel',s.checked));bar.classList.toggle('on',n>0);cnt.textContent=n+(n===1?' seleccionada':' seleccionadas')};
+sels.forEach(s=>s.addEventListener('change',upd));document.getElementById('ball').addEventListener('change',e=>{sels.forEach(s=>s.checked=e.target.checked);upd()});
+const ds=[...document.querySelectorAll('.cdest')];
+ds.forEach(d=>d.addEventListener('change',()=>{const n=ds.filter(x=>x.value).length;d.closest('.c-row').classList.toggle('resolved',!!d.value);document.getElementById('cmeter').style.width=(n/ds.length*100)+'%';document.getElementById('ctext').textContent=n+' de '+ds.length+' piezas listas';const all=n===ds.length;document.getElementById('capply').disabled=!all;document.getElementById('s1').className=all?'done':'now';document.getElementById('s2').className=all?'now':''}));
+</script>
+</body>
+</html>

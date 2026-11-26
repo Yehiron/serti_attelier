@@ -71,6 +71,14 @@ from .selectors import missing_english_translation
 
 
 def deletion_icon(obj, reason, label):
+    if reason and not isinstance(obj, Piece):
+        return format_html(
+            '<a class="ca-icon ca-danger ca-blocked" href="{}" aria-label="{}" title="{}">'
+            '<span class="material-symbols-outlined" aria-hidden="true">delete</span></a>',
+            reverse(f"admin:catalog_{obj._meta.model_name}_delete", args=[obj.pk]),
+            label,
+            "No se puede eliminar: " + reason + " · Ver cuáles",
+        )
     if reason:
         return format_html(
             '<span class="ca-icon ca-danger" role="link" tabindex="0" aria-disabled="true" '
@@ -140,6 +148,169 @@ class TranslatedAdmin(
             reason for obj in objs if (reason := services.taxonomy_deletion_reason(obj))
         )
         return deleted, counts, perms, protected
+
+    def get_urls(self):
+        urls = super().get_urls()
+        return [
+            path(
+                "<path:object_id>/resolver-eliminacion/",
+                self.admin_site.admin_view(self.resolve_deletion),
+                name=f"{self.opts.app_label}_{self.opts.model_name}_resolve_deletion",
+            ),
+            *urls,
+        ]
+
+    def deletion_destinations(self, obj):
+        qs = self.model.objects.exclude(pk=obj.pk)
+        if isinstance(obj, Category):
+            # Categories have at most one level of children.
+            qs = qs.exclude(parent_id=obj.pk)
+        return qs.order_by("name_es", "pk")
+
+    @method_decorator(require_POST)
+    def resolve_deletion(self, request, object_id):
+        obj = get_object_or_404(self.model, pk=object_id)
+        if (
+            not isinstance(obj, (Category, Stone, Collection))
+            or not self.has_delete_permission(request, obj)
+            or not request.user.has_perm("catalog.change_piece")
+        ):
+            raise PermissionDenied
+        url = reverse(f"admin:catalog_{obj._meta.model_name}_delete", args=[obj.pk])
+        try:
+            with transaction.atomic():
+                obj = get_object_or_404(self.model.objects.select_for_update(), pk=object_id)
+                if isinstance(obj, Category) and services.taxonomy_blocking_children(obj).exists():
+                    raise ValidationError("Primero resuelve sus subcategorías.")
+                pieces = list(
+                    services.taxonomy_blocking_pieces(obj)
+                    .order_by("pk")
+                    .select_for_update(of=("self",))
+                )
+                submitted = {key for key in request.POST if key.startswith("decision_")}
+                expected = {f"decision_{piece.pk}" for piece in pieces}
+                if (
+                    not pieces
+                    or submitted != expected
+                    or any(len(request.POST.getlist(key)) != 1 for key in submitted)
+                ):
+                    raise ValidationError(
+                        "Debes indicar una decisión válida para cada pieza vinculada."
+                    )
+                destinations = {str(dest.pk): dest for dest in self.deletion_destinations(obj)}
+                plan = []
+                for piece in pieces:
+                    decision = request.POST[f"decision_{piece.pk}"]
+                    destination = None
+                    if decision.startswith("move:"):
+                        destination = destinations.get(decision[5:])
+                        if destination is None:
+                            raise ValidationError("Selecciona un destino válido.")
+                        action = "move"
+                    elif decision == "remove" and not isinstance(obj, Category):
+                        action = "remove"
+                    elif decision == "delete":
+                        if not request.user.has_perm(
+                            "catalog.delete_piece"
+                        ) or not request.user.has_perm("catalog.publish_piece"):
+                            raise PermissionDenied
+                        if reasons := services.deletion_reasons(piece):
+                            raise ValidationError(
+                                f"No se puede eliminar {piece.sku}: {', '.join(reasons)}"
+                            )
+                        action = "delete"
+                    else:
+                        raise ValidationError("Selecciona una decisión válida para cada pieza.")
+                    plan.append((piece, action, destination))
+                counts = {"move": 0, "remove": 0, "delete": 0}
+                for piece, action, destination in plan:
+                    counts[action] += 1
+                    if action == "delete":
+                        services.delete_pieces(
+                            Piece.objects.filter(pk=piece.pk), actor=request.user, request=request
+                        )
+                    elif isinstance(obj, Category):
+                        piece.category = destination
+                        services.save_piece(piece, actor=request.user, request=request)
+                    elif isinstance(obj, Stone):
+                        stones = list(piece.stones.exclude(pk=obj.pk))
+                        if destination and destination not in stones:
+                            stones.append(destination)
+                        services.save_piece_relations(
+                            piece, {"stones": stones}, actor=request.user, request=request
+                        )
+                    else:
+                        services.replace_piece_collection(
+                            piece, obj, destination, actor=request.user, request=request
+                        )
+                if reason := services.taxonomy_deletion_reason(obj):
+                    raise ValidationError(reason)
+                name = obj.name_es
+                services.delete_catalog_object(obj, actor=request.user, request=request)
+            details = [
+                f"{counts[key]} pieza{'s' if counts[key] != 1 else ''} {verb}"
+                f"{'s' if counts[key] != 1 else ''}"
+                for key, verb in (
+                    ("move", "movida"),
+                    ("remove", "liberada"),
+                    ("delete", "eliminada"),
+                )
+                if counts[key]
+            ]
+            messages.success(request, f"Se eliminó «{name}». {', '.join(details).capitalize()}.")
+            return HttpResponseRedirect(reverse(f"admin:catalog_{self.opts.model_name}_changelist"))
+        except ValidationError as exc:
+            messages.error(request, "; ".join(exc.messages))
+        return HttpResponseRedirect(url)
+
+    def render_delete_form(self, request, context):
+        obj = context["object"]
+        if isinstance(obj, (Category, Stone, Collection)) and services.taxonomy_deletion_reason(
+            obj
+        ):
+            context["taxonomy_blocked"] = True
+            pieces = list(services.taxonomy_blocking_pieces(obj).prefetch_related("images"))
+            can_delete = (
+                request.user.has_perm("catalog.delete_piece")
+                and request.user.has_perm("catalog.publish_piece")
+                and request.user.has_perm("catalog.change_piece")
+            )
+            context["blocking_pieces"] = [
+                {
+                    "piece": piece,
+                    "reasons": services.deletion_reasons(piece),
+                    "can_delete": can_delete and not services.deletion_reasons(piece),
+                    "image_url": next(
+                        (
+                            thumbnail_url(image)
+                            for image in sorted(
+                                piece.images.all(),
+                                key=lambda image: (not image.is_primary, image.position, image.pk),
+                            )
+                            if image.processing_status == "ready"
+                        ),
+                        "",
+                    ),
+                }
+                for piece in pieces
+            ]
+            context["all_can_delete"] = bool(context["blocking_pieces"]) and all(
+                row["can_delete"] for row in context["blocking_pieces"]
+            )
+            context["can_change_piece"] = request.user.has_perm("catalog.change_piece")
+            context["can_delete_piece"] = can_delete
+            context["destinations"] = self.deletion_destinations(obj)
+            context["resolve_url"] = reverse(
+                f"admin:catalog_{obj._meta.model_name}_resolve_deletion", args=[obj.pk]
+            )
+            context["blocking_children"] = (
+                services.taxonomy_blocking_children(obj) if isinstance(obj, Category) else []
+            )
+            context["taxonomy_kind"] = obj._meta.model_name
+            context["taxonomy_changelist_url"] = reverse(
+                f"admin:catalog_{obj._meta.model_name}_changelist"
+            )
+        return super().render_delete_form(request, context)
 
     def save_model(self, request: HttpRequest, obj: Any, form: Any, change: bool) -> None:
         services.save_taxonomy(obj, actor=request.user, request=request)

@@ -603,6 +603,31 @@ def save_collection_piece(
     record_collections(piece, before, actor=actor, request=request, extra_diff=extra_diff)
 
 
+@transaction.atomic
+def replace_piece_collection(
+    piece: Piece,
+    old: Collection,
+    new: Collection | None,
+    *,
+    actor: Actor,
+    request: HttpRequest | None = None,
+) -> None:
+    piece = Piece.objects.select_for_update(of=("self",)).get(pk=piece.pk)
+    before = collection_names(piece)
+    CollectionPiece.objects.filter(piece=piece, collection=old).delete()
+    if new is not None:
+        CollectionPiece.objects.get_or_create(piece=piece, collection=new)
+    record_collections(piece, before, actor=actor, request=request)
+
+
+def taxonomy_blocking_pieces(obj: Category | Stone | Collection) -> models.QuerySet[Piece]:
+    return obj.pieces.order_by("sku")
+
+
+def taxonomy_blocking_children(obj: Category) -> models.QuerySet[Category]:
+    return obj.children.order_by("name_es", "pk")
+
+
 def taxonomy_deletion_reason(obj) -> str:
     if isinstance(obj, Category):
         if (
@@ -620,10 +645,16 @@ def taxonomy_deletion_reason(obj) -> str:
                 if count == 1
                 else f"Tiene {count} piezas: muévelas antes de eliminarla"
             )
-    if isinstance(obj, (Stone, Collection)) and (
-        obj.deletion_piece_count if hasattr(obj, "deletion_piece_count") else obj.pieces.exists()
-    ):
-        return "Tiene piezas: retíralas antes de eliminarla"
+    if isinstance(obj, (Stone, Collection)):
+        count = (
+            obj.deletion_piece_count if hasattr(obj, "deletion_piece_count") else obj.pieces.count()
+        )
+        if count:
+            return (
+                "Tiene 1 pieza: retírala antes de eliminarla"
+                if count == 1
+                else f"Tiene {count} piezas: retíralas antes de eliminarla"
+            )
     return ""
 
 

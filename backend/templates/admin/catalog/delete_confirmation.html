@@ -1,2 +1,51 @@
 {% extends "admin/delete_confirmation.html" %}
-{% block content %}<p>¿Eliminar «{{ object.name_es }}»? Esta acción no se puede deshacer.</p>{{ block.super }}{% endblock %}
+{% load static %}
+{% block content %}
+{% if taxonomy_blocked %}
+<div class="ca-guide">
+  <div class="ca-guide-grid">
+    <aside class="ca-guide-side">
+      <h2>Eliminar «{{ object.name_es }}»</h2>
+      <p>Dos pasos y listo.</p>
+      <ol class="ca-guide-steps">
+        <li class="now" data-guide-step="1"><span class="ca-guide-number">1</span><div><b>Reasignar piezas</b><span>Elige qué pasa con cada una.</span></div></li>
+        <li data-guide-step="2"><span class="ca-guide-number">2</span><div><b>Eliminar la {% if taxonomy_kind == "stone" %}piedra{% elif taxonomy_kind == "collection" %}colección{% else %}categoría{% endif %}</b><span>Se habilita al terminar el paso 1.</span></div></li>
+      </ol>
+    </aside>
+    <main class="ca-guide-main">
+      {% if blocking_children %}
+      <div class="ca-guide-children"><strong>Primero resuelve sus subcategorías</strong><ul>{% for child in blocking_children %}<li><a href="{% url 'admin:catalog_category_change' child.pk %}">{{ child.name_es }}</a></li>{% endfor %}</ul></div>
+      {% endif %}
+      {% if not can_change_piece %}<p class="ca-guide-note">Necesitas permiso para modificar piezas y resolver esta eliminación.</p>{% endif %}
+      <form method="post" action="{{ resolve_url }}" data-guide-form>
+        {% csrf_token %}
+        {% if can_change_piece and blocking_pieces %}
+        <div class="ca-guide-bulk"><label for="guide-all">Aplicar a todas:</label>
+          <select id="guide-all" data-guide-all><option value="">¿Qué hacemos?</option>{% for dest in destinations %}<option value="move:{{ dest.pk }}">Cambiar a {{ dest.name_es }}</option>{% endfor %}{% if taxonomy_kind != "category" %}<option value="remove">Solo quitar «{{ object.name_es }}»</option>{% endif %}{% if all_can_delete %}<option value="delete">Eliminar la pieza</option>{% endif %}</select>
+        </div>
+        {% endif %}
+        {% for row in blocking_pieces %}
+        <div class="ca-guide-row">
+          {% if row.image_url %}<img class="ca-guide-thumb" src="{{ row.image_url }}" alt="" loading="lazy">{% else %}<span class="ca-guide-thumb"></span>{% endif %}
+          <div><a class="ca-guide-name" href="{% url 'admin:catalog_piece_change' row.piece.pk %}">{{ row.piece.name_es }}</a>
+            <div class="ca-guide-meta"><span class="ca-guide-sku">{{ row.piece.sku }}</span>
+              {% if row.piece.sale_state == "sold" or row.piece.sale_state == "reserved" %}<span class="ca-guide-pill sold">{{ row.piece.get_sale_state_display }}</span>{% elif row.piece.status == "published" %}<span class="ca-guide-pill pub">{{ row.piece.get_status_display }}</span>{% else %}<span class="ca-guide-pill draft">{{ row.piece.get_status_display }}</span>{% endif %}
+            </div>
+            {% if row.reasons %}<p class="ca-guide-note">No se puede eliminar: {{ row.reasons|join:", " }}</p>{% endif %}
+          </div>
+          {% if can_change_piece %}<select name="decision_{{ row.piece.pk }}" data-guide-decision aria-label="Qué hacemos con {{ row.piece.sku }}"><option value="">¿Qué hacemos?</option>{% for dest in destinations %}<option value="move:{{ dest.pk }}">Cambiar a {{ dest.name_es }}</option>{% endfor %}{% if taxonomy_kind != "category" %}<option value="remove">Solo quitar «{{ object.name_es }}»</option>{% endif %}{% if row.can_delete %}<option value="delete">Eliminar la pieza</option>{% endif %}</select>{% endif %}
+        </div>
+        {% endfor %}
+        <div class="ca-guide-bar">
+          <div class="ca-guide-progress"><div class="ca-guide-meter"><i data-guide-meter></i></div><span class="ca-guide-note" data-guide-count>0 de {{ blocking_pieces|length }} piezas listas</span></div>
+          <div class="ca-guide-actions"><a class="ca-guide-btn ghost" href="{{ taxonomy_changelist_url }}">Cancelar</a>{% if can_change_piece %}<button class="ca-guide-btn primary" type="submit" data-guide-submit {% if blocking_children or not blocking_pieces %}disabled{% endif %}>Aplicar y eliminar «{{ object.name_es }}»</button>{% endif %}</div>
+        </div>
+      </form>
+    </main>
+  </div>
+</div>
+<script src="{% static 'catalog/deletion-guide.js' %}" defer></script>
+{% else %}
+<p>¿Eliminar «{{ object.name_es }}»? Esta acción no se puede deshacer.</p>{{ block.super }}
+{% endif %}
+{% endblock %}

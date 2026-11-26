@@ -42,12 +42,15 @@ def test_protected_icons_and_no_category_bulk():
     response = browser.get(reverse("admin:catalog_category_changelist"))
     html = response.content.decode()
     assert "Tiene 1 pieza" in html
-    assert 'aria-disabled="true"' in html
+    assert reverse("admin:catalog_category_delete", args=[cat.pk]) in html
+    assert "Ver cuáles" in html
+    assert 'class="ca-icon ca-danger ca-blocked"' in html
     assert 'name="_selected_action"' not in html
     assert 'name="action"' not in html
     html = browser.get(reverse("admin:catalog_piece_changelist")).content.decode()
     assert "está vendida o reservada" in html
     assert "Archívala" in html
+    assert 'aria-disabled="true"' in html
 
 
 @pytest.mark.parametrize("model", [Category, Stone, Collection])
@@ -127,9 +130,13 @@ def test_empty_category_visible_and_append_position():
 def test_children_protected_on_confirmation():
     browser, _ = staff(PROPIETARIO)
     root = category()
-    category("Hija", parent=root)
+    child = category("Hija", parent=root)
     url = reverse("admin:catalog_category_delete", args=[root.pk])
-    assert "Tiene subcategorías" in browser.get(url).content.decode()
+    html = browser.get(url).content.decode()
+    assert "Primero resuelve sus subcategorías" in html
+    assert "Hija" in html
+    assert reverse("admin:catalog_category_change", args=[child.pk]) in html
+    assert 'name="post"' not in html
     assert browser.post(url, {"post": "yes"}).status_code == 200
     assert Category.objects.filter(pk=root.pk).exists()
 
@@ -146,8 +153,124 @@ def test_linked_taxonomy_has_no_bulk_and_blocks_delete(model):
     html = browser.get(
         reverse(f"admin:catalog_{model._meta.model_name}_changelist")
     ).content.decode()
-    assert "Tiene piezas: retíralas antes de eliminarla" in html
+    assert "Tiene 1 pieza: retírala antes de eliminarla" in html
+    assert "Ver cuáles" in html
+    assert reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk]) in html
     assert 'name="_selected_action"' not in html
     url = reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk])
+    html = browser.get(url).content.decode()
+    assert all(value in html for value in ("LINK", "Anillo", "Borrador"))
+    assert reverse("admin:catalog_piece_change", args=[piece.pk]) in html
+    assert ("Piedras" if model is Stone else "Colecciones") in html
+    assert 'name="post"' not in html
     assert browser.post(url, {"post": "yes"}).status_code == 200
     assert model.objects.filter(pk=obj.pk).exists()
+
+
+def resolver(obj):
+    return reverse(f"admin:catalog_{obj._meta.model_name}_resolve_deletion", args=[obj.pk])
+
+
+def make_piece(index, **kwargs):
+    return Piece.objects.create(
+        name_es=f"Pieza {index}",
+        slug_es=f"pieza-{index}",
+        sku=f"SKU{index}",
+        price_cents=10000,
+        **kwargs,
+    )
+
+
+def test_stone_mixed_plan_and_audit():
+    browser, user = staff(PROPIETARIO)
+    old = Stone.objects.create(name_es="Vieja", slug_es="vieja")
+    new = Stone.objects.create(name_es="Rubí", slug_es="rubi")
+    pieces = [make_piece(i) for i in range(3)]
+    for piece in pieces:
+        piece.stones.add(old)
+    response = browser.post(
+        resolver(old),
+        {
+            f"decision_{pieces[0].pk}": f"move:{new.pk}",
+            f"decision_{pieces[1].pk}": "remove",
+            f"decision_{pieces[2].pk}": "delete",
+        },
+    )
+    assert response.url == reverse("admin:catalog_stone_changelist")
+    assert list(pieces[0].stones.all()) == [new]
+    assert not pieces[1].stones.exists()
+    assert not Piece.objects.filter(pk=pieces[2].pk).exists()
+    assert not Stone.objects.filter(pk=old.pk).exists()
+    assert AuditLog.objects.filter(action="catalog.piece_deleted", actor=user).exists()
+
+
+@pytest.mark.parametrize("invalid", ["missing", "published", "foreign", "destination", "same"])
+def test_invalid_plan_rolls_back(invalid):
+    browser, _ = staff(PROPIETARIO)
+    old = Stone.objects.create(name_es="Vieja", slug_es="vieja")
+    new = Stone.objects.create(name_es="Nueva", slug_es="nueva")
+    first = make_piece(1)
+    second = make_piece(2, status="published" if invalid == "published" else "draft")
+    foreign = make_piece(3)
+    first.stones.add(old)
+    second.stones.add(old)
+    data = {f"decision_{first.pk}": f"move:{new.pk}", f"decision_{second.pk}": "remove"}
+    if invalid == "missing":
+        del data[f"decision_{second.pk}"]
+    elif invalid == "published":
+        data[f"decision_{second.pk}"] = "delete"
+    elif invalid == "foreign":
+        data[f"decision_{foreign.pk}"] = "remove"
+    elif invalid == "destination":
+        data[f"decision_{second.pk}"] = "move:999999"
+    else:
+        data[f"decision_{second.pk}"] = f"move:{old.pk}"
+    browser.post(resolver(old), data)
+    assert Stone.objects.filter(pk=old.pk).exists()
+    assert list(first.stones.all()) == [old]
+    assert list(second.stones.all()) == [old]
+
+
+def test_collection_remove_all():
+    browser, _ = staff(PROPIETARIO)
+    obj = Collection.objects.create(name_es="Colección", slug_es="coleccion")
+    pieces = [make_piece(i) for i in range(2)]
+    obj.pieces.add(*pieces)
+    browser.post(resolver(obj), {f"decision_{p.pk}": "remove" for p in pieces})
+    assert not Collection.objects.filter(pk=obj.pk).exists()
+
+
+def test_category_move_and_children():
+    browser, _ = staff(PROPIETARIO)
+    old = category("Origen")
+    child = category("Hija", parent=old)
+    target = category("Destino")
+    piece = make_piece(1, category=old)
+    html = browser.get(reverse("admin:catalog_category_delete", args=[old.pk])).content.decode()
+    assert f'value="move:{child.pk}"' not in html
+    assert "Primero resuelve sus subcategorías" in html
+    browser.post(resolver(old), {f"decision_{piece.pk}": f"move:{target.pk}"})
+    piece.refresh_from_db()
+    assert piece.category_id == old.pk
+    child.delete()
+    browser.post(resolver(old), {f"decision_{piece.pk}": f"move:{target.pk}"})
+    piece.refresh_from_db()
+    assert piece.category_id == target.pk
+    assert not Category.objects.filter(pk=old.pk).exists()
+
+
+def test_guide_options_and_permissions():
+    browser, _ = staff(PROPIETARIO)
+    obj = Stone.objects.create(name_es="Piedra", slug_es="piedra")
+    target = Stone.objects.create(name_es="Rubí", slug_es="rubi")
+    draft = make_piece(1)
+    published = make_piece(2, status="published")
+    draft.stones.add(obj)
+    published.stones.add(obj)
+    url = reverse("admin:catalog_stone_delete", args=[obj.pk])
+    html = browser.get(url).content.decode()
+    assert all(text in html for text in ("SKU1", "Pieza 1", "Cambiar a Rubí", "Aplicar y eliminar"))
+    assert f'value="move:{target.pk}"' in html
+    assert html.count('<option value="delete">Eliminar la pieza</option>') == 1
+    restricted, _ = staff(CONTENIDO)
+    assert restricted.post(resolver(obj), {f"decision_{draft.pk}": "remove"}).status_code == 403
