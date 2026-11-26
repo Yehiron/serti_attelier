@@ -59,6 +59,8 @@ test('layout real conserva todo el HTML con identidad inicial y escalas migradas
         'next/navigation':{notFound:()=>{throw Error('404');}},
         'next/root-params':{locale:async()=>'es'},
         'next/font/google':{Cormorant_Garamond:()=>({variable:'serif'}),Inter:()=>({variable:'sans'})},
+        '@/components/route-scroll-reset':{RouteScrollReset:()=>null},
+        '@/components/scroll-reveal':{ScrollReveal:()=>null},
         '@/components/site-shell':{Header:()=>h('header',{},'SERTI'),Footer:()=>h('footer',{},'SERTI'),PreviewBar:()=>null},
         '@/lib/api/server':{siteUrl:'https://serti.co',getBrand:async()=>identity,getSettings:async()=>{assert.ok(legacy,'El layout actual no debe leer las escalas antiguas');return {title_scale:title/100,text_scale:.9};},emptySettings:{}},
         '@/lib/cms-brand':{brandStyle,brandMetadata,originalBrand},
@@ -69,7 +71,7 @@ test('layout real conserva todo el HTML con identidad inicial y escalas migradas
       Function('require','module','exports',js)((name:string)=>stubs[name]??require(name),mod,mod.exports);
       return renderToStaticMarkup(await mod.exports.SiteDocument({current:'es',dict:{nav:{skip:'Saltar'},ui:{loading:'Cargando'}},children:h('main',{},'Contenido')}));
     };
-    assert.equal(await render('../app/[locale]/layout.tsx',false),await render('../tests/fixtures/layout-before-phase7.tsx.txt',true));
+    assert.equal(await render('../app/[locale]/layout.tsx',false),(await render('../tests/fixtures/layout-before-phase7.tsx.txt',true)).replace('<html ', '<html data-scroll-behavior="smooth" '));
   }
 });
 

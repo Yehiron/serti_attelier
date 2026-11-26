@@ -77,7 +77,13 @@ export function Navigation({ locale, dict, taxonomy, whatsapp, items, brand, set
       : <Link href={item.href} aria-current={current(item.href)}>{item.label}</Link>}
   </Fragment>)}</>;
   return <header className={`site-header ${home && !scrolled ? 'over-hero' : ''}`}>
-    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`}><BrandLogo brand={brand} /></Link>
+    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`} onClick={event => {
+      // Already on the home page the route doesn't change: bring the visitor back to the top.
+      if (pathname !== href('home', locale) || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      event.preventDefault();
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: 0, behavior: reduce ? 'instant' : 'smooth' });
+    }}><BrandLogo brand={brand} /></Link>
     <nav ref={desktopNav} className="desktop-nav" aria-label={dict.nav.menu}>{links}</nav>
     <div className="utilities">{process.env.NEXT_PUBLIC_CART_ENABLED === 'true' && <CartUtility locale={locale} dict={dict} whatsapp={whatsapp} settings={settings} monogram={brand?.monogram_dark?.src || brand?.monogram_light?.src} />}<QuickSearch locale={locale} dict={dict} taxonomy={taxonomy} /><Link className="wishlist-utility" href={href('wishlist', locale)} aria-label={`${dict.nav.wishlist} (${wishes.length})`}><Heart filled={wishes.length > 0} /><small>{wishes.length || ''}</small></Link><a href={alternate} hrefLang={locale === 'es' ? 'en' : 'es'} className="lang-link" aria-label={`${locale.toUpperCase()} · ${dict.nav.language}: ${dict.nav.otherLanguage}`}><Flag locale={locale} />{locale.toUpperCase()}</a><button className="menu-trigger" onClick={() => dialog.current?.showModal()} aria-label={dict.nav.menu}>☰</button></div>
     <dialog ref={dialog} className="menu-dialog" aria-label={dict.nav.menu} onClose={() => setOpenMenu(null)} onClick={event => { if ((event.target as HTMLElement).closest('a')) dialog.current?.close(); }}><div className="menu-top"><Wordmark brand={brand} /><button onClick={() => dialog.current?.close()}>{dict.nav.close} ×</button></div><nav aria-label={dict.nav.menu}>{links}</nav><a className="lang-link" href={alternate}><Flag locale={locale} />{locale.toUpperCase()} · {dict.nav.otherLanguage}</a></dialog>

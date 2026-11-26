@@ -1,3 +1,5 @@
+import { RouteScrollReset } from "@/components/route-scroll-reset";
+import { ScrollReveal } from "@/components/scroll-reveal";
 import { draftMode } from "next/headers";
 import { Suspense } from "react";
 import { Header, Footer, PreviewBar } from "@/components/site-shell";
@@ -62,7 +64,7 @@ export default async function RootLayout({ children }: LayoutProps<"/[locale]">)
   const current = await locale();
   if (!isLocale(current)) notFound();
   const dict = await getDictionary();
-  return <Suspense fallback={<html lang={current} className={`${serif.variable} ${sans.variable}`}><body><main id="main" className="loading-shell">{dict.ui.loading}</main></body></html>}><SiteDocument current={current} dict={dict}>{children}</SiteDocument></Suspense>;
+  return <Suspense fallback={<html data-scroll-behavior="smooth" lang={current} className={`${serif.variable} ${sans.variable}`}><body><main id="main" className="loading-shell">{dict.ui.loading}</main></body></html>}><SiteDocument current={current} dict={dict}>{children}</SiteDocument></Suspense>;
 }
 
 // Settings are request-time data: suspend the document until its typography is known.
@@ -70,8 +72,10 @@ async function SiteDocument({ current, dict, children }: { current: "es" | "en";
   const brand = await getBrand(current).catch(() => originalBrand);
 
   return (
-    <html lang={current} className={`${serif.variable} ${sans.variable}`} style={brandStyle(brand)}>
+    <html data-scroll-behavior="smooth" lang={current} className={`${serif.variable} ${sans.variable}`} style={brandStyle(brand)}>
       <body>
+        <Suspense fallback={null}><RouteScrollReset /></Suspense>
+        <ScrollReveal />
         <a className="skip-link" href="#main">
           {dict.nav.skip}
         </a>

@@ -67,11 +67,9 @@ test('mobile menu: Escape closes the dialog and its open submenu', async ({ page
   await expect(openMenus(nav)).toHaveCount(0);
 });
 
-test('product card shows the alternate photo on hover only on desktop', async ({ page, isMobile }) => {
+test('product card supports desktop hover and mobile photo scrolling', async ({ page, isMobile }) => {
   const withHover = createPiece({ hover: true });
   const plain = createPiece();
-  const alternates: string[] = [];
-  page.on('request', request => { if (request.url().includes('/media/pieces/renditions/')) alternates.push(request.url()); });
   // Search by each unique name: earlier runs leave many E2E pieces in the catalog.
   await page.goto(`/es/buscar?q=${encodeURIComponent(plain.name)}`);
   const plainCard = page.locator('.piece-card', { hasText: plain.name });
@@ -83,10 +81,9 @@ test('product card shows the alternate photo on hover only on desktop', async ({
   const alternate = card.locator('.hover-image');
   await expect(alternate).toHaveAttribute('alt', '');
   if (isMobile) {
-    // Touch screens never show it and never download it.
-    await expect(alternate).toBeHidden();
-    const src = await alternate.getAttribute('src');
-    expect(alternates.some(url => src && url.endsWith(src))).toBe(false);
+    await expect(card.locator('.piece-photo-dots > span')).toHaveCount(2);
+    await expect(card.locator('.piece-photo-dots')).toBeVisible();
+    await expect(alternate).toHaveCSS('opacity', '1');
     return;
   }
   await expect(alternate).toHaveCSS('opacity', '0');
@@ -98,4 +95,18 @@ test('product card shows the alternate photo on hover only on desktop', async ({
   const layout = (el: HTMLElement) => [el.offsetLeft, el.offsetTop, el.offsetWidth, el.offsetHeight];
   const [primary, secondary] = await Promise.all([card.locator('.piece-photo img').first().evaluate(layout), alternate.evaluate(layout)]);
   expect(secondary).toEqual(primary);
+});
+
+test('el logo lleva al principio de la portada', async ({ page }) => {
+  await page.goto('/es', { waitUntil: 'networkidle' });
+  // Retry until the streamed page is tall enough to scroll.
+  await expect.poll(() => page.evaluate(() => { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }); return window.scrollY; })).toBeGreaterThan(0);
+  await page.locator('a.brand-link:visible').first().click();
+  await expect(page).toHaveURL(/\/es$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
+  await page.goto('/es/joyeria', { waitUntil: 'networkidle' });
+  await expect.poll(() => page.evaluate(() => { window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'instant' }); return window.scrollY; })).toBeGreaterThan(0);
+  await page.locator('a.brand-link:visible').first().click();
+  await expect(page).toHaveURL(/\/es$/);
+  await expect.poll(() => page.evaluate(() => window.scrollY)).toBe(0);
 });
