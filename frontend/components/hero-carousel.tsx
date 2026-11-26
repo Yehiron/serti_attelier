@@ -6,7 +6,7 @@ import { focalPosition } from '@/lib/cms-focal';
 import { useEffect, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from 'react';
 import type { Dictionary } from '@/app/[locale]/dictionaries';
 import type { HeroSlide, Image } from '@/lib/api/types';
-import { heroImages, slideIsEager } from '@/lib/hero-carousel';
+import { heroImages } from '@/lib/hero-carousel';
 
 const INTERVAL = 6000;
 function subscribeViewport(callback: () => void) {
@@ -39,7 +39,7 @@ function Sequence({ images, mode, active, stopped, labels }: { images: Image[]; 
     return () => window.clearTimeout(timer);
   }, [active, stopped, images.length, current, next, loaded]);
   return <div className={`hero-sequence hero-slide--${mode}`} aria-hidden={!active}>
-    {images.map((image, i) => <img key={i} className={`hero-image hero-slide${active && i === current ? ' is-current' : ''}`} style={{ objectPosition: focalPosition(image) }} src={active ? image.src : undefined} srcSet={active ? image.srcset || undefined : undefined} sizes="100vw" width={image.width} height={image.height} alt={image.alt} aria-hidden={!active || i !== current} loading={active && slideIsEager(i, current, images.length) ? 'eager' : 'lazy'} fetchPriority={i === 0 && active ? 'high' : undefined} onLoad={() => setLoaded(previous => previous.includes(i) ? previous : [...previous, i])} />)}
+    {images.map((image, i) => <img key={i} className={`hero-image hero-slide${active && i === current ? ' is-current' : ''}`} style={{ objectPosition: focalPosition(image) }} src={active ? image.src : undefined} srcSet={active ? image.srcset || undefined : undefined} sizes="100vw" width={image.width} height={image.height} alt={image.alt} aria-hidden={!active || i !== current} loading={i === 0 && active ? 'eager' : 'lazy'} fetchPriority={i === 0 && active ? 'high' : undefined} onLoad={() => setLoaded(previous => previous.includes(i) ? previous : [...previous, i])} />)}
     {images.length > 1 && <div className="hero-indicators">{images.map((_, i) => <button key={i} type="button" aria-label={labels.goTo.replace('{n}', String(i + 1))} aria-current={current === i ? 'true' : undefined} onClick={() => setCurrent(i)}><span /></button>)}</div>}
   </div>;
 }

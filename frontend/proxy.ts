@@ -6,6 +6,10 @@ import { localeCookie, localeFromPath, negotiateLocale } from "@/lib/i18n";
 import { trackingPath, trackingHttpStatus, unavailableTrackingHtml } from "@/lib/order-http";
 
 import { routeDecision } from "@/lib/routes";
+import { isDocumentRequest } from "@/lib/document-request";
+
+// Internal re-render of a missing page; skips the existence probe to avoid a loop.
+const notFoundRenderHeader = "x-serti-not-found-render";
 
 import { protectDraftResponse } from '@/lib/cms-preview';
 
@@ -46,7 +50,7 @@ export async function proxy(request: NextRequest) {
     const parts = pathname.split('/').filter(Boolean);
     let missingResource = false;
     const staticSegments = new Set(['joyeria', 'jewelry', 'personaliza', 'customize', 'historia', 'story', 'contacto', 'contact', 'carrito', 'cart', 'checkout', 'deseos', 'wishlist', 'buscar', 'search', 'pedido', 'order', 'legal']);
-    if (decision.kind !== 'redirect' && !request.cookies.has('__prerender_bypass')) {
+    if (decision.kind !== 'redirect' && !request.cookies.has('__prerender_bypass') && isDocumentRequest(request.headers) && request.headers.get(notFoundRenderHeader) !== '1') {
       const segment = parts[1]; const slug = parts[2];
       const dynamic = slug && parts.length === 3 && ['piezas', 'pieces', 'joyeria', 'jewelry', 'piedras', 'stones', 'colecciones', 'collections'].includes(segment);
       const editorial = parts.length === 2 && segment && !staticSegments.has(segment);
@@ -67,12 +71,19 @@ export async function proxy(request: NextRequest) {
       }
     }
     if (missingResource) {
-      // The route itself renders its designed not-found UI (same URL, so hydration matches);
-      // the proxy only fixes the HTTP status before React streams the shell.
-      const response = NextResponse.rewrite(url, { status: 404, request: { headers: forwarded } });
-      response.headers.set('Cache-Control', 'no-store');
-      response.headers.set('X-Robots-Tag', 'noindex, follow');
-      return previewHeaders(request, response);
+      // A prerendered (PPR) shell always commits 200, so a rewrite status is lost in production.
+      // Render the same URL through this server (its not-found.tsx: same path, so hydration
+      // matches) and return that HTML with a real 404. The public origin is TLS at Caddy and
+      // not reachable from inside, hence 127.0.0.1.
+      const target = new URL(`${pathname}${request.nextUrl.search}`, `http://127.0.0.1:${process.env.PORT ?? '3000'}`);
+      const rendered = await fetch(target, { headers: { accept: 'text/html', 'accept-language': request.headers.get('accept-language') ?? '', [notFoundRenderHeader]: '1' }, cache: 'no-store' });
+      const headers = new Headers(rendered.headers);
+      for (const name of ['content-length', 'content-encoding', 'transfer-encoding', 'set-cookie']) headers.delete(name);
+      // Internal routing directives of the inner render must not be re-applied to this response.
+      for (const name of [...headers.keys()]) if (name.startsWith('x-middleware-')) headers.delete(name);
+      headers.set('Cache-Control', 'no-store');
+      headers.set('X-Robots-Tag', 'noindex, follow');
+      return previewHeaders(request, new NextResponse(rendered.body, { status: 404, headers }));
     }
     let missingOrder = false;
     const tracking = trackingPath(pathname);

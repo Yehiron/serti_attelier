@@ -458,11 +458,16 @@ legend { padding: 0 0 14px; }
 .error-page h1 { font-size: calc(clamp(3rem,5vw,5rem) * var(--title-scale)); max-width: 850px; margin: 30px 0; }
 .error-page .text-link { margin-left: 25px; }
 .loading-shell { padding: 70px var(--spacing-gutter); min-height: 70vh; }
+.loading-heading { display: grid; justify-items: center; gap: 20px; padding: 30px 0; }
+.loading-heading span { display: block; width: min(180px, 50%); height: 10px; background: var(--color-paper); }
+.loading-heading span + span { width: min(380px, 80%); height: 42px; }
 .loading-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 25px; margin-top: 40px; }
 .loading-grid > div { aspect-ratio: 4/5; background: var(--color-paper); }
 @media(min-width:1500px) { .piece-grid { grid-template-columns: repeat(4,minmax(0,1fr)); } }
 @media(max-width:1150px) { .desktop-nav { display: none; } .utilities > .menu-trigger { display: inline-flex; } .piece-grid { gap: 35px 18px; } .card-caption { display: block; } .card-caption p { margin-top: 8px; } }
 @media(max-width:760px) {
+ .loading-grid { grid-template-columns: repeat(2, 1fr); gap: 18px; }
+ .loading-grid > div:last-child { display: none; }
  :root { --spacing-gutter: 20px; }
  h1 { font-size: calc(clamp(3.2rem,12vw,5.6rem) * var(--title-scale)); }
  h2 { font-size: calc(clamp(2.6rem,9vw,4rem) * var(--title-scale)); }

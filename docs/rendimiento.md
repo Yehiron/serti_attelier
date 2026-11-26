@@ -47,3 +47,19 @@ Cada palabra se resuelve mediante una unión de consultas independientes para ca
 | `anillos` (790 resultados) / `diamante` (833) | — | ~28 ms (domina el orden por relevancia) |
 
 El listado sin búsqueda bajó de 8 a 6 consultas, constante entre tamaños de página. Verificación: backend 1491 pruebas, E2E de filtros, buscador, SEO y categorías.
+
+## Navegación entre páginas (2026-11-25)
+
+Medido con Playwright en un build de producción local (`docker build --target runtime`, `next start`), clic → contenido listo:
+
+| | Precargas al abrir `/es` | Inicio / Historia / Contacto | Listados (`/es/joyeria…`) | Promedio |
+|---|---|---|---|---|
+| `next dev` (referencia) | 0 | ~430 ms | ~470 ms | ~445 ms |
+| Producción antes | 12 | ~330 ms | ~340 ms | ~295 ms |
+| Producción después (caché caliente) | 15 | **40–80 ms** | ~320–480 ms | ~140–200 ms |
+
+- Causa: `cachedRead()` llamaba `connection()` en toda lectura pública y volvía dinámicas todas las rutas; la precarga solo traía el shell. Ahora las lecturas públicas en `'use cache'` (con tags) entran en la precarga; preview y pedidos siguen en vivo.
+- La sonda de existencia del proxy se omite en peticiones del router (RSC/prefetch); las cargas de documento la conservan.
+- 404 real en producción: un shell PPR siempre confirma 200, así que el proxy renderiza la **misma URL** internamente (cabecera `x-serti-not-found-render`) y devuelve ese HTML con 404, sin las cabeceras `x-middleware-*` internas. Misma URL ⇒ la hidratación coincide.
+- Pendiente: los listados dependen de `searchParams` (filtros) y siguen pidiendo al servidor al hacer clic. El build sin API registra avisos de *cache miss* en el prerender (las rutas quedan dinámicas en build y se llenan en la primera visita).
+- En local (`next dev`) la navegación siempre será más lenta: no hay precarga, compila al vuelo y lee la API sin caché.

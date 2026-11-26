@@ -26,12 +26,14 @@ const serif = Cormorant_Garamond({
   weight: ["400"],
   style: ["normal", "italic"],
   preload: false,
+  display: "swap",
 });
 
 const sans = Inter({
   variable: "--font-inter",
   subsets: ["latin"],
   weight: ["300", "400", "500"],
+  display: "swap",
 });
 
 export function generateStaticParams() {

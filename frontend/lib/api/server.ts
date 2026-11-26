@@ -36,15 +36,14 @@ async function cachedResult<T>(path: string, locale: Locale, query: string, tag:
     return { ok: true, data };
   } catch (error) {
     if (!(error instanceof ApiError)) throw error;
-    // Keep errors serializable across the cache boundary and retry them quickly.
+    // A short-lived result is excluded from the prerender (cacheLife documentation).
+    // This keeps build-time API failures out of the static shell and retries at runtime.
+    // Keep errors serializable across the cache boundary.
     cacheLife({ stale: 30, revalidate: 1, expire: 5 });
     return { ok: false, status: error.status, problem: error.problem };
   }
 }
 async function cachedRead<T>(path: string, locale: Locale, query: string, tag: string): Promise<T> {
-  // The API is not reachable while building (docker build, CI): stop prerendering here so
-  // data is fetched at request time. Results are still cached in memory across requests.
-  await connection();
   // `next dev` serves a stale "use cache" entry once after revalidateTag (by design, see
   // next/dist/server/lib/cache-handlers/default.js), so a publish would look delayed there.
   // Development reads live; production keeps tag invalidation (docs/cms-fase-8.md).

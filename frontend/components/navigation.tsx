@@ -70,14 +70,14 @@ export function Navigation({ locale, dict, taxonomy, whatsapp, items, brand, set
     ...(['personalize', 'story', 'contact'] as const).map(key => ({ label: dict.nav[key], href: href(key, locale), external: false, dropdown: null })),
   ];
   const links = <>{menuItems.map((item, index) => <Fragment key={`${item.dropdown ?? item.href}-${index}`}>
-    {item.dropdown === 'catalog' ? menu('catalog', item.label, <><Link href={href('catalog', locale)} aria-current={current(href('catalog', locale))}>{dict.ui.all}</Link>{taxonomy.categories.map(x => <div key={x.slug}><Link href={href('category', locale, x.slug)} aria-current={current(href('category', locale, x.slug))}>{x.name}</Link>{x.children.map(child => <Link className="subcategory" key={child.slug} href={href('category', locale, child.slug)} aria-current={current(href('category', locale, child.slug))}>{child.name}</Link>)}</div>)}</>)
-      : item.dropdown === 'stones' ? menu('stones', item.label, taxonomy.stones.map(x => <Link key={x.slug} href={href('stone', locale, x.slug)} aria-current={current(href('stone', locale, x.slug))}>{x.name}</Link>))
-      : item.dropdown === 'collections' ? menu('collections', item.label, taxonomy.collections.map(x => <Link key={x.slug} href={href('collection', locale, x.slug)} aria-current={current(href('collection', locale, x.slug))}>{x.name}</Link>))
+    {item.dropdown === 'catalog' ? menu('catalog', item.label, <><Link prefetch={true} href={href('catalog', locale)} aria-current={current(href('catalog', locale))}>{dict.ui.all}</Link>{taxonomy.categories.map(x => <div key={x.slug}><Link prefetch={true} href={href('category', locale, x.slug)} aria-current={current(href('category', locale, x.slug))}>{x.name}</Link>{x.children.map(child => <Link prefetch={true} className="subcategory" key={child.slug} href={href('category', locale, child.slug)} aria-current={current(href('category', locale, child.slug))}>{child.name}</Link>)}</div>)}</>)
+      : item.dropdown === 'stones' ? menu('stones', item.label, taxonomy.stones.map(x => <Link prefetch={true} key={x.slug} href={href('stone', locale, x.slug)} aria-current={current(href('stone', locale, x.slug))}>{x.name}</Link>))
+      : item.dropdown === 'collections' ? menu('collections', item.label, taxonomy.collections.map(x => <Link prefetch={true} key={x.slug} href={href('collection', locale, x.slug)} aria-current={current(href('collection', locale, x.slug))}>{x.name}</Link>))
       : item.external ? <a href={item.href} target="_blank" rel="noopener noreferrer">{item.label}</a>
-      : <Link href={item.href} aria-current={current(item.href)}>{item.label}</Link>}
+      : <Link prefetch={true} href={item.href} aria-current={current(item.href)}>{item.label}</Link>}
   </Fragment>)}</>;
   return <header className={`site-header ${home && !scrolled ? 'over-hero' : ''}`}>
-    <Link className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`} onClick={event => {
+    <Link prefetch={true} className="brand-link" href={href('home', locale)} aria-label={`SERTI · ${dict.nav.home}`} onClick={event => {
       // Already on the home page the route doesn't change: bring the visitor back to the top.
       if (pathname !== href('home', locale) || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
       event.preventDefault();
