@@ -51,6 +51,11 @@
 		-Server
 	}
 
+	# Development: dashboard CSS/JS change constantly and their names are not hashed,
+	# so browsers must revalidate them on every load (a 304 when unchanged).
+	@django_static path /static/*
+	header @django_static Cache-Control "no-cache"
+
 	# Django owns the API, its static files, media and the admin dashboard (ADR-003).
 	@django path /api/* /static/* /media/* /{$DJANGO_ADMIN_URL}*
 	handle @django {
