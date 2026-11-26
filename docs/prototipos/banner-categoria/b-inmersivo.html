@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banner categoría · B · Inmersivo</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.banner { position: relative; height: min(72svh, 700px); min-height: 460px; color: var(--cream); overflow: hidden; display: flex; align-items: flex-end; }
+.banner > img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 38%; animation: slow 18s var(--ease) both; }
+@keyframes slow { from { transform: scale(1.1); } to { transform: none; } }
+.banner::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(51,4,20,.78) 0%, rgba(51,4,20,.35) 45%, rgba(51,4,20,0) 70%), linear-gradient(0deg, rgba(51,4,20,.55), transparent 45%); }
+.inner { position: relative; z-index: 1; width: 100%; padding: 0 var(--gutter) clamp(32px, 5vw, 64px); display: grid; grid-template-columns: 1fr auto; gap: 32px; align-items: end; }
+.inner .eyebrow { color: var(--gold); }
+.inner h1 { font-size: clamp(80px, 13vw, 210px); margin: 14px 0 12px; }
+.inner p { max-width: 40ch; margin: 0; font-size: 17px; opacity: .9; }
+.side { text-align: right; display: grid; gap: 18px; justify-items: end; }
+.side .count { font: 400 18px/1.2 var(--serif); font-style: italic; }
+.chips a { color: var(--cream); border-color: rgba(234,217,203,.5); }
+.chips a.on { background: var(--cream); border-color: var(--cream); }
+.chips a.on em { color: var(--wine); }
+.stripe { display: flex; justify-content: center; gap: 36px; padding: 14px var(--gutter); background: var(--wine); color: var(--cream); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; flex-wrap: wrap; }
+@media (max-width: 760px) {
+  .banner { height: 78svh; min-height: 520px; }
+  .banner > img { object-position: center 30%; }
+  .banner::after { background: linear-gradient(0deg, rgba(51,4,20,.88) 0%, rgba(51,4,20,.4) 45%, rgba(51,4,20,0) 70%); }
+  .inner { grid-template-columns: 1fr; gap: 20px; padding-bottom: 28px; }
+  .inner h1 { font-size: 84px; }
+  .side { justify-items: start; text-align: left; }
+  .chips { flex-wrap: nowrap; overflow-x: auto; max-width: calc(100vw - 2 * var(--gutter)); scrollbar-width: none; }
+  .chips a { white-space: nowrap; }
+  .stripe { gap: 6px 18px; font-size: 10px; }
+}
+</style>
+</head>
+<body>
+<span class="proto-tag">Banner B · Inmersivo</span>
+<header class="nav"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><ul><li class="on"><a href="#">Joyería</a></li><li><a href="#">Piedras</a></li><li><a href="#">Colecciones</a></li><li><a href="#">Personaliza tus joyas</a></li><li><a href="#">Nuestra historia</a></li><li><a href="#">Contacto</a></li></ul></header>
+<section class="banner">
+  <img src="img/portada-anillos.webp" alt="Anillo de esmeralda">
+  <div class="inner">
+    <div>
+      <span class="eyebrow">SERTI · Pieza única · 1 de 1</span>
+      <h1 class="display">Anillos</h1>
+      <p>Hechos a mano en oro de 18k, con esmeraldas colombianas y piedras preciosas.</p>
+    </div>
+    <div class="side">
+      <span class="count">17 piezas, cada una irrepetible</span>
+      <div class="chips"><a class="on" href="#"><em>Todos</em></a><a href="#">Esmeralda</a><a href="#">Diamante</a><a href="#">Rubí</a><a href="#">Zafiro</a></div>
+    </div>
+  </div>
+</section>
+<div class="stripe"><span>Oro 18k</span><span>·</span><span>Hecho a mano</span><span>·</span><span>Envío gratis en Colombia</span></div>
+<section class="below" style="padding-top:28px">
+  <div class="filters"><div><span>Piedra ▾</span><span>Metal ▾</span><span>Precio ▾</span></div><span>Más recientes ▾</span></div>
+  <div class="grid">
+    <article class="card"><img src="img/pieza-1.webp" alt=""><small>Pieza única</small><b>Sapphire Chain Link</b><span>$ 3.900.000</span></article>
+    <article class="card"><img src="img/pieza-2.webp" alt=""><small>Pieza única</small><b>Rubie Flower Cluster</b><span>$ 5.100.000</span></article>
+    <article class="card"><img src="img/pieza-3.webp" alt=""><small>Pieza única</small><b>Pinky Ring</b><span>$ 2.600.000</span></article>
+    <article class="card"><img src="img/pieza-4.webp" alt=""><small>Pieza única</small><b>Anillo Esmeraldas Esfera</b><span>$ 4.300.000</span></article>
+  </div>
+</section>
+</body>
+</html>

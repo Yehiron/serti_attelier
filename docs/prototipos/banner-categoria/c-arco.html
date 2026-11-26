@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banner categoría · C · Arco</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.banner { background: var(--cream); padding: clamp(36px, 5vw, 72px) var(--gutter) clamp(40px, 5vw, 72px); display: grid; grid-template-columns: 1fr minmax(260px, 30%) 1fr; gap: clamp(24px, 4vw, 64px); align-items: center; position: relative; overflow: hidden; }
+.banner::before { content: ""; position: absolute; inset: auto -10% -40% auto; width: 520px; height: 520px; background: url("../../../frontend/public/brand/logo/monogram-wine.webp") center/contain no-repeat; opacity: .05; pointer-events: none; }
+.left { align-self: end; }
+.left .eyebrow { color: var(--olive-deep); }
+.left h1 { font-size: clamp(72px, 9vw, 150px); color: var(--wine); margin: 16px 0 0; }
+.arch { margin: 0; aspect-ratio: 3/4; border-radius: 999px 999px 6px 6px; overflow: hidden; box-shadow: 0 30px 60px -36px rgba(51,4,20,.55); }
+.arch img { width: 100%; height: 100%; object-fit: cover; animation: slow 14s var(--ease) both; }
+@keyframes slow { from { transform: scale(1.08); } to { transform: none; } }
+.right { align-self: end; color: var(--wine); display: grid; gap: 26px; }
+.right p { margin: 0; max-width: 32ch; color: var(--olive-deep); font-size: 16px; }
+.thumbs { display: flex; gap: 10px; align-items: center; }
+.thumbs img { width: 54px; height: 54px; border-radius: 50%; object-fit: cover; border: 2px solid var(--cream); margin-left: -18px; background: #fff; }
+.thumbs img:first-child { margin-left: 0; }
+.thumbs span { font: italic 400 20px/1.1 var(--serif); margin-left: 6px; }
+.orn { width: 120px; opacity: .9; }
+@media (max-width: 860px) {
+  .banner { grid-template-columns: 1fr; text-align: center; padding-top: 28px; gap: 22px; }
+  .banner::before { display: none; }
+  .left { order: -1; } .left h1 { font-size: 72px; }
+  .arch { width: min(78%, 320px); margin: 0 auto; }
+  .right { justify-items: center; }
+  .right p { text-align: center; }
+  .orn { display: none; }
+  .chips { justify-content: center; }
+}
+</style>
+</head>
+<body>
+<span class="proto-tag">Banner C · Arco</span>
+<header class="nav"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><ul><li class="on"><a href="#">Joyería</a></li><li><a href="#">Piedras</a></li><li><a href="#">Colecciones</a></li><li><a href="#">Personaliza tus joyas</a></li><li><a href="#">Nuestra historia</a></li><li><a href="#">Contacto</a></li></ul></header>
+<section class="banner">
+  <div class="left">
+    <span class="eyebrow">SERTI · Pieza única · 1 de 1</span>
+    <h1 class="display">Anillos</h1>
+  </div>
+  <figure class="arch"><img src="img/portada-anillos.webp" alt="Anillo de esmeralda"></figure>
+  <div class="right">
+    <img class="orn" src="../../../frontend/public/brand/logo/ornament-wine.webp" alt="">
+    <p>Anillos hechos a mano en oro de 18k, con esmeraldas colombianas y piedras preciosas. Cada uno existe una sola vez.</p>
+    <div class="thumbs"><img src="img/pieza-1.webp" alt=""><img src="img/pieza-2.webp" alt=""><img src="img/pieza-4.webp" alt=""><span>17 piezas</span></div>
+    <div class="chips"><a class="on" href="#"><em>Todos</em></a><a href="#">Esmeralda</a><a href="#">Diamante</a><a href="#">Rubí</a></div>
+  </div>
+</section>
+<section class="below" style="padding-top:8px">
+  <div class="filters"><div><span>Piedra ▾</span><span>Metal ▾</span><span>Precio ▾</span></div><span>Más recientes ▾</span></div>
+  <div class="grid">
+    <article class="card"><img src="img/pieza-1.webp" alt=""><small>Pieza única</small><b>Sapphire Chain Link</b><span>$ 3.900.000</span></article>
+    <article class="card"><img src="img/pieza-2.webp" alt=""><small>Pieza única</small><b>Rubie Flower Cluster</b><span>$ 5.100.000</span></article>
+    <article class="card"><img src="img/pieza-3.webp" alt=""><small>Pieza única</small><b>Pinky Ring</b><span>$ 2.600.000</span></article>
+    <article class="card"><img src="img/pieza-4.webp" alt=""><small>Pieza única</small><b>Anillo Esmeraldas Esfera</b><span>$ 4.300.000</span></article>
+  </div>
+</section>
+</body>
+</html>

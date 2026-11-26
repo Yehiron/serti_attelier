@@ -2,6 +2,8 @@ import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from './fixtures';
 import { createPiece } from './support';
 
+test.use({ reducedMotion: 'reduce' });
+
 // WCAG 2.2 AA target (docs/ux-ui-plan.md): no serious or critical axe violations.
 const pages = ['/es', '/es/joyeria', '/es/personaliza', '/es/contacto', '/es/legal/terminos', '/es/deseos', '/es/carrito'];
 

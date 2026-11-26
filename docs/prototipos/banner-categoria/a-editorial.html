@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Banner categoría · A · Editorial partido</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.banner { display: grid; grid-template-columns: 1fr minmax(320px, 40%); min-height: min(78svh, 760px); background: var(--cream); }
+.copy { padding: clamp(40px, 6vw, 96px) var(--gutter); display: flex; flex-direction: column; justify-content: space-between; gap: 40px; }
+.crumbs { font-size: 12px; color: var(--olive-deep); letter-spacing: .04em; }
+.crumbs a { text-decoration: none; }
+.copy .eyebrow { color: var(--olive-deep); display: block; margin-bottom: 18px; }
+.copy h1 { font-size: clamp(76px, 12vw, 190px); color: var(--wine); }
+.copy p { max-width: 42ch; color: var(--olive-deep); font-size: 17px; margin: 22px 0 0; }
+.meta { display: flex; align-items: end; justify-content: space-between; gap: 24px; flex-wrap: wrap; color: var(--wine); }
+.count { font: 400 56px/1 var(--serif); }
+.count small { display: block; font: 500 11px/1 var(--sans); letter-spacing: .2em; text-transform: uppercase; color: var(--olive-deep); margin-top: 8px; }
+.photo { position: relative; overflow: hidden; margin: 0; }
+.photo img { width: 100%; height: 100%; object-fit: cover; object-position: center 40%; animation: slow 16s var(--ease) both; }
+@keyframes slow { from { transform: scale(1.08); } to { transform: none; } }
+.photo figcaption { position: absolute; right: 20px; bottom: 20px; background: rgba(251,247,243,.9); color: var(--wine); padding: 10px 14px; border-radius: 99px; font-size: 12px; backdrop-filter: blur(6px); }
+@media (max-width: 760px) {
+  .banner { grid-template-columns: 1fr; min-height: 0; }
+  .photo { order: -1; aspect-ratio: 4/4.2; }
+  .copy { padding: 28px var(--gutter) 32px; gap: 26px; }
+  .copy h1 { font-size: 76px; }
+  .count { font-size: 40px; }
+}
+</style>
+</head>
+<body>
+<span class="proto-tag">Banner A · Editorial partido</span>
+<header class="nav"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><ul><li class="on"><a href="#">Joyería</a></li><li><a href="#">Piedras</a></li><li><a href="#">Colecciones</a></li><li><a href="#">Personaliza tus joyas</a></li><li><a href="#">Nuestra historia</a></li><li><a href="#">Contacto</a></li></ul></header>
+<section class="banner">
+  <div class="copy">
+    <div>
+      <p class="crumbs"><a href="#">Inicio</a> / <a href="#">Joyería</a> / Anillos</p>
+      <span class="eyebrow" style="margin-top:28px">SERTI · Pieza única · 1 de 1</span>
+      <h1 class="display">Anillos</h1>
+      <p>Anillos hechos a mano en oro de 18k, con esmeraldas colombianas, diamantes y piedras preciosas. Cada uno existe una sola vez.</p>
+    </div>
+    <div class="meta">
+      <div class="count">17<small>piezas disponibles</small></div>
+      <div class="chips" style="color:var(--wine)"><a class="on" href="#"><em>Todos</em></a><a href="#">Esmeralda</a><a href="#">Diamante</a><a href="#">Rubí</a></div>
+    </div>
+  </div>
+  <figure class="photo"><img src="img/portada-anillos.webp" alt="Anillo de esmeralda"></figure>
+</section>
+<section class="below">
+  <div class="filters"><div><span>Piedra ▾</span><span>Metal ▾</span><span>Precio ▾</span></div><span>Más recientes ▾</span></div>
+  <div class="grid">
+    <article class="card"><img src="img/pieza-1.webp" alt=""><small>Pieza única</small><b>Sapphire Chain Link</b><span>$ 3.900.000</span></article>
+    <article class="card"><img src="img/pieza-2.webp" alt=""><small>Pieza única</small><b>Rubie Flower Cluster</b><span>$ 5.100.000</span></article>
+    <article class="card"><img src="img/pieza-3.webp" alt=""><small>Pieza única</small><b>Pinky Ring</b><span>$ 2.600.000</span></article>
+    <article class="card"><img src="img/pieza-4.webp" alt=""><small>Pieza única</small><b>Anillo Esmeraldas Esfera</b><span>$ 4.300.000</span></article>
+  </div>
+</section>
+</body>
+</html>

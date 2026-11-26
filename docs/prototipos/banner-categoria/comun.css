@@ -1,0 +1,16 @@
+@import url("../personaliza/base.css");
+body { background: #fbf7f3; }
+.below { padding: 0 var(--gutter) 80px; }
+.filters { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 18px 0; border-block: 1px solid color-mix(in srgb, var(--wine) 14%, transparent); margin-bottom: 32px; font-size: 13px; color: var(--wine); flex-wrap: wrap; }
+.filters div { display: flex; gap: 10px; flex-wrap: wrap; }
+.filters span { padding: 8px 14px; border: 1px solid color-mix(in srgb, var(--wine) 22%, transparent); border-radius: 99px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 24px; }
+.card img { aspect-ratio: 4/5; width: 100%; object-fit: cover; background: #f1e9e2; }
+.card small { display: block; margin-top: 12px; font-size: 10px; letter-spacing: .18em; text-transform: uppercase; color: var(--olive-deep); }
+.card b { display: block; font: 400 20px/1.2 var(--serif); color: var(--wine); margin: 4px 0; }
+.card span { font-size: 14px; color: var(--ink); }
+@media (max-width: 760px) { .grid { grid-template-columns: 1fr 1fr; gap: 14px; } .card b { font-size: 17px; } }
+.chips { display: flex; gap: 8px; flex-wrap: wrap; }
+.chips a { text-decoration: none; font-size: 13px; padding: 8px 16px; border-radius: 99px; border: 1px solid currentColor; opacity: .9; }
+.chips a.on { background: currentColor; }
+.chips a.on em { color: var(--cream); font-style: normal; }
