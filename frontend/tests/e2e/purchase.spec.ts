@@ -49,8 +49,9 @@ test('online payment: declined, retried and approved through Wompi', async ({ pa
 
   // The sold piece stays visible and invites a custom piece (DC-09, DC-16).
   await page.goto(`/es/piezas/${piece.slug_es}`);
-  await expect(page.getByText('Vendida — encontró su dueño').first()).toBeVisible();
-  await expect(page.getByText(/Creemos una pieza única para ti/).first()).toBeVisible();
+  // On mobile the hero CTA is hidden and the fixed buy bar carries it: check the visible one.
+  await expect(page.getByText('Vendida — encontró su dueño').filter({ visible: true }).first()).toBeVisible();
+  await expect(page.getByText(/Creemos una pieza única para ti/).filter({ visible: true }).first()).toBeVisible();
 });
 
 test('a piece reserved by someone else cannot be bought', async ({ page, browser, baseURL }) => {

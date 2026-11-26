@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pieza · B · Lookbook</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.hero { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100svh - 69px); background: var(--wine); color: var(--cream); }
+.hero figure { margin: 0; overflow: hidden; position: relative; }
+.hero figure img { width: 100%; height: 100%; object-fit: cover; }
+.hero figure:last-child::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(51,4,20,.85), rgba(51,4,20,0) 55%); }
+.hero-copy { position: absolute; left: 0; right: 0; bottom: 0; padding: 0 clamp(24px, 4vw, 56px) clamp(28px, 4vw, 52px); z-index: 1; }
+.hero-copy .eyebrow { color: var(--gold); }
+.hero-copy h1 { font-size: clamp(50px, 5.6vw, 92px); margin: 12px 0 14px; line-height: .95; }
+.hero-copy .price { color: var(--cream); }
+.hero-copy .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 22px; }
+.hero-copy .btn.primary { background: var(--cream); color: var(--wine); border-color: var(--cream); padding: 0 32px; }
+.hero-copy .btn.ghost { color: var(--cream); border-color: rgba(234,217,203,.6); }
+.ficha { display: grid; grid-template-columns: .9fr 1.1fr; gap: clamp(32px, 6vw, 96px); padding: clamp(56px, 8vw, 120px) var(--gutter); align-items: start; }
+.ficha h2 { font-size: clamp(36px, 4vw, 60px); color: var(--wine); }
+.ficha .lede { color: var(--olive-deep); font-size: 17px; max-width: 42ch; }
+.spec { background: #fbf6f1; border: 1px solid color-mix(in srgb, var(--wine) 14%, transparent); border-radius: 22px; padding: 30px; }
+.spec dl { display: grid; grid-template-columns: auto 1fr; margin: 0; }
+.spec dt, .spec dd { padding: 14px 0; border-bottom: 1px solid color-mix(in srgb, var(--wine) 10%, transparent); margin: 0; }
+.spec dt { font-size: 11px; letter-spacing: .18em; text-transform: uppercase; color: var(--olive-deep); padding-right: 30px; }
+.spec dd { font: 400 20px/1.2 var(--serif); color: var(--wine); text-align: right; }
+.spec dl > :nth-last-child(-n+2) { border-bottom: 0; }
+.spec img { width: 110px; margin: 0 auto 10px; }
+.atelier { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; background: var(--ink); color: var(--cream); }
+.atelier div { padding: 36px clamp(20px, 3vw, 44px); border-right: 1px solid rgba(234,217,203,.14); }
+.atelier div:last-child { border: 0; }
+.atelier b { display: block; font: 400 28px/1.1 var(--serif); margin-bottom: 8px; }
+.atelier span { font-size: 14px; opacity: .75; }
+@media (max-width: 860px) {
+  .hero { grid-template-columns: 1fr; min-height: 0; }
+  .hero figure:first-child { display: none; }
+  .hero figure:last-child { height: 88svh; }
+  .hero-copy h1 { font-size: 48px; }
+  .hero-copy .row .btn { display: none; }
+  .ficha { grid-template-columns: 1fr; padding-top: 44px; }
+  .atelier { grid-template-columns: 1fr; } .atelier div { border-right: 0; border-bottom: 1px solid rgba(234,217,203,.14); }
+}
+</style>
+</head>
+<body>
+<span class="proto-tag">Pieza B · Lookbook</span>
+<header class="nav"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><ul><li class="on"><a href="#">Joyería</a></li><li><a href="#">Piedras</a></li><li><a href="#">Colecciones</a></li><li><a href="#">Personaliza tus joyas</a></li><li><a href="#">Nuestra historia</a></li><li><a href="#">Contacto</a></li></ul></header>
+<section class="hero">
+  <figure><img src="img/escena-1.jpg" alt=""></figure>
+  <figure><img src="img/principal.webp" alt="Anillo Esmeraldas Esfera">
+    <div class="hero-copy">
+      <span class="eyebrow">The Timeless Collection · SERTI-028</span>
+      <h1 class="display">Anillo Esmeraldas Esfera</h1>
+      <span class="price">$ 4.300.000</span>
+      <div class="row"><a class="btn primary" href="#">Agregar al carrito</a><a class="btn ghost" href="#">Preguntar por WhatsApp</a></div>
+    </div>
+  </figure>
+</section>
+<section class="ficha">
+  <div>
+    <span class="eyebrow" style="color:var(--olive-deep)">Pieza única · 1 de 1</span>
+    <h2 class="display" style="margin:14px 0 18px">Una sola vez,<br>para una sola persona</h2>
+    <p class="lede">Banda de esferas en oro amarillo de 18k con una esmeralda y un halo de 15 diamantes naturales. Hecho a mano en el atelier.</p>
+    <div style="margin-top:28px">
+      <details class="acc"><summary>Medidas y talla</summary><p>Te ayudamos a encontrar tu talla por WhatsApp.</p></details>
+      <details class="acc"><summary>Envío y devoluciones</summary><p>Envío gratis a toda Colombia.</p></details>
+      <details class="acc"><summary>Cuidado de tu joya</summary><p>Guárdala por separado y límpiala con un paño suave.</p></details>
+    </div>
+  </div>
+  <div class="spec">
+    <img src="../../../frontend/public/brand/logo/ornament-wine.webp" alt="">
+    <dl>
+      <dt>Metal</dt><dd>Oro amarillo 18k · ley 750</dd>
+      <dt>Piedra central</dt><dd><i class="gemdot" style="background:#1f7a55"></i>1 esmeralda</dd>
+      <dt>Acompañan</dt><dd><i class="gemdot" style="background:#eef1f3"></i>15 diamantes de 1,3 mm</dd>
+      <dt>Diseño</dt><dd>Banda de esferas</dd>
+      <dt>Código</dt><dd>SERTI-028</dd>
+    </dl>
+  </div>
+</section>
+<section class="atelier"><div><b>1 de 1</b><span>No hay otra igual. Cuando se vende, no vuelve.</span></div><div><b>Hecho a mano</b><span>Elaborada por orfebres en nuestro taller.</span></div><div><b>Envío gratis</b><span>A cualquier ciudad de Colombia.</span></div></section>
+<section class="related">
+  <div class="related-head"><h2 class="display">Te puede enamorar</h2><a href="#">Ver la colección →</a></div>
+  <div class="rail">
+    <article><img src="img/rel-1.webp" alt=""><b>Sapphire Chain Link</b><span>$ 3.900.000</span></article>
+    <article><img src="img/rel-2.webp" alt=""><b>Rubie Flower Cluster</b><span>$ 5.100.000</span></article>
+    <article><img src="img/rel-3.webp" alt=""><b>Pinky Ring</b><span>$ 2.600.000</span></article>
+    <article><img src="img/rel-4.webp" alt=""><b>Solitario de Diamante</b><span>$ 6.900.000</span></article>
+  </div>
+</section>
+<div class="sticky-buy"><span class="price">$ 4.300.000</span><a class="btn primary" href="#">Agregar al carrito</a></div>
+</body>
+</html>

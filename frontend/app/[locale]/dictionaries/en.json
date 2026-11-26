@@ -148,7 +148,23 @@
       "weight_g": "Weight (g)",
       "dimensions_mm": "Dimensions (mm)"
     },
-    "wishMissing": "No longer available"
+    "wishMissing": "No longer available",
+    "lookTitle": "Made once, for one person",
+    "lookMetal": "Metal",
+    "lookStones": "Stones",
+    "lookCollections": "Collection",
+    "lookCategory": "Category",
+    "lookCode": "Code",
+    "lookGallery": "View gallery",
+    "lookAsk": "Ask on WhatsApp",
+    "lookRelated": "You may also love",
+    "lookViewCollection": "View the collection →",
+    "lookOne": "One of one",
+    "lookOneText": "There is no other like it. Once sold, it will not return.",
+    "lookHandmade": "Handmade",
+    "lookHandmadeText": "Made in our atelier.",
+    "lookShipping": "Free shipping",
+    "lookShippingText": "To any city in Colombia."
   },
   "editorial": {
     "personalizeTitle": "Customize your jewelry",

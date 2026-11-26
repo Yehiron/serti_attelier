@@ -148,7 +148,23 @@
       "weight_g": "Peso (g)",
       "dimensions_mm": "Medidas (mm)"
     },
-    "wishMissing": "Ya no está disponible"
+    "wishMissing": "Ya no está disponible",
+    "lookTitle": "Una sola vez, para una sola persona",
+    "lookMetal": "Metal",
+    "lookStones": "Piedras",
+    "lookCollections": "Colección",
+    "lookCategory": "Categoría",
+    "lookCode": "Código",
+    "lookGallery": "Ver galería",
+    "lookAsk": "Preguntar por WhatsApp",
+    "lookRelated": "Te puede enamorar",
+    "lookViewCollection": "Ver la colección →",
+    "lookOne": "1 de 1",
+    "lookOneText": "No hay otra igual. Cuando se vende, no vuelve.",
+    "lookHandmade": "Hecho a mano",
+    "lookHandmadeText": "Elaborada en nuestro taller.",
+    "lookShipping": "Envío gratis",
+    "lookShippingText": "A cualquier ciudad de Colombia."
   },
   "editorial": {
     "personalizeTitle": "Personaliza tus joyas",

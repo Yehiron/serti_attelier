@@ -12,12 +12,13 @@ function fetchStatus(sku: string): Promise<Record<string, string> | null> {
 }
 
 /** Shows the CTA for the piece's live sale state; the server pre-renders every variant. */
-export function LivePieceAction({ sku, initial, variants, notices, bare = false }: {
+export function LivePieceAction({ sku, initial, variants, notices, bare = false, secondary }: {
   sku: string;
   initial: SaleState;
   variants: Record<SaleState, ReactNode>;
   notices?: Partial<Record<SaleState, ReactNode>>;
   bare?: boolean;
+  secondary?: Partial<Record<SaleState, ReactNode>>;
 }) {
   const [state, setState] = useState<SaleState>(initial);
   useEffect(() => {
@@ -30,6 +31,6 @@ export function LivePieceAction({ sku, initial, variants, notices, bare = false 
   if (bare) return <>{variants[state]}</>;
   return <>
     <div aria-live="polite">{notices?.[state]}</div>
-    <div className="piece-action">{variants[state]}</div>
+    <div className="piece-action">{variants[state]}{secondary?.[state]}</div>
   </>;
 }
