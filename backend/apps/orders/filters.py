@@ -78,6 +78,9 @@ class CenterFilter(admin.SimpleListFilter):
 
     def lookups(self, request, model_admin):
         return (
+            ("pending", "Pendientes"),
+            ("attention", "Requieren atención"),
+            ("unpaid", "Por pagar"),
             ("paid", "Cobros aprobados"),
             ("prepare", "Por preparar"),
             ("incidents", "Incidencias abiertas"),
@@ -88,6 +91,12 @@ class CenterFilter(admin.SimpleListFilter):
         from .models import OrderIncident
 
         incidents = OrderIncident.objects.filter(order_id=OuterRef("pk"), status="open")
+        if self.value() == "pending":
+            return queryset.exclude(fulfillment_status__in=["delivered", "cancelled", "returned"])
+        if self.value() == "attention":
+            return queryset.filter(needs_attention=True)
+        if self.value() == "unpaid":
+            return queryset.filter(payment_status__in=["pending", "awaiting_manual_payment"])
         if self.value() == "paid":
             start, end = collection_window(request.GET.get("period", "today"))
             return queryset.filter(payment_status="approved", paid_at__gte=start, paid_at__lte=end)

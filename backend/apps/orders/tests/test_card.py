@@ -463,3 +463,132 @@ def test_manual_payment_confirmation_title(order):
     browser, _ = staff(PROPIETARIO)
     response = browser.get(reverse("admin:orders-confirm-manual", args=[order.pk]))
     assert f"Confirmar pago manual · {order.number}" in response.content.decode()
+
+
+def test_inbox_selection_search_and_deleted_snapshot(order):
+    browser, _ = staff(OPERACIONES)
+    OrderItem.objects.create(
+        order=order,
+        piece=None,
+        sku="SNAP-EXCLUSIVO",
+        name_es="Joya histórica",
+        unit_price_cents=100000,
+        image_path="/media/historica.jpg",
+    )
+    endpoint = reverse("admin:orders_order_changelist")
+    response = browser.get(endpoint, {"order": order.pk, "q": "Joya histórica"})
+    assert response.status_code == 200
+    assert response.context["selected_order"].pk == order.pk
+    html = response.content.decode()
+    for text in ("Joya histórica", "SNAP-EXCLUSIVO", "Pieza eliminada", "/media/historica.jpg"):
+        assert text in html
+    assert browser.get(endpoint, {"center": "unpaid"}).context["cl"].result_count == 1
+    forbidden, _ = staff(CONTENIDO)
+    assert forbidden.get(endpoint).status_code == 403
+
+
+@pytest.mark.parametrize(
+    "current,target,label",
+    [
+        ("unfulfilled", "preparing", "Empezar a preparar"),
+        ("preparing", "shipped", "Marcar enviado"),
+        ("shipped", "delivered", "Marcar entregado"),
+    ],
+)
+def test_inbox_primary_action(order, piece, current, target, label):
+    from .helpers import sell_item_to_order
+
+    sell_item_to_order(order, piece)
+    order.payment_status = "approved"
+    order.fulfillment_status = current
+    order.save()
+    browser, _ = staff(OPERACIONES)
+    endpoint = reverse("admin:orders_order_changelist")
+    assert label in browser.get(endpoint, {"order": order.pk}).content.decode()
+    response = browser.post(
+        reverse("admin:orders-card-status", args=[order.pk]),
+        post_data(
+            order, target=target, carrier="Servientrega", tracking_number="123", from_inbox="1"
+        ),
+    )
+    assert response.status_code == 302
+    assert response.url.endswith(f"?order={order.pk}")
+    order.refresh_from_db()
+    assert order.fulfillment_status == target
+
+
+def test_inbox_manual_payment_action(order):
+    browser, _ = staff(PROPIETARIO)
+    order.payment_status = "awaiting_manual_payment"
+    order.payment_channel = "manual"
+    order.save()
+    html = browser.get(
+        reverse("admin:orders_order_changelist"), {"order": order.pk}
+    ).content.decode()
+    assert "Confirmar pago recibido" in html
+    assert reverse("admin:orders-confirm-manual", args=[order.pk]) + "?inbox=1" in html
+
+
+def test_inbox_list_queries_do_not_grow_per_order(order):
+    from django.db import connection
+    from django.test.utils import CaptureQueriesContext
+
+    browser, _ = staff(OPERACIONES)
+    endpoint = reverse("admin:orders_order_changelist")
+    with CaptureQueriesContext(connection) as first:
+        assert browser.get(endpoint).status_code == 200
+    for index in range(5):
+        order.pk = None
+        order.number = f"SRT-BUDGET-{index}"
+        order.idempotency_key = uuid4()
+        order.public_token = str(uuid4())
+        order.save()
+    with CaptureQueriesContext(connection) as many:
+        assert browser.get(endpoint).status_code == 200
+    assert len(many) <= len(first) + 2
+
+
+def test_inbox_manual_payment_post(order, tmp_path, settings):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    settings.PRIVATE_MEDIA_ROOT = tmp_path
+    order.payment_status = "awaiting_manual_payment"
+    order.payment_channel = "manual"
+    order.save()
+    browser, _ = staff(PROPIETARIO)
+    response = browser.post(
+        reverse("admin:orders-confirm-manual", args=[order.pk]) + "?inbox=1",
+        {
+            "reference": "transferencia",
+            "proof": SimpleUploadedFile("proof.pdf", b"%PDF-1.7\nproof"),
+        },
+    )
+    assert response.status_code == 302
+    assert response.url.endswith(f"?order={order.pk}")
+    order.refresh_from_db()
+    assert order.payment_status == "approved"
+    assert order.payment_attempts.filter(channel="manual").exists()
+
+
+def test_inbox_invalid_action_returns_to_selected_order(order):
+    browser, _ = staff(OPERACIONES)
+    order.payment_status = "approved"
+    order.fulfillment_status = "preparing"
+    order.save()
+    response = browser.post(
+        reverse("admin:orders-card-status", args=[order.pk]),
+        post_data(order, target="shipped", from_inbox="1", carrier="", tracking_number=""),
+        follow=True,
+    )
+    assert response.status_code == 200
+    assert response.context["selected_order"].pk == order.pk
+    assert 'role="alert"' in response.content.decode()
+    order.refresh_from_db()
+    assert order.fulfillment_status == "preparing"
+
+
+def test_inbox_pending_wompi_shows_waiting_message(order):
+    browser, _ = staff(OPERACIONES)
+    response = browser.get(reverse("admin:orders_order_changelist"), {"order": order.pk})
+    assert "Esperando el pago en Wompi" in response.content.decode()
+    assert "Confirmar pago recibido" not in response.content.decode()

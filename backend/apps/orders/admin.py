@@ -223,6 +223,7 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
         PeriodFilter,
         ("fulfillment_status", ChoicesDropdownFilter),
         ("payment_status", ChoicesDropdownFilter),
+        ("payment_channel", ChoicesDropdownFilter),
         ("created_at", OrderDateFilter),
         ("total_cents", OrderTotalFilter),
         "wants_certificate",
@@ -235,6 +236,8 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
         "customer_email",
         "customer_phone",
         "items__sku",
+        "items__name_es",
+        "items__name_en",
         "payment_attempts__reference",
         "payment_attempts__provider_transaction_id",
     )
@@ -627,7 +630,17 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
                 else:
                     form.add_error(None, str(exc))
             else:
+                if request.GET.get("inbox") == "1":
+                    self.message_user(request, "Pago manual confirmado.", messages.SUCCESS)
+                    return HttpResponseRedirect(
+                        reverse("admin:orders_order_changelist") + f"?order={pk}"
+                    )
                 return HttpResponseRedirect(reverse("admin:orders_order_change", args=[pk]))
+        if request.method == "POST" and request.GET.get("inbox") == "1":
+            for errors in form.errors.values():
+                for error in errors:
+                    self.message_user(request, str(error), messages.ERROR)
+            return HttpResponseRedirect(reverse("admin:orders_order_changelist") + f"?order={pk}")
         return TemplateResponse(
             request,
             "admin/payments/confirm.html",

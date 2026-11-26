@@ -3,10 +3,10 @@
 from copy import copy
 from typing import TYPE_CHECKING, Any, cast
 
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Field, Prefetch
-from django.http import Http404, HttpResponse, HttpResponseNotAllowed
+from django.http import Http404, HttpResponse, HttpResponseNotAllowed, HttpResponseRedirect
 from django.template.response import TemplateResponse
 from django.urls import reverse
 
@@ -285,14 +285,11 @@ class OrderCardAdminMixin(_AdminBase):
 
     @staticmethod
     def card_piece_image(item):
-        from apps.core.admin_presentation import thumbnail_url
-
-        image = (
-            next((image for image in item.piece.images.all() if image.is_primary), None)
-            if item.piece_id
-            else None
-        )
-        return thumbnail_url(image) if image and image.original else item.image_path
+        snapshot = item.image_snapshot or {}
+        image = snapshot.get("es") or snapshot.get("en") or {}
+        if isinstance(image, dict):
+            return image.get("src") or item.image_path
+        return image or item.image_path
 
     def change_view(self, request, object_id, form_url="", extra_context=None):
         if request.method == "GET":
@@ -358,6 +355,11 @@ class OrderCardAdminMixin(_AdminBase):
         if not self.has_change_permission(request, order) or not request.user.has_perm(permission):
             raise PermissionDenied
         if request.POST.get("expected_status") != order.fulfillment_status:
+            if request.POST.get("from_inbox") == "1":
+                self.message_user(request, "El pedido cambió, recarga.", messages.ERROR)
+                return HttpResponseRedirect(
+                    reverse("admin:orders_order_changelist") + f"?order={pk}"
+                )
             return TemplateResponse(
                 request,
                 "admin/orders/card.html"
@@ -416,6 +418,14 @@ class OrderCardAdminMixin(_AdminBase):
                     "No se puede realizar este cambio. "
                     "Revisa el estado actual y que el pago esté aprobado.",
                 )
+        if request.POST.get("from_inbox") == "1":
+            if success:
+                self.message_user(request, success, messages.SUCCESS)
+            else:
+                for errors in form.errors.values():
+                    for error in errors:
+                        self.message_user(request, str(error), messages.ERROR)
+            return HttpResponseRedirect(reverse("admin:orders_order_changelist") + f"?order={pk}")
         context = self.card_context(request, order, success=success)
         if not success:
             context.update(form=form, confirming=True, selected_target=request.POST.get("target"))
@@ -570,6 +580,7 @@ class OrderCardAdminMixin(_AdminBase):
         for key in (
             "p",
             "pedido",
+            "order",
             "center",
             "fulfillment_status",
             "fulfillment_status__exact",
@@ -588,6 +599,11 @@ class OrderCardAdminMixin(_AdminBase):
         )
         counts = base.aggregate(
             all=Count("pk"),
+            pending=Count(
+                "pk", filter=~Q(fulfillment_status__in=["delivered", "cancelled", "returned"])
+            ),
+            attention=Count("pk", filter=Q(needs_attention=True)),
+            unpaid=Count("pk", filter=Q(payment_status__in=["pending", "awaiting_manual_payment"])),
             prepare=Count(
                 "pk",
                 filter=Q(
@@ -644,6 +660,25 @@ class OrderCardAdminMixin(_AdminBase):
                     "active": active,
                 }
             )
+        for label, key in (
+            ("Pendientes", "pending"),
+            ("Requieren atención", "attention"),
+            ("Por pagar", "unpaid"),
+        ):
+            query = count_request.GET.copy()
+            query["center"] = key
+            tabs.append(
+                {
+                    "label": label,
+                    "url": "?" + query.urlencode(),
+                    "count": counts[key],
+                    "active": clean_request.GET.get("center") == key,
+                },
+            )
+        if clean_request.GET.get("center") in {"pending", "attention", "unpaid"}:
+            for tab in tabs:
+                if tab["label"] == "Todos":
+                    tab["active"] = False
         return tabs
 
     def center_metrics(self, request):
@@ -681,6 +716,7 @@ class OrderCardAdminMixin(_AdminBase):
         clean_request = copy(request)
         clean_request.GET = request.GET.copy()
         clean_request.GET.pop("pedido", None)
+        clean_request.GET.pop("order", None)
         response = super().changelist_view(clean_request, extra_context)
         if (
             hasattr(response, "context_data")
@@ -690,7 +726,42 @@ class OrderCardAdminMixin(_AdminBase):
             tabs = self.center_tabs(clean_request)
             cl = response.context_data["cl"]
             page = cl.page_num
+            rows = list(cl.result_list.prefetch_related("items", "incidents"))
+            selected = next((row for row in rows if str(row.pk) == request.GET.get("order")), None)
+            requested_pk = request.GET.get("order", "")
+            if selected is None and requested_pk.isdigit():
+                selected = cl.queryset.filter(pk=int(requested_pk)).first()
+            if selected is None and rows:
+                selected = rows[0]
+            inbox_rows = []
+            for row in rows:
+                item = next(iter(row.items.all()), None)
+                query = clean_request.GET.copy()
+                query["order"] = row.pk
+                inbox_rows.append(
+                    {
+                        "order": row,
+                        "item": item,
+                        "total": self.total_cop(row),
+                        "image": self.card_piece_image(item) if item else "",
+                        "url": "?" + query.urlencode(),
+                    }
+                )
+            detail = (
+                self.card_context(request, self.card_order(request, selected.pk))
+                if selected
+                else None
+            )
+            back_query = clean_request.GET.urlencode()
             response.context_data.update(
+                inbox_rows=inbox_rows,
+                inbox_detail=detail,
+                selected_order=selected,
+                mobile_detail=bool(request.GET.get("order")),
+                back_url="?" + back_query,
+                payment_choices=Order._meta.get_field("payment_status").choices,
+                fulfillment_choices=Order._meta.get_field("fulfillment_status").choices,
+                channel_choices=Order._meta.get_field("payment_channel").choices,
                 center_metrics=self.center_metrics(request),
                 center_period=request.GET.get("period", "today"),
                 order_tabs=tabs,

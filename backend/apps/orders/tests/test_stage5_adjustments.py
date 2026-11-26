@@ -62,21 +62,20 @@ def test_compact_markup(order):
     response = browser.get(reverse("admin:orders_order_changelist"))
     html = response.content.decode()
     for marker in (
-        "field-number",
-        "field-client_name",
-        "oc-client-name",
-        "oc-client-phone",
-        "oc-select-order",
-        "oc-date-mobile",
-        "field-total_cop",
-        "field-view_order",
+        "ord-row",
+        "ord-client-name",
+        "ord-client-phone",
+        "ord-select-order",
+        "ord-date-mobile",
+        "ord-total",
+        "ord-row-meta",
         "data-center-url",
         "data-metric-value",
         "data-tab-count",
         'aria-live="polite"',
     ):
         assert marker in html
-    assert "oc-date-desktop" in html
+    assert "ord-pagination" in html
 
 
 def test_change_only_user_receives_no_amounts(order):
