@@ -147,7 +147,8 @@
       "carats": "Carats",
       "weight_g": "Weight (g)",
       "dimensions_mm": "Dimensions (mm)"
-    }
+    },
+    "wishMissing": "No longer available"
   },
   "editorial": {
     "personalizeTitle": "Customize your jewelry",

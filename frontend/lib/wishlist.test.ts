@@ -11,3 +11,10 @@ test('wishlist tolerates corrupt, invalid or disabled storage', () => {
  const storage = {getItem(){throw Error('blocked');},setItem(){throw Error('blocked');}};
  assert.deepEqual(readWishlist(storage),[]);assert.equal(writeWishlist(storage,[wish]),false);
 });
+
+test('wishlist refresh merges live data and preserves missing pieces for removal', async () => {
+ const { mergeWishlist } = await import('./wishlist.ts');
+ const live = { state: 'available' as const, slugs: { es: 'nuevo', en: 'new' }, name: 'Nuevo', image: null, price: { amount_cents: 20000, currency: 'COP' as const } };
+ assert.deepEqual(mergeWishlist([wish], { A1: live }), [{ ...wish, slugs: live.slugs, name: live.name, image: live.image, price: live.price }]);
+ assert.deepEqual(mergeWishlist([wish], { A1: { state: 'missing' } }), [wish]);
+});

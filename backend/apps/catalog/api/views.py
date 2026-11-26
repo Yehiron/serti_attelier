@@ -17,6 +17,7 @@ from ..models import Category, Collection, Material, Piece, Stone
 from .serializers import (
     CatalogFiltersSerializer,
     CatalogListSerializer,
+    ImageSerializer,
     PieceDetailSerializer,
     PieceListSerializer,
     TaxonomySerializer,
@@ -161,3 +162,33 @@ class PieceStatusView(PublicView):
             Piece.objects.filter(status="published", sku__in=skus).values_list("sku", "sale_state")
         )
         return Response({sku: states.get(sku, "unavailable") for sku in skus})
+
+
+class WishlistStatusView(PublicView):
+    def get(self, request: Request) -> Response:
+        skus = [
+            sku.strip() for sku in request.query_params.get("skus", "").split(",") if sku.strip()
+        ]
+        if len(skus) > 50:
+            raise serializers.ValidationError(_("Se permiten hasta 50 SKU."))
+        pieces = Piece.objects.filter(status=Piece.Status.PUBLISHED, sku__in=skus).prefetch_related(
+            "images"
+        )
+        result: dict[str, Any] = {sku: {"state": "missing"} for sku in skus}
+        for piece in pieces:
+            image = next(
+                (
+                    item
+                    for item in piece.images.all()
+                    if item.is_primary and item.processing_status == "ready"
+                ),
+                None,
+            )
+            result[piece.sku] = {
+                "state": piece.sale_state,
+                "slugs": {"es": piece.slug_es, "en": piece.slug_en or piece.slug_es},
+                "name": getattr(piece, f"name_{self.locale}") or piece.name_es,
+                "price": piece.effective_price.as_dict(),
+                "image": dict(ImageSerializer(image).data) if image else None,
+            }
+        return Response(result)

@@ -152,6 +152,24 @@ def next_piece_sku(piece: Piece) -> str:
 
 @transaction.atomic
 def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None) -> Piece:
+    # Serialize automatic redirects with editorial and manual redirect changes.
+    from apps.cms.documents import lock_document
+    from apps.cms.redirects import on_piece_slug_change
+
+    # Only a published piece changing its address touches redirects: lock the editorial
+    # document first (same order as page publications) and only then, so ordinary edits
+    # don't serialize with the CMS.
+    stored = (
+        Piece.objects.filter(pk=piece.pk).values("status", "slug_es", "slug_en").first()
+        if piece.pk
+        else None
+    )
+    if (
+        stored
+        and stored["status"] == Piece.Status.PUBLISHED
+        and (stored["slug_es"], stored["slug_en"]) != (piece.slug_es, piece.slug_en)
+    ):
+        lock_document("home")
     old = (
         Piece.objects.select_for_update(of=("self",)).filter(pk=piece.pk).first()
         if piece.pk
@@ -207,6 +225,8 @@ def save_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None
                 or not Piece.objects.filter(sku=piece.sku).exists()
             ):
                 raise
+    if old and old.status == Piece.Status.PUBLISHED:
+        on_piece_slug_change(old, piece, actor, request)
     diff = compute_diff(snapshot(old) if old else {}, snapshot(piece))
     if diff:
         record("catalog.piece_updated", actor=actor, obj=piece, diff=diff, request=request)

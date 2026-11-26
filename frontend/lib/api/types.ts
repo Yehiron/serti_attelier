@@ -6,6 +6,7 @@ export type Category = Taxon & { children: Taxon[] };
 export type Taxonomy = { categories: Category[]; collections: Taxon[]; stones: Taxon[]; materials: Taxon[] };
 export type SaleState = 'available' | 'reserved' | 'sold' | 'preorder';
 export type LiveState = SaleState | 'unavailable';
+export type WishStatus = { state: 'missing' } | { state: SaleState; slugs: { es: string; en: string }; name: string; image: Image | null; price: Money };
 export type PieceCard = Named & { alternates: Alternates; sku: string; category: Named | null; stones: Named[]; price: Money; sale_price: Money | null; sale_state: SaleState; is_new: boolean; image: Image | null; hover_image?: Image | null };
 /** Short silent clip shown in the piece gallery; only `ready` videos reach the API. */
 export type PieceVideo = { src: string; type: string; width: number; height: number; duration_seconds: number; alt: string; poster: Image };

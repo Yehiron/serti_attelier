@@ -1,4 +1,4 @@
-import type { Image, Money } from './api/types.ts';
+import type { Image, Money, WishStatus } from './api/types.ts';
 export type Wish = { sku: string; slugs: { es: string; en: string }; name: string; image: Image | null; price: Money; addedAt: number };
 export const wishlistKey = 'serti_wishlist';
 export type StorageLike = Pick<Storage, 'getItem' | 'setItem'>;
@@ -17,3 +17,11 @@ export function parseWishlist(value: string | null): Wish[] {
 export function readWishlist(storage: StorageLike): Wish[] { try { return parseWishlist(storage.getItem(wishlistKey)); } catch { return []; } }
 export function writeWishlist(storage: StorageLike, wishes: Wish[]) { try { storage.setItem(wishlistKey, JSON.stringify(wishes)); return true; } catch { return false; } }
 export function toggleWish(wishes: Wish[], wish: Wish): Wish[] { return wishes.some(x => x.sku === wish.sku) ? wishes.filter(x => x.sku !== wish.sku) : [...wishes, wish].slice(-200); }
+
+export function mergeWishlist(wishes: Wish[], statuses: Record<string, WishStatus>): Wish[] {
+  return wishes.map(wish => {
+    const current = statuses[wish.sku];
+    if (!current || current.state === 'missing') return wish;
+    return { ...wish, slugs: current.slugs, name: current.name, image: current.image, price: current.price };
+  });
+}

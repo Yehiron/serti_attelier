@@ -147,7 +147,8 @@
       "carats": "Quilates",
       "weight_g": "Peso (g)",
       "dimensions_mm": "Medidas (mm)"
-    }
+    },
+    "wishMissing": "Ya no está disponible"
   },
   "editorial": {
     "personalizeTitle": "Personaliza tus joyas",

@@ -66,7 +66,14 @@ export async function proxy(request: NextRequest) {
         } catch { /* API failures remain application errors, never false 404s. */ }
       }
     }
-    if (missingResource) return new NextResponse('<!doctype html><html><head><meta name="robots" content="noindex, follow"></head><body><h1>404</h1></body></html>', { status: 404, headers: { 'Content-Type': 'text/html; charset=utf-8' } });
+    if (missingResource) {
+      // The route itself renders its designed not-found UI (same URL, so hydration matches);
+      // the proxy only fixes the HTTP status before React streams the shell.
+      const response = NextResponse.rewrite(url, { status: 404, request: { headers: forwarded } });
+      response.headers.set('Cache-Control', 'no-store');
+      response.headers.set('X-Robots-Tag', 'noindex, follow');
+      return previewHeaders(request, response);
+    }
     let missingOrder = false;
     const tracking = trackingPath(pathname);
     if (tracking && decision.kind !== 'redirect') {

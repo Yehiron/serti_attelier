@@ -127,6 +127,10 @@ def on_page_publish(page, previous, snapshot, actor):
             transitions.append((lang, old, target))
     if not transitions:
         return
+    _apply_automatic_transitions(transitions, actor)
+
+
+def _apply_automatic_transitions(transitions, actor):
     rows = list(Redirect.objects.select_for_update(of=("self",)))
     original = {row.pk: (row.to_path, row.is_active, row.status_code, row.origin) for row in rows}
     by_path = {row.from_path: row for row in rows}
@@ -144,6 +148,22 @@ def on_page_publish(page, previous, snapshot, actor):
     for row in rows:
         current = (row.to_path, row.is_active, row.status_code, row.origin)
         if row.pk is None or current != original[row.pk]:
-            row.full_clean()
+            # Automatic rows may come from a script or import without a user.
+            row.full_clean(exclude=["created_by"] if row.created_by_id is None else None)
             row.save()
     invalidate_redirects()
+
+
+def on_piece_slug_change(previous, piece, actor, request=None):
+    """Redirect previously published localized addresses to their current addresses."""
+    from apps.core.routes import href
+
+    transitions = []
+    for lang in ("es", "en"):
+        old = href("piece", lang, previous)
+        target = href("piece", lang, piece)
+        if old != target:
+            transitions.append((lang, old, target))
+    if transitions:
+        _apply_automatic_transitions(transitions, actor)
+        record("cms.piece_redirects_updated", actor=actor, obj=piece, request=request)

@@ -314,3 +314,7 @@ La cotización acepta `email` opcional y válido; con un cupón comprueba su lí
 ### `GET /catalog/exists`
 
 Acepta `kind` (`piece`, `category`, `collection`, `stone` o `material`), `slug` y `locale` (`es` o `en`). Responde 204 o 404 sin cuerpo y con `Cache-Control: public, max-age=60`; aplica el throttle público. Solo considera piezas publicadas y taxonomías visibles. La taxonomía incluye `slugs: {es, en}` para construir enlaces alternativos sin pedir otro idioma.
+
+### `GET /catalog/pieces/wishlist-status?skus=...&locale=es`
+
+Consulta hasta 50 SKU por petición para actualizar la lista de deseos. La respuesta es un objeto indexado por SKU: las piezas publicadas incluyen `state`, `slugs` (`es`, `en`), `name` localizado, `price` efectivo e `image` de tarjeta (o `null`); los SKU ausentes, ocultos o no publicados devuelven `{ "state": "missing" }`. El endpoint anterior `pieces/status` conserva su contrato.

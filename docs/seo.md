@@ -22,3 +22,7 @@ El envío gratuito a Colombia se basa en el texto comercial publicado. El enlace
 - Confirmar teléfono, horarios y enlaces sociales con la propietaria.
 
 Las descripciones automáticas distinguen catálogo, categoría, piedra y colección; el CMS prevalece cuando aporta SEO. Las fichas omiten metal y piedras repetidos en el nombre y limitan el título a 65 caracteres. Robots excluye rutas de compra, API, vista previa y consultas de búsqueda sin bloquear recursos estáticos.
+
+### Recursos ausentes detectados por el proxy
+
+El proxy consulta la existencia antes de iniciar el streaming. Ante un recurso inexistente hace `NextResponse.rewrite` a la **misma URL** con estado 404 (Next 16 conserva ese estado), más `X-Robots-Tag: noindex, follow` y `Cache-Control: no-store`. La ruta renderiza su `not-found.tsx`: `app/[locale]/piezas/[slug]/not-found.tsx` muestra «Esta joya encontró otro destino» y `app/[locale]/not-found.tsx` el texto general; ambos usan `components/not-found-content.tsx`. No se sirve HTML de otra ruta: la URL distinta rompía la hidratación y React volvía a pintar el 404 genérico.
