@@ -57,6 +57,12 @@ SESSION_COOKIE_NAME = "__Host-serti_admin"
 CSRF_COOKIE_NAME = "__Host-csrftoken"
 SECURE_CROSS_ORIGIN_OPENER_POLICY = "same-origin"
 STATIC_ROOT = env.path("DJANGO_STATIC_ROOT", default="/srv/static")
+# Static files get a content hash in their name (order-card.3f2a1c.css): every deploy
+# ships new names, so browsers never keep using an outdated dashboard stylesheet.
+STORAGES = {
+    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.ManifestStaticFilesStorage"},
+}
 MEDIA_ROOT = env.path("DJANGO_MEDIA_ROOT", default="/srv/media")
 PRIVATE_MEDIA_ROOT = env.path("DJANGO_PRIVATE_MEDIA_ROOT", default="/srv/private_media")
 _public_url = urlsplit(PUBLIC_SITE_URL)

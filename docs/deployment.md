@@ -81,6 +81,8 @@ Sin ellos, los títulos se muestran con Cormorant Garamond, pero el sitio no que
 infra/scripts/deploy.sh --no-pull
 ```
 
+Los archivos estáticos del dashboard se publican con una huella en el nombre (`ManifestStaticFilesStorage`, `config/settings/prod.py`): cada despliegue genera nombres nuevos, así que el navegador nunca usa estilos viejos aunque Caddy los guarde un día. Si una plantilla pide un archivo estático que no existe, la imagen no se construye (`collectstatic` falla en el `Dockerfile`).
+
 El script construye las imágenes, aplica migraciones y `collectstatic` (servicio `migrate`), arranca
 todo, corre `check_production` y espera a que `/api/v1/health/ready` responda. Luego:
 
