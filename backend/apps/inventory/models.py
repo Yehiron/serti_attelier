@@ -20,7 +20,16 @@ class PieceReservation(models.Model):
         CONVERTED = "converted", _("Convertida")
 
     piece = models.ForeignKey(
-        Piece, verbose_name=_("Pieza"), on_delete=models.PROTECT, related_name="reservations"
+        Piece,
+        verbose_name=_("Pieza"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="reservations",
+    )
+    piece_sku = models.CharField(verbose_name=_("SKU de la pieza"), max_length=40, blank=True)
+    piece_name_es = models.CharField(
+        verbose_name=_("Nombre de la pieza"), max_length=250, blank=True
     )
     order = models.ForeignKey(
         "orders.Order",
@@ -56,7 +65,7 @@ class PieceReservation(models.Model):
         ]
 
     def __str__(self) -> str:
-        return f"{self.piece_id}: {self.status}"
+        return f"{self.piece_sku or self.piece_id}: {self.status}"
 
 
 class ImmutableStatusQuerySet(models.QuerySet["PieceStatusChange"]):
@@ -77,7 +86,16 @@ class PieceStatusChange(models.Model):
         ADMIN = "admin", _("Administración")
 
     piece = models.ForeignKey(
-        Piece, verbose_name=_("Pieza"), on_delete=models.PROTECT, related_name="status_changes"
+        Piece,
+        verbose_name=_("Pieza"),
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="status_changes",
+    )
+    piece_sku = models.CharField(verbose_name=_("SKU de la pieza"), max_length=40, blank=True)
+    piece_name_es = models.CharField(
+        verbose_name=_("Nombre de la pieza"), max_length=250, blank=True
     )
     from_state = models.CharField(
         verbose_name=_("Estado anterior"), max_length=12, choices=Piece.SaleState
@@ -102,7 +120,7 @@ class PieceStatusChange(models.Model):
         ordering = ["-at"]
 
     def __str__(self) -> str:
-        return f"{self.piece_id}: {self.from_state} → {self.to_state}"
+        return f"{self.piece_sku or self.piece_id}: {self.from_state} → {self.to_state}"
 
     def save(self, *args: Any, **kwargs: Any) -> None:
         if not self._state.adding or (self.pk and type(self).objects.filter(pk=self.pk).exists()):

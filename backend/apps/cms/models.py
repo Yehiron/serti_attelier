@@ -230,7 +230,7 @@ class HomeSection(Illustrated):
     cta_piece = models.ForeignKey(
         "catalog.Piece",
         verbose_name=_("Pieza del enlace"),
-        on_delete=models.PROTECT,
+        on_delete=models.SET_NULL,
         null=True,
         blank=True,
     )

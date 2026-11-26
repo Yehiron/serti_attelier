@@ -774,7 +774,7 @@ class PieceAdmin(
                         for url, label, icon, external in links
                     ),
                 ),
-                deletion_icon(obj, ", ".join(services.deletion_reasons(obj)), "Eliminar pieza")
+                deletion_icon(obj, "", "Eliminar pieza")
                 if self.has_delete_permission(request)
                 else "",
             )
@@ -989,7 +989,7 @@ class PieceAdmin(
             failures = [
                 f"{p.sku} ({', '.join(reasons)})"
                 for p in pieces
-                if (reasons := services.deletion_reasons(p))
+                if (reasons := services.hard_delete_blockers(p))
             ]
             if failures:
                 self.message_user(
@@ -1331,6 +1331,15 @@ class PieceAdmin(
         queryset = Piece.objects.select_related("category__parent")
         if request.resolver_match and request.resolver_match.url_name == "catalog_piece_changelist":
             return queryset.annotate(
+                hard_delete_active_reservation=Exists(
+                    Piece.objects.filter(pk=OuterRef("pk"), reservations__status="active")
+                ),
+                hard_delete_pending_order=Exists(
+                    Piece.objects.filter(
+                        pk=OuterRef("pk"),
+                        orderitem__order__payment_status__in=("pending", "awaiting_manual_payment"),
+                    )
+                ),
                 deletion_reservations=Exists(
                     Piece.objects.filter(pk=OuterRef("pk"), reservations__isnull=False)
                 ),
@@ -1461,19 +1470,73 @@ class PieceAdmin(
                 services.save_collection_piece(obj, actor=request.user, request=request)
 
     def has_delete_permission(self, request: HttpRequest, obj: Piece | None = None) -> bool:
-        return (
-            bool(super().has_delete_permission(request, obj))
-            and self.has_commercial_permission(request, obj)
-            and (obj is None or not services.deletion_reasons(obj))
+        return bool(super().has_delete_permission(request, obj)) and self.has_commercial_permission(
+            request, obj
         )
 
+    def delete_view(
+        self, request: HttpRequest, object_id: str, extra_context: Any = None
+    ) -> HttpResponse:
+        from apps.cms.models import HomeSection
+
+        piece = self.get_object(request, object_id)
+        if piece is None:
+            return cast(
+                HttpResponse, self._get_obj_does_not_exist_redirect(request, self.opts, object_id)
+            )
+        if not self.has_delete_permission(request, piece):
+            raise PermissionDenied
+        blockers = services.hard_delete_blockers(piece)
+        if request.method == "POST":
+            action_name = request.POST.get("action")
+            try:
+                if action_name == "archive":
+                    services.archive_piece(piece, request.user, request)
+                    message = "Pieza archivada."
+                elif action_name == "hide":
+                    services.hide_pieces(Piece.objects.filter(pk=piece.pk), request.user, request)
+                    message = "Pieza oculta."
+                elif action_name == "delete":
+                    if request.POST.get("sku") != piece.sku:
+                        raise ValidationError("El SKU no coincide.")
+                    services.hard_delete_piece(piece, actor=request.user, request=request)
+                    message = "Pieza eliminada definitivamente."
+                else:
+                    raise ValidationError("Selecciona una opción válida.")
+                self.message_user(request, message, messages.SUCCESS)
+                return HttpResponseRedirect(reverse("admin:catalog_piece_changelist"))
+            except ValidationError as exc:
+                self.message_user(request, "; ".join(exc.messages), messages.ERROR)
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "¿Qué quieres hacer con esta pieza?",
+            "opts": self.opts,
+            "original": piece,
+            "piece": piece,
+            "blockers": blockers,
+            "order_count": piece.orderitem_set.values("order_id").distinct().count(),
+            "photo_count": piece.images.count(),
+            "cta_sections": HomeSection.objects.filter(cta_piece=piece),
+            "can_archive": Piece.Status.ARCHIVED in services.EDITORIAL_TRANSITIONS[piece.status],
+            "can_hide": Piece.Status.HIDDEN in services.EDITORIAL_TRANSITIONS[piece.status],
+        }
+        return TemplateResponse(request, "admin/catalog/piece/delete_choice.html", context)
+
+    def get_deleted_objects(self, objs, request):
+        deleted, counts, perms, protected = super().get_deleted_objects(objs, request)
+        for piece in objs:
+            protected.extend(
+                f"{piece.sku}: {reason}" for reason in services.hard_delete_blockers(piece)
+            )
+        return deleted, counts, perms, protected
+
     def delete_model(self, request: HttpRequest, obj: Piece) -> None:
-        services.delete_piece(obj, actor=request.user, request=request)
+        services.hard_delete_piece(obj, actor=request.user, request=request)
 
     def delete_queryset(self, request: HttpRequest, queryset: QuerySet[Piece]) -> None:
         if not self.has_delete_permission(request):
             raise PermissionDenied
-        services.delete_pieces(queryset, actor=request.user, request=request)
+        services.hard_delete_pieces(queryset, actor=request.user, request=request)
 
     @admin.display(description=_("Imagen"))
     def thumbnail(self, obj: Piece) -> str:

@@ -232,7 +232,7 @@ def test_attention_hooks(
         if scenario == "late":
             release_reservation(order.reservations.get().pk, reason="reservation_expired")
             expire_stale_orders()
-            Piece.objects.filter(pk=order.items.get().piece_id).update(sale_state="sold")
+            Piece.objects.filter(pk=order.items.get().piece.pk).update(sale_state="sold")
         elif scenario == "mismatch":
             tx = replace(tx, currency="USD")
         elif scenario == "voided":

@@ -156,6 +156,8 @@ def record_event(
 def _sell(order: Order, *, manual: bool = False) -> None:
     reason = "manual_payment_confirmed" if manual else "payment_approved"
     for item in order.items.order_by("piece_id"):
+        if item.piece_id is None:
+            continue
         reservation = order.reservations.filter(
             piece_id=item.piece_id, status__in=["active", "converted"]
         ).first()

@@ -147,11 +147,14 @@ class OrderCardAdminMixin(_AdminBase):
                 {
                     "id": item.piece_id,
                     "held": order.fulfillment_status == "cancelled"
+                    and item.piece_id is not None
                     and item.piece.sale_state == "reserved"
                     and not any(r.status == "active" for r in item.piece.reservations.all()),
                     "name": item.name_es,
                     "sku": item.sku,
-                    "url": reverse("admin:catalog_piece_change", args=[item.piece_id]),
+                    "url": reverse("admin:catalog_piece_change", args=[item.piece_id])
+                    if item.piece_id
+                    else "",
                     "image": self.card_piece_image(item),
                     "price": format_admin_cop(item.unit_price_cents),
                     "discount": format_admin_cop(item.discount_cents),
@@ -284,7 +287,11 @@ class OrderCardAdminMixin(_AdminBase):
     def card_piece_image(item):
         from apps.core.admin_presentation import thumbnail_url
 
-        image = next((image for image in item.piece.images.all() if image.is_primary), None)
+        image = (
+            next((image for image in item.piece.images.all() if image.is_primary), None)
+            if item.piece_id
+            else None
+        )
         return thumbnail_url(image) if image and image.original else item.image_path
 
     def change_view(self, request, object_id, form_url="", extra_context=None):

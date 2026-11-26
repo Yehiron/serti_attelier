@@ -257,7 +257,7 @@ def test_late_approval(order: Order, taken: bool) -> None:
     release_reservation(order.reservations.get().pk, reason="reservation_expired")
     expire_stale_orders()
     if taken:
-        Piece.objects.filter(pk=order.items.get().piece_id).update(sale_state="sold")
+        Piece.objects.filter(pk=order.items.get().piece.pk).update(sale_state="sold")
     assert apply_transaction(tx_for(order), source="webhook") == "applied"
     order.refresh_from_db()
     assert order.payment_status == "approved" and order.needs_attention == taken
@@ -343,7 +343,7 @@ def test_manual(
         release_reservation(order.reservations.get().pk, reason="reservation_expired")
         expire_stale_orders()
     if taken:
-        Piece.objects.filter(pk=order.items.get().piece_id).update(sale_state="sold")
+        Piece.objects.filter(pk=order.items.get().piece.pk).update(sale_state="sold")
     request = RequestFactory().post("/")
     request.user = operator
     with (

@@ -283,7 +283,8 @@ class Piece(NamedModel):
         )
 
     def delete(self, *args: Any, **kwargs: Any) -> tuple[int, dict[str, int]]:
-        if self.status != self.Status.DRAFT:
+        allow_hard_delete = kwargs.pop("_hard_delete", False)
+        if self.status != self.Status.DRAFT and not allow_hard_delete:
             raise ValidationError(_("Solo se pueden eliminar borradores."))
         return super().delete(*args, **kwargs)
 

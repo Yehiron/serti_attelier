@@ -1,0 +1,49 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/catalog-admin.css' %}">{% endblock %}
+{% block content %}
+<div class="ca-pdel">
+  <div class="ca-pdel-head">
+    {% with image=piece.images.first %}{% if image and image.original %}<img src="{{ image.original.url }}" alt="">{% else %}<span class="ca-pdel-noimg" aria-hidden="true"></span>{% endif %}{% endwith %}
+    <div>
+      <h1>{{ piece.name_es }}</h1>
+      <div class="ca-pdel-meta"><span class="ca-pdel-sku">{{ piece.sku }}</span><span class="ca-pdel-pill">{{ piece.get_status_display }}</span>{% if piece.sale_state == "sold" %}<span class="ca-pdel-pill is-warn">Vendida</span>{% elif piece.sale_state == "reserved" %}<span class="ca-pdel-pill is-warn">Reservada</span>{% endif %}{% if order_count %}<a class="ca-pdel-pill is-warn" href="{% url 'admin:orders_order_changelist' %}?q={{ piece.sku|urlencode }}">{{ order_count }} pedido{{ order_count|pluralize }}</a>{% endif %}</div>
+    </div>
+  </div>
+  <h2 class="ca-pdel-title">¿Qué quieres hacer con esta pieza?</h2>
+  <p class="ca-pdel-sub">Elige una opción. Te decimos exactamente qué pasará antes de confirmar.</p>
+  <div class="ca-pdel-choices">
+    <form method="post" class="ca-pdel-card is-recommended">{% csrf_token %}
+      <span class="ca-pdel-badge">Recomendado</span>
+      <span class="material-symbols-outlined ca-pdel-icon" aria-hidden="true">inventory_2</span>
+      <h3>Archivar</h3>
+      <p>Sale de la tienda y de los buscadores. Conserva fotos, pedidos e historial.</p>
+      <ul><li>Se puede restaurar cuando quieras</li><li>Sus enlaces dejan de mostrarla</li></ul>
+      <button type="submit" name="action" value="archive" class="ca-pdel-btn is-primary" {% if not can_archive %}disabled{% endif %}>Archivar pieza</button>
+    </form>
+    <form method="post" class="ca-pdel-card">{% csrf_token %}
+      <span class="material-symbols-outlined ca-pdel-icon" aria-hidden="true">visibility_off</span>
+      <h3>Ocultar por ahora</h3>
+      <p>Deja de verse en la tienda mientras la editas o la reservas para alguien.</p>
+      <ul><li>Vuelve a publicarse con un clic</li><li>No aparece en el catálogo</li></ul>
+      <button type="submit" name="action" value="hide" class="ca-pdel-btn" {% if not can_hide %}disabled{% endif %}>Ocultar pieza</button>
+    </form>
+    <form method="post" class="ca-pdel-card is-danger{% if blockers %} is-blocked{% endif %}">{% csrf_token %}
+      <span class="material-symbols-outlined ca-pdel-icon" aria-hidden="true">delete_forever</span>
+      <h3>Eliminar definitivamente</h3>
+      {% if blockers %}
+        <p>No disponible por ahora: hay un proceso en curso con esta pieza.</p>
+        <ul class="ca-pdel-blockers">{% for blocker in blockers %}<li>{{ blocker }}</li>{% endfor %}</ul>
+        <a class="ca-pdel-link" href="{% url 'admin:orders_order_changelist' %}?q={{ piece.sku|urlencode }}">Ver pedidos de esta pieza →</a>
+      {% else %}
+        <p>Se borran la pieza y {% if photo_count %}sus {{ photo_count }} foto{{ photo_count|pluralize }}{% else %}sus datos{% endif %}.{% if order_count %} Su{{ order_count|pluralize }} {{ order_count }} pedido{{ order_count|pluralize }} conserva{{ order_count|pluralize:"n" }} nombre, precio y foto.{% endif %}</p>
+        {% for section in cta_sections %}<p class="ca-pdel-note">Se quitará el botón de la sección «{{ section }}».</p>{% endfor %}
+        <label for="ca-pdel-sku">Esta acción no se puede deshacer. Escribe <b>{{ piece.sku }}</b> para confirmar:</label>
+        <input id="ca-pdel-sku" name="sku" autocomplete="off" spellcheck="false" placeholder="{{ piece.sku }}" required>
+      {% endif %}
+      <button type="submit" name="action" value="delete" class="ca-pdel-btn is-danger" {% if blockers %}disabled{% endif %}>Eliminar definitivamente</button>
+    </form>
+  </div>
+  <a class="ca-pdel-cancel" href="{% url 'admin:catalog_piece_changelist' %}">← Cancelar y volver a Piezas</a>
+</div>
+{% endblock %}

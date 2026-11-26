@@ -41,6 +41,8 @@ def _transition(
     piece.save(update_fields=["sale_state", "sold_at"])
     PieceStatusChange.objects.create(
         piece=piece,
+        piece_sku=piece.sku,
+        piece_name_es=piece.name_es,
         from_state=previous,
         to_state=to_state,
         reason=reason,
@@ -57,7 +59,12 @@ def reserve_piece(
     if piece.sale_state != Piece.SaleState.AVAILABLE:
         raise PieceNotAvailable(state=piece.sale_state)
     reservation = PieceReservation(
-        piece=piece, kind=kind, reference=reference, expires_at=expires_at
+        piece=piece,
+        piece_sku=piece.sku,
+        piece_name_es=piece.name_es,
+        kind=kind,
+        reference=reference,
+        expires_at=expires_at,
     )
     reservation.full_clean()
     reservation.save()

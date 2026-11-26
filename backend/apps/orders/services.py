@@ -460,6 +460,8 @@ def cancel_order(order, *, actor, reason, notify, expected_status, include_reaso
             )
             PieceStatusChange.objects.create(
                 piece=piece,
+                piece_sku=piece.sku,
+                piece_name_es=piece.name_es,
                 from_state="sold",
                 to_state="reserved",
                 reason="admin",

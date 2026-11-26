@@ -107,7 +107,7 @@ class ItemInline(ReadOnlyInline):
 
     @admin.display(description=_("Foto"))
     def photo(self, obj: OrderItem) -> str:
-        image = obj.piece.images.filter(is_primary=True).first()
+        image = obj.piece.images.filter(is_primary=True).first() if obj.piece is not None else None
         return (
             format_html('<img src="{}" width="64" alt="">', thumbnail_url(image))
             if image and image.original
@@ -116,6 +116,8 @@ class ItemInline(ReadOnlyInline):
 
     @admin.display(description=_("Pieza"))
     def piece_link(self, obj: OrderItem) -> str:
+        if not obj.piece_id:
+            return f"{obj.name_es} — Pieza eliminada ({obj.sku})"
         return format_html(
             '<a href="{}">{}</a>',
             reverse("admin:catalog_piece_change", args=[obj.piece_id]),
@@ -681,8 +683,10 @@ class OrderAdmin(OptionalSelectionMixin, OrderCardAdminMixin, ModelAdmin):  # ty
                 "name": item.name_en if locale == "en" else item.name_es,
                 "number": item.piece_number or "",
                 "sku": item.sku,
-                "stones": names(item.piece.stones.all(), locale),
-                "materials": names(item.piece.materials.all(), locale),
+                "stones": names(item.piece.stones.all(), locale) if item.piece is not None else [],
+                "materials": names(item.piece.materials.all(), locale)
+                if item.piece is not None
+                else [],
                 "code": f"{order.number}-{item.sku}",
             }
             for item in order.items.all()

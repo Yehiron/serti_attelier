@@ -26,7 +26,7 @@ class CartItem(models.Model):
     cart = models.ForeignKey(
         Cart, verbose_name=_("Carrito"), on_delete=models.CASCADE, related_name="items"
     )
-    piece = models.ForeignKey("catalog.Piece", verbose_name=_("Pieza"), on_delete=models.PROTECT)
+    piece = models.ForeignKey("catalog.Piece", verbose_name=_("Pieza"), on_delete=models.CASCADE)
     added_at = models.DateTimeField(verbose_name=_("Añadida el"), auto_now_add=True)
 
     class Meta:

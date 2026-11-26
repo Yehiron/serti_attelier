@@ -48,9 +48,7 @@ def test_protected_icons_and_no_category_bulk():
     assert 'name="_selected_action"' not in html
     assert 'name="action"' not in html
     html = browser.get(reverse("admin:catalog_piece_changelist")).content.decode()
-    assert "está vendida o reservada" in html
-    assert "Archívala" in html
-    assert 'aria-disabled="true"' in html
+    assert "está vendida o reservada" not in html
 
 
 @pytest.mark.parametrize("model", [Category, Stone, Collection])
@@ -80,14 +78,17 @@ def test_piece_confirmation_audit_and_protection():
     url = reverse("admin:catalog_piece_delete", args=[piece.pk])
     secure = Client(enforce_csrf_checks=True)
     secure.cookies = browser.cookies
-    assert "¿Eliminar «Anillo X»?" in secure.get(url).content.decode()
-    assert secure.post(url, {"post": "yes"}).status_code == 403
+    html = secure.get(url).content.decode()
+    assert "Anillo X" in html and "R1" in html and "Eliminar" in html
+    assert secure.post(url, {"action": "delete", "sku": "R1"}).status_code == 403
+    token = secure.cookies["csrftoken"].value
     assert (
         secure.post(
-            url, {"post": "yes", "csrfmiddlewaretoken": secure.cookies["csrftoken"].value}
+            url, {"action": "delete", "sku": "R1", "csrfmiddlewaretoken": token}
         ).status_code
         == 302
     )
+    assert not Piece.objects.filter(pk=piece.pk).exists()
     assert AuditLog.objects.filter(action="catalog.piece_deleted", actor=user).exists()
 
 

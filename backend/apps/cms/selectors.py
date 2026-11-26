@@ -103,8 +103,8 @@ def render_sections(sections: list[HomeSection], locale: str) -> list[dict[str, 
         if obj.kind in {"hero", "story", "personalize", "banner"}:
             data["image"] = image_data(obj, locale)
             data["cta"] = None
-            if obj.cta_kind != "none":
-                target = getattr(obj, f"cta_{obj.cta_kind}", None)
+            target = getattr(obj, f"cta_{obj.cta_kind}", None)
+            if obj.cta_kind == "external" or (obj.cta_kind != "none" and target is not None):
                 data["cta"] = {
                     "label": localized(obj, "cta_label", locale),
                     "href": obj.cta_external_url

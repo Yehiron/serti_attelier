@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prototipos · Eliminar pieza</title>
+<link rel="stylesheet" href="base.css">
+<style>
+.thumb.img { background: center/cover no-repeat; }
+.req { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.req li { display: grid; grid-template-columns: 28px 1fr auto; gap: 12px; align-items: center; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px; background: #fff; }
+.req li.ok { background: var(--ok-soft); border-color: #cfe5d8; }
+.req li.block { background: var(--danger-soft); border-color: #f0c9cc; }
+.req .ico { width: 28px; height: 28px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 13px; color: #fff; }
+.req .ok .ico, .req li.ok .ico { background: var(--ok); }
+.req li.todo .ico { background: var(--warn); }
+.req li.block .ico { background: var(--danger); }
+.req b { display: block; } .req span { color: var(--muted); font-size: 13px; }
+.piece-head { display: flex; gap: 16px; align-items: center; margin-bottom: 20px; }
+.piece-head .thumb { width: 72px; height: 72px; }
+.piece-head h3 { margin: 0 0 4px; font: 600 18px/1.2 inherit; }
+.tabs { display: flex; gap: 8px; margin-bottom: 18px; flex-wrap: wrap; }
+.tabs button { border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 8px 14px; font: inherit; cursor: pointer; }
+.tabs button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+/* B */
+.choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.choice { position: relative; border: 1.5px solid var(--line); border-radius: 16px; padding: 20px; display: grid; gap: 10px; align-content: start; background: #fff; cursor: pointer; transition: border-color .2s, box-shadow .2s; }
+.choice:hover { border-color: #cfc5bb; }
+.choice.sel { border-color: var(--accent); box-shadow: 0 0 0 4px var(--accent-soft); }
+.choice.disabled { opacity: .6; cursor: not-allowed; background: var(--soft); }
+.choice .big { font-size: 26px; }
+.choice h4 { margin: 0; font-size: 16px; }
+.choice p { margin: 0; color: var(--muted); font-size: 13px; }
+.choice .tag { position: absolute; top: 14px; right: 14px; }
+.choice ul { margin: 0; padding-left: 18px; color: var(--muted); font-size: 13px; }
+.confirm { margin-top: 18px; padding: 16px; border-radius: 12px; background: var(--danger-soft); display: grid; gap: 10px; }
+.confirm input { border: 1px solid #f0c9cc; border-radius: 8px; min-height: 40px; padding: 0 12px; font: inherit; max-width: 260px; }
+/* C */
+.list { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+.list .row { display: grid; grid-template-columns: 28px 48px 1fr auto auto; gap: 14px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); }
+.list .row:last-child { border-bottom: 0; }
+.list .row.sel { background: #fdf7f9; }
+.list .thumb { width: 48px; height: 48px; border-radius: 8px; }
+.sheet { margin-top: 16px; border-radius: 16px; background: var(--ink); color: #fff; padding: 18px 20px; display: grid; gap: 14px; }
+.sheet h4 { margin: 0; font-size: 16px; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.split div { border-radius: 12px; padding: 12px 14px; background: #2c2521; }
+.split b { display: block; font-size: 22px; }
+.split small { color: #cbbfb6; }
+.sheet .btns { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+.sheet .btn { background: #2c2521; border-color: #3d3430; color: #fff; }
+.sheet .btn.primary { background: #fff; color: var(--ink); border-color: #fff; }
+@media (max-width: 760px) {
+  .choices { grid-template-columns: 1fr; }
+  .list .row { grid-template-columns: 24px 44px 1fr; } .list .row > :nth-child(4), .list .row > :nth-child(5) { grid-column: 3; justify-self: start; }
+  .split { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+<main class="page">
+
+<!-- ============ A ============ -->
+<div class="proto-head"><b>Prototipo A</b><span>Guiado · como «Eliminar Circón»: requisitos con su solución al lado</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › Piezas › <strong>Anillo Esmeraldas Esfera</strong></div>
+  <div class="tabs" style="padding:16px 24px 0"><button class="on" data-a="ok">Pieza sin ventas</button><button data-a="sold">Pieza con pedido</button></div>
+  <div class="c-grid">
+    <aside class="c-side">
+      <h2 style="font-size:24px">Eliminar pieza</h2>
+      <p class="sub" style="margin:0">Solo se elimina lo que nunca se vendió. Lo demás se archiva.</p>
+      <ol class="c-steps">
+        <li class="now" id="a1"><span class="n">1</span><div><b>Retirar de la tienda</b><span>La pieza vuelve a borrador.</span></div></li>
+        <li id="a2"><span class="n">2</span><div><b>Eliminar definitivamente</b><span>Se borran la pieza y sus fotos.</span></div></li>
+      </ol>
+    </aside>
+    <div class="c-main">
+      <div class="piece-head"><span class="thumb img" id="aimg" style="background-image:url(p1.webp)"></span><div><h3 id="aname">Anillo Esmeraldas Esfera</h3><span class="sku" id="asku">SERTI-028</span> <span class="pill pub" id="apill">Publicada</span></div></div>
+      <ul class="req" id="areq"></ul>
+      <div class="c-bar">
+        <span class="note" id="anote">Falta 1 paso para poder eliminarla</span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap"><button class="btn ghost">Cancelar</button><button class="btn" id="aarch">Archivar en su lugar</button><button class="btn danger" id="adel" disabled>Eliminar definitivamente</button></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ============ B ============ -->
+<div class="proto-head"><b>Prototipo B</b><span>Tres salidas claras · archivar, ocultar o eliminar, con lo que pasa en cada una</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › Piezas › <strong>Pinky Ring</strong></div>
+  <div class="body">
+    <div class="piece-head"><span class="thumb img" style="background-image:url(p2.webp)"></span><div><h3>Pinky Ring</h3><span class="sku">SERTI-029</span> <span class="pill pub">Publicada</span> <span class="pill sold">1 pedido</span></div></div>
+    <h2>¿Qué quieres hacer con esta pieza?</h2>
+    <p class="sub">Elige una opción. Te decimos exactamente qué pasará antes de confirmar.</p>
+    <div class="choices" id="bchoices">
+      <div class="choice sel" data-b="arch"><span class="pill pub tag">Recomendado</span><span class="big">🗄</span><h4>Archivar</h4><p>Sale de la tienda y de los buscadores. Conserva fotos, pedidos e historial.</p><ul><li>Se puede restaurar cuando quieras</li><li>Los enlaces llevan a «ya no está disponible»</li></ul></div>
+      <div class="choice" data-b="hide"><span class="big">🙈</span><h4>Ocultar por ahora</h4><p>Deja de verse en la tienda mientras la editas o la reservas para alguien.</p><ul><li>Vuelve a publicarse con un clic</li><li>No aparece en el catálogo</li></ul></div>
+      <div class="choice disabled" data-b="del"><span class="big">🗑</span><h4>Eliminar definitivamente</h4><p>No disponible: tiene el pedido SRT-000425. Borrarla dejaría ese pedido sin su pieza.</p><ul><li>Solo para piezas que nunca se vendieron</li></ul></div>
+    </div>
+    <div class="c-bar" style="margin-top:18px"><span class="note" id="bnote">Archivar · la pieza se puede restaurar desde «Archivadas»</span><div style="display:flex;gap:8px"><button class="btn ghost">Cancelar</button><button class="btn primary" id="bgo">Archivar pieza</button></div></div>
+    <p class="sub" style="margin:22px 0 8px"><b>Si la pieza nunca se vendió</b>, «Eliminar» se habilita y pide escribir el código para confirmar:</p>
+    <div class="confirm"><b style="color:var(--danger)">Esta acción no se puede deshacer.</b><span class="note">Escribe <b>SERTI-028</b> para confirmar que quieres borrar la pieza y sus 3 fotos.</span><div style="display:flex;gap:8px;flex-wrap:wrap"><input id="bsku" placeholder="SERTI-028"><button class="btn danger" id="bdel" disabled>Eliminar definitivamente</button></div></div>
+  </div>
+</section>
+
+<!-- ============ C ============ -->
+<div class="proto-head"><b>Prototipo C</b><span>Desde la lista · seleccionas varias y el sistema separa las que se eliminan de las que se archivan</span></div>
+<section class="frame">
+  <div class="crumbs">Catálogo › <strong>Piezas</strong></div>
+  <div class="body">
+    <h2 style="font-size:24px;margin-bottom:14px">Piezas</h2>
+    <div class="list" id="clist">
+      <div class="row sel"><input type="checkbox" checked><span class="thumb img" style="background-image:url(p1.webp)"></span><div><a class="name" href="#">Anillo Esmeraldas Esfera</a><div class="sku">SERTI-028</div></div><span class="pill pub">Publicada</span><span class="pill draft">Sin ventas</span></div>
+      <div class="row sel"><input type="checkbox" checked><span class="thumb img" style="background-image:url(p3.webp)"></span><div><a class="name" href="#">Sapphire Chain Link</a><div class="sku">SERTI-031</div></div><span class="pill pub">Publicada</span><span class="pill draft">Sin ventas</span></div>
+      <div class="row sel"><input type="checkbox" checked><span class="thumb img" style="background-image:url(p2.webp)"></span><div><a class="name" href="#">Pinky Ring</a><div class="sku">SERTI-029</div></div><span class="pill pub">Publicada</span><span class="pill sold">1 pedido</span></div>
+      <div class="row"><input type="checkbox"><span class="thumb img" style="background-image:url(p4.webp)"></span><div><a class="name" href="#">Rubie Flower Cluster</a><div class="sku">SERTI-030</div></div><span class="pill pub">Publicada</span><span class="pill draft">Sin ventas</span></div>
+    </div>
+    <div class="sheet">
+      <h4>3 piezas seleccionadas · ¿eliminar?</h4>
+      <div class="split"><div><b>2</b><small>se eliminarán: nunca se vendieron (se retiran de la tienda y se borran)</small></div><div><b>1</b><small>se archivará en su lugar: Pinky Ring tiene el pedido SRT-000425</small></div></div>
+      <div class="btns"><button class="btn">Cancelar</button><button class="btn">Solo archivar las 3</button><button class="btn primary">Eliminar 2 y archivar 1</button></div>
+    </div>
+  </div>
+</section>
+</main>
+<script>
+const states = {
+  ok: { img: 'p1.webp', name: 'Anillo Esmeraldas Esfera', sku: 'SERTI-028', reqs: [
+    ['todo', 'Está publicada en la tienda', 'Retírala primero: vuelve a borrador y deja de verse.', 'Retirar de la tienda'],
+    ['ok', 'Sin pedidos ni reservas', 'Nunca se ha vendido ni apartado.'],
+    ['ok', 'Sin historial de inventario', 'No tiene movimientos de venta registrados.'] ] },
+  sold: { img: 'p2.webp', name: 'Pinky Ring', sku: 'SERTI-029', reqs: [
+    ['todo', 'Está publicada en la tienda', 'Se puede retirar, pero no basta para eliminarla.', 'Retirar de la tienda'],
+    ['block', 'Tiene el pedido SRT-000425', 'Las piezas vendidas se conservan para tus registros y la contabilidad.', 'Ver pedido'],
+    ['block', 'Tiene historial de inventario', 'Registra la reserva y la venta de este pedido.'] ] },
+};
+let current = 'ok';
+function renderA() {
+  const s = states[current];
+  aimg.style.backgroundImage = `url(${s.img})`; aname.textContent = s.name; asku.textContent = s.sku;
+  areq.innerHTML = s.reqs.map(([k, t, d, a], i) => `<li class="${k}"><span class="ico">${k === 'ok' ? '✓' : k === 'block' ? '✕' : '!'}</span><div><b>${t}</b><span>${d}</span></div>${a ? `<button class="btn${k === 'todo' ? ' primary' : ''}" data-i="${i}">${a}</button>` : ''}</li>`).join('');
+  update();
+}
+function update() {
+  const s = states[current];
+  const todo = s.reqs.filter(r => r[0] === 'todo').length, block = s.reqs.filter(r => r[0] === 'block').length;
+  apill.className = 'pill ' + (s.reqs[0][0] === 'ok' ? 'draft' : 'pub'); apill.textContent = s.reqs[0][0] === 'ok' ? 'Borrador' : 'Publicada';
+  adel.disabled = todo + block > 0;
+  anote.textContent = block ? 'No se puede eliminar: archívala para sacarla de la tienda sin perder sus registros.' : todo ? `Falta ${todo} paso para poder eliminarla` : 'Lista para eliminar definitivamente.';
+  a1.className = todo || block ? 'now' : 'done'; a2.className = todo || block ? '' : 'now';
+  aarch.className = block ? 'btn primary' : 'btn';
+}
+areq.addEventListener('click', e => { const b = e.target.closest('button[data-i]'); if (!b) return; const r = states[current].reqs[b.dataset.i]; if (r[0] === 'todo') { r[0] = 'ok'; r[1] = 'Retirada de la tienda'; r[2] = 'Ahora está en borrador.'; r[3] = null; renderA(); } });
+document.querySelectorAll('[data-a]').forEach(b => b.addEventListener('click', () => { document.querySelectorAll('[data-a]').forEach(x => x.classList.toggle('on', x === b)); current = b.dataset.a; renderA(); }));
+renderA();
+const notes = { arch: ['Archivar · la pieza se puede restaurar desde «Archivadas»', 'Archivar pieza'], hide: ['Ocultar · vuelve a publicarse con un clic', 'Ocultar pieza'] };
+bchoices.addEventListener('click', e => { const c = e.target.closest('.choice'); if (!c || c.classList.contains('disabled')) return; bchoices.querySelectorAll('.choice').forEach(x => x.classList.toggle('sel', x === c)); bnote.textContent = notes[c.dataset.b][0]; bgo.textContent = notes[c.dataset.b][1]; });
+bsku.addEventListener('input', () => { bdel.disabled = bsku.value.trim().toUpperCase() !== 'SERTI-028'; });
+</script>
+</body>
+</html>

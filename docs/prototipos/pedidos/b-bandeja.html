@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedidos · B · Bandeja con detalle</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.inbox { display: grid; grid-template-columns: minmax(300px, 380px) 1fr; gap: 16px; align-items: start; }
+.listbox { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.listbox .chips { padding: 12px; border-bottom: 1px solid var(--line); }
+.item { display: grid; grid-template-columns: 44px 1fr auto; gap: 12px; padding: 12px 14px; border-bottom: 1px solid var(--line); cursor: pointer; align-items: center; }
+.item:last-child { border-bottom: 0; }
+.item.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.item .who { font-weight: 600; font-size: 14px; } .item .num { font-size: 12px; color: var(--muted); }
+.item .r { text-align: right; display: grid; gap: 4px; justify-items: end; font-size: 12px; color: var(--muted); }
+.detail { display: grid; gap: 14px; }
+.hero { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 18px; display: grid; gap: 14px; }
+.hero h2 { margin: 0; font: 600 26px Georgia, serif; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
+.steps div { text-align: center; font-size: 12px; color: var(--muted); }
+.steps div::before { content: ""; display: block; height: 6px; border-radius: 99px; background: var(--line); margin-bottom: 8px; }
+.steps .done::before { background: var(--ok); } .steps .now::before { background: var(--accent); }
+.steps .now { color: var(--accent); font-weight: 600; } .steps .done { color: var(--ok); }
+.next { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; padding: 14px; border-radius: 12px; background: var(--soft); }
+.next b { display: block; } .next span { font-size: 13px; color: var(--muted); }
+.ship { display: grid; grid-template-columns: 1fr 1fr auto; gap: 8px; }
+.ship input, .ship select { border: 1px solid var(--line); border-radius: 8px; min-height: 40px; padding: 0 10px; font: inherit; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.back { display: none; }
+@media (max-width: 860px) {
+  .inbox { grid-template-columns: 1fr; }
+  .grid2, .ship { grid-template-columns: 1fr; }
+  .detail { display: none; } .mobile-detail .detail { display: grid; } .mobile-detail .listbox { display: none; }
+  .back { display: inline-flex; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Inicio</a><a href="#" class="on">Pedidos <span>4</span></a><a href="#">Piezas</a><a href="#">Contenido</a><a href="#">Clientes</a></nav>
+  <main class="main" id="main">
+    <div class="top"><h1>Pedidos</h1><div class="search">🔎 Buscar por número, cliente o pieza</div></div>
+    <div class="inbox">
+      <section class="listbox">
+        <div class="chips"><span class="chip on">Pendientes <b>4</b></span><span class="chip">Requieren atención <b>1</b></span><span class="chip">Por pagar</span><span class="chip">Enviados</span><span class="chip">Todos</span></div>
+        <div class="item on" onclick="main.classList.add('mobile-detail')"><span class="mini" style="background-image:url(o1.webp)"></span><div><div class="who">Valentina Gómez</div><div class="num">SRT-000430 · Rubie Flower Cluster</div></div><div class="r"><span class="pill prep">Por preparar</span>hoy 9:14</div></div>
+        <div class="item"><span class="mini" style="background-image:url(o4.webp)"></span><div><div class="who">Laura Restrepo</div><div class="num">SRT-000431 · Dije Roseta de Esmeralda</div></div><div class="r"><span class="pill pay">Por pagar</span>hace 6 h</div></div>
+        <div class="item"><span class="mini" style="background-image:url(o3.webp)"></span><div><div class="who">Camila Ortiz</div><div class="num">SRT-000428 · Anillo Cruzado de Oro</div></div><div class="r"><span class="pill alert">Atención</span>ayer</div></div>
+        <div class="item"><span class="mini" style="background-image:url(o5.webp)"></span><div><div class="who">Mariana López</div><div class="num">SRT-000427 · Anillo Esmeraldas Bisel</div></div><div class="r"><span class="pill prep">Preparando</span>hace 2 d</div></div>
+        <div class="item"><span class="mini" style="background-image:url(o2.webp)"></span><div><div class="who">Daniela Ríos</div><div class="num">SRT-000426 · Solitario de Diamante</div></div><div class="r"><span class="pill ship">Enviado</span>hace 3 d</div></div>
+      </section>
+      <section class="detail">
+        <button class="btn ghost back" onclick="main.classList.remove('mobile-detail')">← Pedidos</button>
+        <div class="hero">
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;align-items:start"><div><span class="sku">SRT-000430 · 26 nov 2026, 9:14</span><h2>Valentina Gómez</h2></div><div style="display:flex;gap:8px"><button class="btn">Imprimir guía de empaque</button><button class="btn">⋯</button></div></div>
+          <div class="steps"><div class="done">Pagado</div><div class="now">Preparando</div><div>Enviado</div><div>Entregado</div></div>
+          <div class="next"><div><b>Siguiente paso: empacar y registrar el envío</b><span>Al guardar la guía, la clienta recibe un correo con el seguimiento.</span></div></div>
+          <form class="ship" onsubmit="return false"><select><option>Transportadora…</option><option>Servientrega</option><option>Interrapidísimo</option><option>Coordinadora</option><option>Entrega con cita en Armenia</option></select><input placeholder="Número de guía"><button class="btn primary">Marcar enviado</button></form>
+        </div>
+        <div class="grid2">
+          <div class="card"><h3>Pieza</h3><div style="display:flex;gap:12px;align-items:center"><span class="mini" style="width:72px;height:72px;background-image:url(o1.webp)"></span><div><b>Rubie Flower Cluster</b><div class="sku">SERTI-030 · Pieza única</div></div></div><dl class="kv" style="margin-top:12px"><dt>Subtotal</dt><dd class="money">$ 5.100.000</dd><dt>Envío</dt><dd>Gratis</dd><dt>Total</dt><dd class="money">$ 5.100.000</dd><dt>Pago</dt><dd><span class="pill done">Aprobado · Wompi</span></dd></dl></div>
+          <div class="card"><h3>Cliente y entrega</h3><dl class="kv"><dt>Correo</dt><dd>valentina@ejemplo.com</dd><dt>Celular</dt><dd>300 000 0000 · <a class="wa" href="#">Escribir por WhatsApp ↗</a></dd><dt>Dirección</dt><dd>Cra. 0 # 00-00, Pereira</dd><dt>Notas</dt><dd>Es un regalo, empacar sin precio.</dd></dl></div>
+        </div>
+        <div class="card"><h3>Historial</h3><ol class="timeline"><li class="now"><span class="dot"></span><div><b>Preparando</b><span>Hoy 10:02 · por Propietaria</span></div></li><li class="done"><span class="dot">✓</span><div><b>Pago aprobado por Wompi</b><span>Hoy 9:14 · correo de confirmación enviado</span></div></li><li class="done"><span class="dot">✓</span><div><b>Pedido recibido</b><span>Hoy 9:10 · pieza reservada 30 min</span></div></li></ol></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body>
+</html>

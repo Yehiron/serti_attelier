@@ -175,7 +175,9 @@ class OrderItem(ImmutableModel):
     order = models.ForeignKey(
         Order, verbose_name=_("Pedido"), on_delete=models.PROTECT, related_name="items"
     )
-    piece = models.ForeignKey("catalog.Piece", verbose_name=_("Pieza"), on_delete=models.PROTECT)
+    piece = models.ForeignKey(
+        "catalog.Piece", verbose_name=_("Pieza"), on_delete=models.SET_NULL, null=True, blank=True
+    )
     sku = models.CharField(verbose_name=_("SKU"), max_length=40)
     piece_number = models.CharField(verbose_name=_("Número de pieza"), max_length=20, null=True)  # noqa: DJ001  # Snapshot API uses null.
     name_es = models.CharField(verbose_name=_("Nombre [es]"), max_length=250)

@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedidos · A · Tablero por etapas</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.board { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; overflow-x: auto; padding-bottom: 8px; }
+.col { background: #efebe6; border-radius: 14px; padding: 12px; display: grid; gap: 10px; align-content: start; min-height: 60svh; }
+.col h2 { margin: 0 4px 2px; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+.col h2 span { background: #fff; border-radius: 99px; padding: 2px 9px; font-size: 12px; }
+.col.hot { background: #f7eadf; }
+.ocard .pill { white-space: normal; line-height: 1.3; }
+.ocard { min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: grid; gap: 10px; cursor: pointer; transition: box-shadow .2s, transform .2s; }
+.ocard:hover { box-shadow: 0 10px 24px -16px rgba(31,26,23,.4); transform: translateY(-1px); }
+.ocard .r { display: flex; gap: 10px; align-items: center; min-width: 0; } .ocard .r > div { min-width: 0; }
+.ocard .num { font-size: 12px; color: var(--muted); }
+.ocard .who { font-weight: 600; }
+.ocard .foot { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--muted); }
+.ocard .act { white-space: normal; text-align: center; width: 100%; justify-content: center; min-height: 34px; font-size: 13px; }
+.drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(460px, 100%); background: #fff; box-shadow: -20px 0 50px -20px rgba(31,26,23,.35); padding: 22px; overflow-y: auto; display: grid; gap: 14px; align-content: start; transform: translateX(100%); transition: transform .35s var(--ease, ease); z-index: 20; }
+.drawer.on { transform: none; }
+.drawer .x { justify-self: end; border: 0; background: none; font-size: 22px; cursor: pointer; }
+.drawer h2 { margin: 0; font: 600 24px Georgia, serif; }
+.mtabs { display: none; }
+@media (max-width: 860px) {
+  .board { grid-template-columns: 1fr; overflow: visible; }
+  .col { display: none; min-height: 0; } .col.show { display: grid; }
+  .mtabs { display: flex; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Inicio</a><a href="#" class="on">Pedidos <span>4</span></a><a href="#">Piezas</a><a href="#">Contenido</a><a href="#">Clientes</a></nav>
+  <main class="main">
+    <div class="top"><h1>Pedidos</h1><div class="search">🔎 Buscar por número, cliente o pieza</div></div>
+    <div class="chips mtabs" style="margin-bottom:12px" id="mtabs"><span class="chip on" data-c="0">Por pagar · 1</span><span class="chip" data-c="1">Por preparar · 2</span><span class="chip" data-c="2">Preparando · 1</span><span class="chip" data-c="3">Enviados · 1</span><span class="chip" data-c="4">Entregados</span></div>
+    <div class="board" id="board">
+      <section class="col hot show"><h2>Por pagar <span>1</span></h2>
+        <article class="ocard" data-o="1"><div class="r"><span class="mini" style="background-image:url(o4.webp)"></span><div><div class="who">Laura Restrepo</div><div class="num">SRT-000431 · Pago manual</div></div></div><span class="pill pay">Esperando transferencia · vence en 18 h</span><div class="foot"><span class="money">$ 3.200.000</span><span>hace 6 h</span></div><button class="btn primary act">Confirmar pago recibido</button></article>
+      </section>
+      <section class="col"><h2>Por preparar <span>2</span></h2>
+        <article class="ocard" data-o="2"><div class="r"><span class="mini" style="background-image:url(o1.webp)"></span><div><div class="who">Valentina Gómez</div><div class="num">SRT-000430 · Wompi</div></div></div><div class="foot"><span class="money">$ 5.100.000</span><span>pagado hoy 9:14</span></div><button class="btn act">Empezar a preparar</button></article>
+        <article class="ocard"><div class="r"><span class="mini" style="background-image:url(o3.webp)"></span><div><div class="who">Camila Ortiz</div><div class="num">SRT-000428 · Wompi</div></div></div><span class="pill alert">Requiere atención · pidió certificado</span><div class="foot"><span class="money">$ 2.520.000</span><span>ayer</span></div><button class="btn act">Empezar a preparar</button></article>
+      </section>
+      <section class="col"><h2>Preparando <span>1</span></h2>
+        <article class="ocard"><div class="r"><span class="mini" style="background-image:url(o5.webp)"></span><div><div class="who">Mariana López</div><div class="num">SRT-000427 · Wompi</div></div></div><div class="foot"><span class="money">$ 4.200.000</span><span>hace 2 días</span></div><button class="btn act">Registrar envío</button></article>
+      </section>
+      <section class="col"><h2>Enviados <span>1</span></h2>
+        <article class="ocard"><div class="r"><span class="mini" style="background-image:url(o2.webp)"></span><div><div class="who">Daniela Ríos</div><div class="num">SRT-000426 · Servientrega</div></div></div><div class="foot"><span class="money">$ 6.900.000</span><span>guía 7845 1209</span></div><button class="btn act">Marcar entregado</button></article>
+      </section>
+      <section class="col"><h2>Entregados <span>12</span></h2><p class="note" style="padding:4px">Los últimos 30 días. <a href="#">Ver todos</a></p></section>
+    </div>
+  </main>
+</div>
+<aside class="drawer" id="drawer">
+  <button class="x" onclick="drawer.classList.remove('on')" aria-label="Cerrar">×</button>
+  <span class="sku">SRT-000430 · 26 nov 2026, 9:14</span>
+  <h2>Valentina Gómez</h2>
+  <div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill done">Pago aprobado · Wompi</span><span class="pill prep">Por preparar</span></div>
+  <div class="card" style="display:flex;gap:12px;align-items:center"><span class="mini" style="width:64px;height:64px;background-image:url(o1.webp)"></span><div><b>Rubie Flower Cluster</b><div class="sku">SERTI-030 · Pieza única</div><span class="money">$ 5.100.000</span></div></div>
+  <div class="card"><h3>Avance</h3><ol class="timeline"><li class="done"><span class="dot">✓</span><div><b>Pedido recibido</b><span>26 nov · 9:10</span></div></li><li class="done"><span class="dot">✓</span><div><b>Pago aprobado</b><span>26 nov · 9:14 · Wompi</span></div></li><li class="now"><span class="dot"></span><div><b>Preparar y empacar</b><span>Siguiente paso</span></div></li><li><span class="dot"></span><div><b>Envío</b><span>Transportadora y guía</span></div></li><li><span class="dot"></span><div><b>Entregado</b></div></li></ol></div>
+  <div class="card"><h3>Cliente y envío</h3><dl class="kv"><dt>Correo</dt><dd>valentina@ejemplo.com</dd><dt>Celular</dt><dd>300 000 0000 · <a class="wa" href="#">WhatsApp ↗</a></dd><dt>Dirección</dt><dd>Cra. 0 # 00-00, Pereira</dd><dt>Notas</dt><dd>Es un regalo, empacar sin precio.</dd></dl></div>
+  <button class="btn primary" style="justify-content:center;min-height:48px">Empezar a preparar</button>
+</aside>
+<script>
+document.querySelectorAll('[data-o]').forEach(c => c.addEventListener('click', e => { if (!e.target.closest('button')) drawer.classList.add('on'); }));
+const cols = [...document.querySelectorAll('.col')];
+mtabs.addEventListener('click', e => { const t = e.target.closest('[data-c]'); if (!t) return; mtabs.querySelectorAll('.chip').forEach(x => x.classList.toggle('on', x === t)); cols.forEach((c, i) => c.classList.toggle('show', i == t.dataset.c)); });
+</script>
+</body>
+</html>

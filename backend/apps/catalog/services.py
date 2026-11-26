@@ -115,6 +115,134 @@ def delete_pieces(
         piece.delete()
 
 
+def hard_delete_blockers(piece: Piece) -> list[str]:
+    """Pending online and manual payments are the non-final payment states."""
+    reasons: list[str] = []
+    if (
+        hasattr(piece, "hard_delete_active_reservation")
+        and hasattr(piece, "hard_delete_pending_order")
+        and not piece.hard_delete_active_reservation
+        and not piece.hard_delete_pending_order
+    ):
+        return reasons
+    for reservation in piece.reservations.filter(status="active").select_related("order"):
+        reasons.append(
+            f"Reserva activa ({reservation.order or reservation.reference or 'sin pedido'})"
+        )
+    for item in piece.orderitem_set.filter(
+        order__payment_status__in=("pending", "awaiting_manual_payment")
+    ).select_related("order"):
+        reasons.append(f"Pedido pendiente {item.order}")
+    return reasons
+
+
+def _preserve_order_images(piece: Piece) -> None:
+    from pathlib import PurePosixPath
+
+    from apps.catalog.image_cleanup import file_paths
+    from apps.orders.models import OrderItem
+
+    paths = set().union(*(file_paths(image) for image in piece.images.all()))
+    urls = {path: default_storage.url(path) for path in paths}
+    for item in piece.orderitem_set.all():
+        replacements = {}
+        for path, url in urls.items():
+            if (
+                path not in str(item.image_snapshot)
+                and url not in str(item.image_snapshot)
+                and path not in item.image_path
+                and url not in item.image_path
+            ):
+                continue
+            if not default_storage.exists(path):
+                raise ValidationError(f"No se encuentra la imagen histórica: {path}")
+            target = (
+                f"orders/snapshots/{item.order_id}/{item.pk}/"
+                f"{uuid4().hex}{PurePosixPath(path).suffix}"
+            )
+            with default_storage.open(path, "rb") as source:
+                target = default_storage.save(target, source)
+            replacements[path] = target
+            replacements[url] = default_storage.url(target)
+
+        def replace(value, replacements=replacements):
+            if isinstance(value, str):
+                for old in sorted(replacements, key=len, reverse=True):
+                    value = value.replace(old, replacements[old])
+                return value
+            if isinstance(value, dict):
+                return {key: replace(child) for key, child in value.items()}
+            if isinstance(value, list):
+                return [replace(child) for child in value]
+            return value
+
+        if replacements:
+            # Exception to immutable snapshots: only relocate image references, never order data.
+            models.QuerySet(model=OrderItem, using=item._state.db).filter(pk=item.pk).update(
+                image_path=replace(item.image_path), image_snapshot=replace(item.image_snapshot)
+            )
+
+
+@transaction.atomic
+@batch_file_cleanup()
+def hard_delete_pieces(
+    queryset: models.QuerySet[Piece], *, actor: Actor, request: HttpRequest | None = None
+) -> None:
+    from apps.cms.documents import lock_document
+    from apps.cms.redirects import _apply_automatic_transitions
+    from apps.core.routes import href
+
+    if actor is None or not actor.has_perm("catalog.delete_piece"):
+        raise PermissionDenied
+    require_commercial_permission(actor)
+    lock_document("home")
+    pieces = list(queryset.order_by("pk").select_for_update(of=("self",)))
+    failures = [
+        f"{p.sku} ({', '.join(reasons)})" for p in pieces if (reasons := hard_delete_blockers(p))
+    ]
+    if failures:
+        raise ValidationError("No se borró ninguna pieza: " + "; ".join(failures))
+    for piece in pieces:
+        _preserve_order_images(piece)
+        data = snapshot(piece)
+        data.update(
+            {
+                "collections": list(piece.collections.values_list("name_es", flat=True)),
+                "stones": list(piece.stones.values_list("name_es", flat=True)),
+                "materials": list(piece.materials.values_list("name_es", flat=True)),
+                "order_count": piece.orderitem_set.values("order_id").distinct().count(),
+            }
+        )
+        record(
+            "catalog.piece_deleted",
+            actor=actor,
+            obj=piece,
+            diff={key: [value, None] for key, value in data.items()},
+            request=request,
+        )
+        transitions = []
+        for lang in ("es", "en"):
+            try:
+                transitions.append(
+                    (
+                        lang,
+                        href("piece", lang, piece),
+                        href("category", lang, piece.category)
+                        if piece.category_id
+                        else href("catalog", lang),
+                    )
+                )
+            except ValueError:
+                continue
+        if transitions:
+            _apply_automatic_transitions(transitions, actor)
+        piece.delete(_hard_delete=True)
+
+
+def hard_delete_piece(piece: Piece, *, actor: Actor, request: HttpRequest | None = None) -> None:
+    hard_delete_pieces(Piece.objects.filter(pk=piece.pk), actor=actor, request=request)
+
+
 def snapshot(piece: Piece) -> dict[str, object]:
     return {
         field.name: (

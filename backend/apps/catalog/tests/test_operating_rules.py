@@ -5,6 +5,7 @@ from django.contrib.auth.models import Permission
 from django.contrib.messages import get_messages
 from django.core.exceptions import ValidationError
 from django.urls import reverse
+from django.utils import timezone
 
 from apps.accounts.roles import CONTENIDO, PROPIETARIO
 from apps.catalog import services
@@ -12,6 +13,7 @@ from apps.catalog.models import Piece, PieceImage
 from apps.catalog.tests.test_admin_sections import add_data
 from apps.core.tests.test_dashboard_client import staff
 from apps.core.tests.test_one_page_actions import photo, ready_piece
+from apps.inventory.models import PieceReservation
 
 pytestmark = pytest.mark.django_db
 OPERATIONS = ["publish", "hide", "unhide", "archive", "preorder_on", "preorder_off", "duplicate"]
@@ -143,6 +145,13 @@ def test_bulk_results_and_atomic_delete():
     response = browser.post(url, {"action": "publish", "_selected_action": [good.pk, bad.pk]})
     text = " ".join(str(m) for m in get_messages(response.wsgi_request))
     assert "1 pieza publicada" in text and bad.sku in text and "categoría" in text
+    PieceReservation.objects.create(
+        piece=bad,
+        piece_sku=bad.sku,
+        piece_name_es=bad.name_es,
+        kind="manual",
+        expires_at=timezone.now(),
+    )
     response = browser.post(
         url,
         {

@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pedidos · C · Resumen y tabla</title>
+<link rel="stylesheet" href="comun.css">
+<style>
+.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-bottom: 18px; }
+.kpi { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 6px; }
+.kpi small { color: var(--muted); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.kpi b { font: 600 28px/1 Georgia, serif; }
+.kpi span { font-size: 12px; }
+.kpi.warn { border-color: #f0d9b0; background: #fffaf0; } .kpi.alert { border-color: #f0c9cc; background: #fff7f7; }
+.kpi a { font-size: 12px; color: var(--accent); }
+.tbl { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.tbl .tools { display: flex; justify-content: space-between; gap: 10px; padding: 12px 14px; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { text-align: left; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; background: var(--soft); }
+td b, td.money { white-space: nowrap; }
+td { padding: 12px 14px; border-top: 1px solid var(--line); vertical-align: middle; }
+tr.exp td { background: #fcfaf8; }
+.pc { display: flex; gap: 10px; align-items: center; }
+.rowact { display: flex; gap: 6px; justify-content: flex-end; }
+.expand { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 14px; }
+.mcards { display: none; }
+@media (max-width: 860px) {
+  .kpis { grid-template-columns: 1fr 1fr; }
+  .tbl table { display: none; } .mcards { display: grid; }
+  .mcards article { padding: 14px; border-top: 1px solid var(--line); display: grid; gap: 8px; }
+  .mcards .r { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Inicio</a><a href="#" class="on">Pedidos <span>4</span></a><a href="#">Piezas</a><a href="#">Contenido</a><a href="#">Clientes</a></nav>
+  <main class="main">
+    <div class="top"><h1>Pedidos</h1><div style="display:flex;gap:8px;flex-wrap:wrap"><div class="search">🔎 Buscar</div><button class="btn">Exportar</button></div></div>
+    <section class="kpis">
+      <div class="kpi"><small>Ventas de noviembre</small><b>$ 31.400.000</b><span style="color:var(--ok)">▲ 18% vs. octubre · 7 pedidos</span></div>
+      <div class="kpi warn"><small>Pagos por confirmar</small><b>1</b><span>Transferencia de $ 3.200.000</span><a href="#">Revisar →</a></div>
+      <div class="kpi"><small>Por enviar</small><b>3</b><span>El más antiguo hace 2 días</span><a href="#">Ver →</a></div>
+      <div class="kpi alert"><small>Requieren atención</small><b>1</b><span>Certificado solicitado</span><a href="#">Ver →</a></div>
+    </section>
+    <section class="tbl">
+      <div class="tools"><div class="chips"><span class="chip on">Todos</span><span class="chip">Por pagar</span><span class="chip">Por preparar</span><span class="chip">Enviados</span><span class="chip">Entregados</span><span class="chip">Cancelados</span></div><span class="chip">Este mes ▾</span></div>
+      <table>
+        <thead><tr><th>Pedido</th><th>Pieza</th><th>Cliente</th><th>Total</th><th>Pago</th><th>Envío</th><th></th></tr></thead>
+        <tbody>
+          <tr><td><b>SRT-000431</b><div class="sku">hace 6 h</div></td><td><div class="pc"><span class="mini" style="background-image:url(o4.webp)"></span>Dije Roseta de Esmeralda</div></td><td>Laura Restrepo</td><td class="money">$ 3.200.000</td><td><span class="pill pay">Transferencia pendiente</span></td><td>—</td><td><div class="rowact"><button class="btn primary">Confirmar pago</button></div></td></tr>
+          <tr class="exp"><td><b>SRT-000430</b><div class="sku">hoy 9:14</div></td><td><div class="pc"><span class="mini" style="background-image:url(o1.webp)"></span>Rubie Flower Cluster</div></td><td>Valentina Gómez</td><td class="money">$ 5.100.000</td><td><span class="pill done">Aprobado</span></td><td><span class="pill prep">Por preparar</span></td><td><div class="rowact"><button class="btn">Preparar</button><button class="btn ghost">▴</button></div></td></tr>
+          <tr class="exp"><td colspan="7"><div class="expand">
+            <div class="card"><h3>Avance</h3><ol class="timeline"><li class="done"><span class="dot">✓</span><div><b>Pago aprobado · Wompi</b><span>Hoy 9:14</span></div></li><li class="now"><span class="dot"></span><div><b>Preparar y empacar</b><span>Siguiente paso</span></div></li><li><span class="dot"></span><div><b>Envío</b></div></li></ol></div>
+            <div class="card"><h3>Cliente</h3><dl class="kv"><dt>Correo</dt><dd>valentina@ejemplo.com</dd><dt>Celular</dt><dd><a class="wa" href="#">WhatsApp ↗</a></dd><dt>Ciudad</dt><dd>Pereira</dd></dl></div>
+            <div class="card"><h3>Notas</h3><p style="margin:0;font-size:13px">Es un regalo, empacar sin precio.</p><button class="btn" style="margin-top:10px">Abrir ficha completa →</button></div>
+          </div></td></tr>
+          <tr><td><b>SRT-000428</b><div class="sku">ayer</div></td><td><div class="pc"><span class="mini" style="background-image:url(o3.webp)"></span>Anillo Cruzado de Oro</div></td><td>Camila Ortiz <span class="pill alert">!</span></td><td class="money">$ 2.520.000</td><td><span class="pill done">Aprobado</span></td><td><span class="pill prep">Por preparar</span></td><td><div class="rowact"><button class="btn">Preparar</button></div></td></tr>
+          <tr><td><b>SRT-000427</b><div class="sku">hace 2 d</div></td><td><div class="pc"><span class="mini" style="background-image:url(o5.webp)"></span>Anillo Esmeraldas Bisel</div></td><td>Mariana López</td><td class="money">$ 4.200.000</td><td><span class="pill done">Aprobado</span></td><td><span class="pill prep">Preparando</span></td><td><div class="rowact"><button class="btn">Registrar envío</button></div></td></tr>
+          <tr><td><b>SRT-000426</b><div class="sku">hace 3 d</div></td><td><div class="pc"><span class="mini" style="background-image:url(o2.webp)"></span>Solitario de Diamante</div></td><td>Daniela Ríos</td><td class="money">$ 6.900.000</td><td><span class="pill done">Aprobado</span></td><td><span class="pill ship">Enviado · Servientrega</span></td><td><div class="rowact"><button class="btn">Marcar entregado</button></div></td></tr>
+        </tbody>
+      </table>
+      <div class="mcards">
+        <article><div class="r"><b>SRT-000431</b><span class="pill pay">Por pagar</span></div><div class="pc"><span class="mini" style="background-image:url(o4.webp)"></span><div>Dije Roseta de Esmeralda<div class="sku">Laura Restrepo</div></div></div><div class="r"><span class="money">$ 3.200.000</span><button class="btn primary">Confirmar pago</button></div></article>
+        <article><div class="r"><b>SRT-000430</b><span class="pill prep">Por preparar</span></div><div class="pc"><span class="mini" style="background-image:url(o1.webp)"></span><div>Rubie Flower Cluster<div class="sku">Valentina Gómez</div></div></div><div class="r"><span class="money">$ 5.100.000</span><button class="btn">Preparar</button></div></article>
+        <article><div class="r"><b>SRT-000426</b><span class="pill ship">Enviado</span></div><div class="pc"><span class="mini" style="background-image:url(o2.webp)"></span><div>Solitario de Diamante<div class="sku">Daniela Ríos</div></div></div><div class="r"><span class="money">$ 6.900.000</span><button class="btn">Marcar entregado</button></div></article>
+      </div>
+    </section>
+  </main>
+</div>
+</body>
+</html>
