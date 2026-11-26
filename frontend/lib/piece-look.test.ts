@@ -12,6 +12,8 @@ test('stone colors recognize Spanish and English names', () => {
   assert.equal(stoneColor('Sapphire'), '#315d9b');
   assert.equal(stoneColor('Diamante'), '#eef1f3');
   assert.equal(stoneColor('Ópalo'), '#c9a96e');
+  assert.equal(stoneColor('Esmeralda', '#123456'), '#123456');
+  assert.equal(stoneColor('Esmeralda', ''), '#1f7a55');
 });
 test('collection link falls back to category and catalog', () => {
   const category = { name: 'Anillos', slug: 'anillos' };

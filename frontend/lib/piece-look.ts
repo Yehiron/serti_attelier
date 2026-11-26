@@ -5,7 +5,8 @@ import type { Named } from './api/types.ts';
 export function pieceEyebrow(unique: string, number: string | null | undefined) {
   return [unique, number?.trim()].filter(Boolean).join(' · ');
 }
-export function stoneColor(name: string) {
+export function stoneColor(name: string, color?: string) {
+  if (color) return color;
   const value = name.toLocaleLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   if (/esmerald|emerald/.test(value)) return '#1f7a55';
   if (/rubi|ruby/.test(value)) return '#a51d38';

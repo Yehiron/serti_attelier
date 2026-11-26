@@ -152,10 +152,13 @@ def test_linked_taxonomy_has_no_bulk_and_blocks_delete(model):
         piece.stones.add(obj)
     else:
         piece.collections.add(obj)
-    html = browser.get(
-        reverse(f"admin:catalog_{model._meta.model_name}_changelist")
-    ).content.decode()
-    assert "Tiene 1 pieza: retírala antes de eliminarla" in html
+    changelist = reverse(f"admin:catalog_{model._meta.model_name}_changelist")
+    if model is Stone:
+        # Stones use the list-detail screen: «Eliminar…» lives in the selected stone's panel.
+        html = browser.get(f"{changelist}?stone={obj.pk}").content.decode()
+    else:
+        html = browser.get(changelist).content.decode()
+        assert "Tiene 1 pieza: retírala antes de eliminarla" in html
     assert reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk]) in html
     assert 'name="_selected_action"' not in html
     url = reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk])

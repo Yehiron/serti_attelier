@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piedras · B · Lista y detalle</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.split { display: grid; grid-template-columns: minmax(300px, 360px) 1fr; gap: 16px; align-items: start; }
+.tree { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.trow { display: grid; grid-template-columns: 18px 44px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.trow:last-child { border-bottom: 0; }
+.trow.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.trow .th { width: 44px; height: 44px; border-radius: 50%; }
+.trow b { display: flex; align-items: center; gap: 6px; font-size: 14px; } .trow small { color: var(--muted); font-size: 12px; }
+.dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.detail { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.dtop { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 18px; }
+.dcover { aspect-ratio: 1; border-radius: 50%; position: relative; box-shadow: 0 20px 40px -24px rgba(31,26,23,.5); }
+.dcover button { position: absolute; left: 50%; bottom: 8px; transform: translateX(-50%); white-space: nowrap; }
+.swatches { display: flex; gap: 8px; flex-wrap: wrap; }
+.swatches span { width: 28px; height: 28px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px var(--line); cursor: pointer; }
+.swatches span.on { box-shadow: 0 0 0 2px var(--accent); }
+.counter { font-size: 11px; color: var(--muted); text-align: right; }
+.flag { background: var(--danger-soft); color: var(--danger); border-radius: 8px; padding: 8px 10px; font-size: 12px; }
+.flag mark { background: #f6c9cf; color: inherit; }
+.pieces { padding: 0 18px 18px; display: grid; gap: 10px; }
+.prow2 { display: flex; gap: 10px; overflow-x: auto; scrollbar-width: none; }
+.prow2 a { flex: 0 0 96px; text-decoration: none; color: var(--ink); font-size: 11px; }
+.prow2 a span { display: block; aspect-ratio: 4/5; border-radius: 10px; background: center/cover #f1e9e2; margin-bottom: 6px; }
+.preview { margin: 0 18px 18px; border-radius: 14px; overflow: hidden; position: relative; height: 170px; background: center 40%/cover; color: #ead9cb; display: flex; align-items: flex-end; }
+.preview::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(51,4,20,.85), rgba(51,4,20,.35) 55%, transparent); }
+.preview div { position: relative; z-index: 1; padding: 16px 20px; max-width: 70%; }
+.preview small { color: #c9a96e; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; }
+.preview h4 { margin: 6px 0 4px; font: 400 44px/1 Georgia, serif; }
+.preview p { margin: 0; font-size: 12px; opacity: .9; }
+.lbl { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 18px 8px; }
+.bar { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; padding: 14px 18px; border-top: 1px solid var(--line); }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } .dtop { grid-template-columns: 1fr; } .dcover { width: 180px; margin: 0 auto; } .preview div { max-width: 100%; } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#">Categorías</a><a href="#" class="on">Piedras</a><a href="#">Colecciones</a></nav>
+  <main class="main">
+    <div class="top"><h1>Piedras</h1><button class="btn primary">＋ Nueva</button></div>
+    <div class="split">
+      <section class="tree">
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(diamante.webp)"></span><div><b><i class="dot" style="background:#e9eef2;border:1px solid #ccc"></i>Diamante</b><small>19 piezas</small></div><span class="good">✓</span></div>
+        <div class="trow on"><span class="handle">⠿</span><span class="th cover" style="background-image:url(esmeralda.webp)"></span><div><b><i class="dot" style="background:#1f7a55"></i>Esmeralda</b><small>17 piezas</small></div><span class="bad">!</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(zafiro.webp)"></span><div><b><i class="dot" style="background:#244a9c"></i>Zafiro</b><small>5 piezas</small></div><span class="good">✓</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(rubi.webp)"></span><div><b><i class="dot" style="background:#a51c3a"></i>Rubí</b><small>2 piezas</small></div><span class="warn">!</span></div>
+      </section>
+      <section class="detail">
+        <div class="dtop">
+          <div><div class="dcover cover" style="background-image:url(esmeralda.webp)"><button class="btn sm">Cambiar foto</button></div></div>
+          <div style="display:grid;gap:12px;align-content:start">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="lang"><b>ES</b><span>EN</span></span><span class="bad">! Revisar descripción</span></div>
+            <label class="f"><span>Nombre</span><input value="Esmeralda"></label>
+            <label class="f"><span>Descripción</span><textarea style="min-height:110px">Colombia es cuna de las esmeraldas más apreciadas del mundo. Cada piedra guarda en su interior un jardín propio de inclusiones que la hace irrepetible, y por eso ninguna joya con esmeralda colombiana es igual a otra. Texto largo de prueba para verificar que la tarjeta conserva su composición.</textarea><span class="counter">297 caracteres</span></label>
+            <div class="flag">Parece texto de prueba: <mark>«Texto largo de prueba para verificar que la tarjeta conserva su composición.»</mark> Bórralo antes de publicar.</div>
+            <div class="f"><span>Color de la gema <small>(se usa en el selector de Personaliza y en la ficha de cada pieza)</small></span><div class="swatches"><span style="background:#1f7a55" class="on"></span><span style="background:#0f5a3c"></span><span style="background:#3c9a6e"></span><span style="background:#a51c3a"></span><span style="background:#244a9c"></span><span style="background:#e9eef2"></span><span style="background:#c9a96e"></span></div></div>
+          </div>
+        </div>
+        <p class="lbl">Piezas con esmeralda · 17</p>
+        <div class="pieces"><div class="prow2"><a href="#"><span style="background-image:url(pieza-4.webp)"></span>Anillo Esmeraldas Esfera</a><a href="#"><span style="background-image:url(pieza-6.webp)"></span>Anillo Multibanda</a><a href="#"><span style="background-image:url(pieza-2.webp)"></span>Rubie Flower</a><a href="#"><span style="background-image:url(pieza-3.webp)"></span>Pinky Ring</a><a href="#"><span style="background-image:url(pieza-5.webp)"></span>Solitario</a><a href="#"><span style="display:grid;place-items:center;color:var(--muted)">+12</span>Ver todas</a></div></div>
+        <p class="lbl">Así se ve en la tienda</p>
+        <div class="preview" style="background-image:url(esmeralda.webp)"><div><small>SERTI · Pieza única · 1 de 1</small><h4>Esmeralda</h4><p>Colombia es cuna de las esmeraldas más apreciadas del mundo…</p></div></div>
+        <div class="bar"><button class="btn danger">Eliminar…</button><div style="display:flex;gap:8px"><button class="btn ghost">Ver en la tienda ↗</button><button class="btn primary">Guardar</button></div></div>
+      </section>
+    </div>
+  </main>
+</div>
+</body></html>

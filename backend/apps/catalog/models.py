@@ -4,6 +4,7 @@ import uuid
 from typing import TYPE_CHECKING, Any
 
 from django.core.exceptions import ValidationError
+from django.core.validators import RegexValidator
 from django.db import models
 from django.utils.text import slugify
 from django.utils.translation import gettext_lazy as _
@@ -153,6 +154,13 @@ class Collection(CoveredModel):
 
 
 class Stone(CoveredModel):
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        validators=[RegexValidator(r"^#[0-9a-fA-F]{6}$")],
+        verbose_name=_("Color de la gema"),
+        help_text=_("Se usa en Personaliza y en la ficha de las piezas"),
+    )
     updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Stone] = MultilingualManager()
 

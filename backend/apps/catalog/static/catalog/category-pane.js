@@ -12,7 +12,7 @@
     const description = app.querySelector(`#id_description_${language}`);
     const title = app.querySelector('[data-preview-name]');
     const text = app.querySelector('[data-preview-description]');
-    if (title) title.textContent = name?.value || 'Categoría';
+    if (title) title.textContent = name?.value || app.dataset.previewFallback || 'Categoría';
     if (text) text.textContent = description?.value || '';
   };
   app.querySelectorAll('[data-lang]').forEach(button => button.addEventListener('click', () => {
@@ -28,6 +28,36 @@
     const url = URL.createObjectURL(file);
     app.querySelectorAll('.cat-cover, .cat-preview').forEach(element => { element.style.backgroundImage = `url("${url}")`; });
   });
+  if (app.classList.contains('stone-app')) {
+    const colors = ['#1f7a55', '#a51c3a', '#244a9c', '#e9eef2', '#0f5a3c', '#3c9a6e', '#c9a96e', '#7b4fa0', '#f2b84b'];
+    const field = app.querySelector('#id_color');
+    const custom = app.querySelector('[data-custom-color]');
+    // Keep the free colour picker and the selected swatch in step with the text field.
+    const sync = () => {
+      const value = (field?.value || '').toLowerCase();
+      if (custom && /^#[0-9a-f]{6}$/.test(value)) custom.value = value;
+      app.querySelectorAll('[data-swatch]').forEach(button => button.classList.toggle('stone-swatch-on', colors[Number(button.dataset.swatch)] === value));
+    };
+    app.querySelectorAll('[data-swatch]').forEach(button => { const color = colors[Number(button.dataset.swatch)]; button.style.background = color; button.setAttribute('aria-label', `Color ${color}`); button.addEventListener('click', () => { field.value = color; sync(); }); });
+    custom?.addEventListener('input', event => { field.value = event.target.value; sync(); });
+    app.querySelector('[data-auto-color]')?.addEventListener('click', () => { field.value = ''; sync(); });
+    field?.addEventListener('input', sync);
+    sync();
+    const updateWarning = () => {
+      let phrase = '';
+      ['es', 'en'].forEach(lang => {
+        const value = app.querySelector(`#id_description_${lang}`)?.value || '';
+        const counter = app.querySelector(`[data-counter="${lang}"]`);
+        if (counter) counter.textContent = `${value.length} caracteres`;
+        const match = value.normalize('NFD').replace(/[\u0300-\u036f]/g, '').match(/texto(?: largo)? de prueba|lorem ipsum|prueba para verificar|test text/i);
+        if (!phrase && match) phrase = value.slice(match.index, match.index + match[0].length);
+      });
+      const warning = app.querySelector('[data-test-warning]');
+      if (warning) { warning.hidden = !phrase; warning.querySelector('[data-test-phrase]').textContent = phrase; }
+    };
+    app.querySelectorAll('[id^="id_description_"]').forEach(input => input.addEventListener('input', updateWarning));
+    updateWarning();
+  }
   let dragged;
   app.querySelectorAll('.cat-row[draggable="true"]').forEach(row => {
     row.addEventListener('dragstart', () => { dragged = row; });

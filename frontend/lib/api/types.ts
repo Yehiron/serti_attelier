@@ -1,6 +1,6 @@
 export type Image = { src: string; srcset: string; width: number; height: number; alt: string; focal?: { x: number; y: number } };
 export type Money = { amount_cents: number; currency: 'COP' };
-export type Named = { slug: string; name: string };
+export type Named = { slug: string; name: string; color?: string };
 export type Taxon = Named & { slugs?: { es: string; en: string }; updated_at?: string | null; cover_image: string | null; cover?: Image | null; description?: string; seo_title?: string; seo_description?: string };
 export type Category = Taxon & { children: Taxon[] };
 export type Taxonomy = { categories: Category[]; collections: Taxon[]; stones: Taxon[]; materials: Taxon[] };

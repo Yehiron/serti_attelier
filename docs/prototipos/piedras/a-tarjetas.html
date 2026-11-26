@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piedras · A · Tarjetas de gema</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.gcard { background: #fff; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; display: grid; grid-template-columns: 200px 1fr; }
+.gcard .img { min-height: 220px; }
+.gcard .b { padding: 16px 18px; display: grid; gap: 10px; align-content: start; }
+.gname { display: flex; align-items: center; gap: 10px; }
+.gname i { width: 18px; height: 18px; border-radius: 30% 30% 50% 50%; transform: rotate(45deg); box-shadow: inset -3px -3px 6px rgba(0,0,0,.25), inset 2px 2px 5px rgba(255,255,255,.6); }
+.gname b { font: 400 28px/1 Georgia, serif; }
+.desc { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.thumbs { display: flex; align-items: center; }
+.thumbs span { width: 34px; height: 34px; border-radius: 50%; border: 2px solid #fff; margin-left: -10px; background: center/cover #f1e9e2; }
+.thumbs span:first-child { margin-left: 0; }
+.thumbs small { margin-left: 10px; color: var(--muted); font-size: 12px; }
+.acts { display: flex; gap: 6px; flex-wrap: wrap; }
+@media (max-width: 900px) { .grid { grid-template-columns: 1fr; } }
+@media (max-width: 560px) { .gcard { grid-template-columns: 1fr; } .gcard .img { min-height: 0; aspect-ratio: 16/10; } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#">Categorías</a><a href="#" class="on">Piedras</a><a href="#">Colecciones</a></nav>
+  <main class="main">
+    <div class="top"><div><h1>Piedras</h1><p class="note" style="margin:6px 0 0">4 piedras · arrastra para cambiar el orden del menú «Piedras»</p></div><button class="btn primary">＋ Nueva piedra</button></div>
+    <div class="grid">
+      <article class="gcard"><div class="img cover" style="background-image:url(diamante.webp)"></div><div class="b"><div class="gname"><span class="handle">⠿</span><i style="background:#e9eef2"></i><b>Diamante</b></div><p class="desc">La piedra más dura de la naturaleza, símbolo de permanencia.</p><div class="thumbs"><span style="background-image:url(pieza-5.webp)"></span><span style="background-image:url(pieza-3.webp)"></span><span style="background-image:url(pieza-4.webp)"></span><small>19 piezas</small></div><div class="acts"><span class="good">✓ Lista</span></div><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost">Ver en la tienda ↗</button></div></div></article>
+      <article class="gcard"><div class="img cover" style="background-image:url(esmeralda.webp)"></div><div class="b"><div class="gname"><span class="handle">⠿</span><i style="background:#1f7a55"></i><b>Esmeralda</b></div><p class="desc">Colombia es cuna de las esmeraldas más apreciadas del mundo. Cada piedra guarda en su interior un jardín propio de inclusiones…</p><div class="thumbs"><span style="background-image:url(pieza-4.webp)"></span><span style="background-image:url(pieza-6.webp)"></span><span style="background-image:url(pieza-2.webp)"></span><small>17 piezas</small></div><div class="acts"><span class="bad">La descripción tiene texto de prueba</span></div><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost">Ver en la tienda ↗</button></div></div></article>
+      <article class="gcard"><div class="img cover" style="background-image:url(zafiro.webp)"></div><div class="b"><div class="gname"><span class="handle">⠿</span><i style="background:#244a9c"></i><b>Zafiro</b></div><p class="desc">Azul profundo, asociado a la sabiduría y la lealtad.</p><div class="thumbs"><span style="background-image:url(pieza-1.webp)"></span><span style="background-image:url(pieza-6.webp)"></span><small>5 piezas</small></div><div class="acts"><span class="good">✓ Lista</span></div><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost">Ver en la tienda ↗</button></div></div></article>
+      <article class="gcard"><div class="img cover" style="background-image:url(rubi.webp)"></div><div class="b"><div class="gname"><span class="handle">⠿</span><i style="background:#a51c3a"></i><b>Rubí</b></div><p class="desc" style="font-style:italic">Sin descripción</p><div class="thumbs"><span style="background-image:url(pieza-2.webp)"></span><small>2 piezas</small></div><div class="acts"><span class="warn">Falta descripción</span></div><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost">Ver en la tienda ↗</button></div></div></article>
+    </div>
+  </main>
+</div>
+</body></html>

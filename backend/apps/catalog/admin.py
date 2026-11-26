@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import json
+import re
+import unicodedata
 from collections.abc import Sequence
 from copy import copy
 from typing import Any, ClassVar, cast
@@ -325,8 +327,42 @@ class TranslatedAdmin(
             services.delete_catalog_object(obj, actor=request.user, request=request)
 
 
+class TaxonomyPaneMixin(TranslatedAdmin):
+    @staticmethod
+    def cover_url(obj):
+        if not obj:
+            return ""
+        paths = obj.cover_renditions.get("webp", {})
+        return (
+            default_storage.url(paths[min(paths, key=int)])
+            if paths
+            else (obj.cover_image.url if obj.cover_image else "")
+        )
+
+    def save_pane(self, request, form, obj):
+        try:
+            with transaction.atomic():
+                saved = form.save(commit=False)
+                self.save_model(request, saved, form, bool(obj))
+                form.save_m2m()
+                if obj:
+                    self.log_change(
+                        request, saved, self.construct_change_message(request, form, [])
+                    )
+                else:
+                    self.log_addition(
+                        request, saved, self.construct_change_message(request, form, [], add=True)
+                    )
+            return saved
+        except ValidationError as exc:
+            errors = exc.message_dict if hasattr(exc, "message_dict") else {"__all__": exc.messages}
+            for field, values in errors.items():
+                form.add_error(field if field in form.fields else None, values)
+            return None
+
+
 @admin.register(Category)
-class CategoryAdmin(TranslatedAdmin):
+class CategoryAdmin(TaxonomyPaneMixin):
     form = CategoryForm
     ordering_field = "position"
     list_display = (
@@ -364,30 +400,8 @@ class CategoryAdmin(TranslatedAdmin):
             if not can_edit:
                 raise PermissionDenied
             if form.is_valid():
-                try:
-                    with transaction.atomic():
-                        saved = form.save(commit=False)
-                        self.save_model(request, saved, form, bool(obj))
-                        form.save_m2m()
-                        if obj:
-                            self.log_change(
-                                request, saved, self.construct_change_message(request, form, [])
-                            )
-                        else:
-                            self.log_addition(
-                                request,
-                                saved,
-                                self.construct_change_message(request, form, [], add=True),
-                            )
-                except ValidationError as exc:
-                    errors = (
-                        exc.message_dict
-                        if hasattr(exc, "message_dict")
-                        else {"__all__": exc.messages}
-                    )
-                    for field, errors_for_field in errors.items():
-                        form.add_error(field if field in form.fields else None, errors_for_field)
-                else:
+                saved = self.save_pane(request, form, obj)
+                if saved:
                     messages.success(request, "La categoría se guardó correctamente.")
                     return HttpResponseRedirect(
                         reverse("admin:catalog_category_changelist") + f"?category={saved.pk}"
@@ -420,17 +434,6 @@ class CategoryAdmin(TranslatedAdmin):
             else "",
         }
         return TemplateResponse(request, self.change_list_template, context)
-
-    @staticmethod
-    def cover_url(obj):
-        if not obj:
-            return ""
-        paths = obj.cover_renditions.get("webp", {})
-        return (
-            default_storage.url(paths[min(paths, key=int)])
-            if paths
-            else (obj.cover_image.url if obj.cover_image else "")
-        )
 
     @method_decorator(require_POST)
     def reorder_categories(self, request):
@@ -609,7 +612,129 @@ class CategoryAdmin(TranslatedAdmin):
 
 
 admin.site.register(Collection, TranslatedAdmin)
-admin.site.register(Stone, TranslatedAdmin)
+
+
+def stone_test_phrase(value):
+    normalized = "".join(
+        c for c in unicodedata.normalize("NFD", value or "") if unicodedata.category(c) != "Mn"
+    )
+    match = re.search(
+        r"texto(?: largo)? de prueba|lorem ipsum|prueba para verificar|test text", normalized, re.I
+    )
+    return value[match.start() : match.end()] if match else ""
+
+
+@admin.register(Stone)
+class StoneAdmin(TaxonomyPaneMixin):
+    change_list_template = "admin/catalog/stone/change_list.html"
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        stones = list(self.get_queryset(request))
+        selected_id = request.GET.get("stone", "")
+        creating = selected_id == "new"
+        obj = next((item for item in stones if str(item.pk) == selected_id), None)
+        if not creating and obj is None and stones:
+            obj = stones[0]
+        if creating and not self.has_add_permission(request):
+            raise PermissionDenied
+        can_edit = (
+            self.has_change_permission(request, obj) if obj else self.has_add_permission(request)
+        )
+        form = self.get_form(request, obj)(
+            request.POST or None, request.FILES or None, instance=obj
+        )
+        if request.method == "POST":
+            if not can_edit:
+                raise PermissionDenied
+            if form.is_valid():
+                saved = self.save_pane(request, form, obj)
+                if saved:
+                    messages.success(request, "La piedra se guardó correctamente.")
+                    return HttpResponseRedirect(
+                        reverse("admin:catalog_stone_changelist") + f"?stone={saved.pk}"
+                    )
+        for item in stones:
+            item.pane_cover = self.cover_url(item)
+            item.pane_phrase = stone_test_phrase(item.description_es) or stone_test_phrase(
+                item.description_en
+            )
+            item.pane_health = (
+                "texto de prueba"
+                if item.pane_phrase
+                else "sin foto"
+                if not item.cover_image
+                else "falta descripción"
+                if not item.description_es
+                else "lista"
+            )
+        pieces = []
+        if obj:
+            for piece in obj.pieces.prefetch_related("images").all()[:8]:
+                photo = next(iter(piece.images.all()), None)
+                pieces.append(
+                    {
+                        "obj": piece,
+                        "image": thumbnail_url(photo) if photo and photo.original else "",
+                    }
+                )
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Piedras",
+            "opts": self.opts,
+            "stones": stones,
+            "selected": obj,
+            "creating": creating,
+            "pane_form": form,
+            "can_edit": can_edit,
+            "can_add": self.has_add_permission(request),
+            "can_delete": bool(obj and self.has_delete_permission(request, obj)),
+            "cover_url": self.cover_url(obj),
+            "pieces": pieces,
+            "store_url": settings.PUBLIC_SITE_URL.rstrip("/") + "/es/piedras/" + quote(obj.slug_es)
+            if obj
+            else "",
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+    @method_decorator(require_POST)
+    def reorder_stones(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        try:
+            ids = json.loads(request.POST.get("ids", ""))
+            if (
+                not isinstance(ids, list)
+                or not ids
+                or any(type(pk) is not int for pk in ids)
+                or len(set(ids)) != len(ids)
+            ):
+                raise ValueError
+            with transaction.atomic():
+                items = list(Stone.objects.select_for_update().all())
+                if set(ids) != {item.pk for item in items}:
+                    raise ValueError
+                by_id = {item.pk: item for item in items}
+                for position, pk in enumerate(ids):
+                    if by_id[pk].position != position:
+                        by_id[pk].position = position
+                        services.save_taxonomy(by_id[pk], actor=request.user, request=request)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return JsonResponse({"error": "Orden inválido"}, status=400)
+        return JsonResponse({"ok": True})
+
+    def get_urls(self):
+        return [
+            path(
+                "reordenar/",
+                self.admin_site.admin_view(self.reorder_stones),
+                name="catalog_stone_reorder",
+            ),
+            *super().get_urls(),
+        ]
+
+
 admin.site.register(Material, TranslatedAdmin)
 
 

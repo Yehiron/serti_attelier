@@ -143,7 +143,10 @@ def test_http_contract_filters_search_taxonomy_and_visibility(
     for key in ("image", "hover_image"):
         assert_image(card[key])
     assert_named(card["category"])
-    assert_named(card["stones"][0])
+    # Stones also carry the gem color (Personaliza, piece sheet); "" means automatic.
+    card_stone = dict(card["stones"][0])
+    assert type(card_stone.pop("color")) is str
+    assert_named(card_stone)
     assert card["price"] == {"amount_cents": 12345600, "currency": "COP"}
     assert card["sale_price"] == {"amount_cents": 10000000, "currency": "COP"}
     slug = getattr(piece, "slug_" + locale)
