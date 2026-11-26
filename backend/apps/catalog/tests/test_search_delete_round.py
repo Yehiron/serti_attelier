@@ -156,6 +156,9 @@ def test_linked_taxonomy_has_no_bulk_and_blocks_delete(model):
     if model is Stone:
         # Stones use the list-detail screen: «Eliminar…» lives in the selected stone's panel.
         html = browser.get(f"{changelist}?stone={obj.pk}").content.decode()
+    elif model is Collection:
+        # Collections use the curation board: «Eliminar…» lives in the edit dialog.
+        html = browser.get(f"{changelist}?collection={obj.pk}").content.decode()
     else:
         html = browser.get(changelist).content.decode()
         assert "Tiene 1 pieza: retírala antes de eliminarla" in html

@@ -713,6 +713,53 @@ def record_collections(
 
 
 @transaction.atomic
+def curate_collection(
+    collection: Collection, piece_ids: object, *, actor: Actor, request: HttpRequest | None
+) -> None:
+    if (
+        not isinstance(piece_ids, list)
+        or any(type(pk) is not int for pk in piece_ids)
+        or len(set(piece_ids)) != len(piece_ids)
+    ):
+        raise ValidationError("La lista de piezas no es válida.")
+    collection = Collection.objects.select_for_update().get(pk=collection.pk)
+    links = list(CollectionPiece.objects.filter(collection=collection).select_related("piece"))
+    linked = {link.piece_id for link in links}
+    # Archived pieces already in the collection may stay (and be reordered); only new
+    # additions must be live pieces.
+    pieces = {
+        p.pk: p
+        for p in Piece.objects.filter(pk__in=piece_ids)
+        if p.status != Piece.Status.ARCHIVED or p.pk in linked
+    }
+    if len(pieces) != len(piece_ids):
+        raise ValidationError("Hay piezas inexistentes o archivadas.")
+    before = [link.piece.sku for link in links]
+    by_piece = {link.piece_id: link for link in links}
+    for link in links:
+        if link.piece_id not in pieces:
+            link.delete()
+    for position, pk in enumerate(piece_ids):
+        existing = by_piece.get(pk)
+        if existing is None:
+            CollectionPiece.objects.create(
+                collection=collection, piece=pieces[pk], position=position
+            )
+        elif existing.position != position:
+            existing.position = position
+            existing.save(update_fields=["position"])
+    after = [pieces[pk].sku for pk in piece_ids]
+    if before != after:
+        record(
+            "catalog.collection_curated",
+            actor=actor,
+            obj=collection,
+            diff={"Piezas": [before, after]},
+            request=request,
+        )
+
+
+@transaction.atomic
 def save_collection_piece(
     obj: CollectionPiece, *, actor: Actor = None, request: HttpRequest | None = None
 ) -> None:

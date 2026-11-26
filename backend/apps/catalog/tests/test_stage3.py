@@ -174,7 +174,8 @@ def test_list_queries_bounded():
     assert len(many) <= len(one) + 2
     assert len(many) < 35
     assert all(len(piece.list_primary_images) == 1 for piece in response.context["cl"].result_list)
-    photo_queries = [q["sql"] for q in many if 'FROM "catalog_pieceimage"' in q["sql"]]
+    # Only queries that load photos (the piece query also counts them in a subquery).
+    photo_queries = [q["sql"] for q in many if q["sql"].startswith('SELECT "catalog_pieceimage"')]
     assert len(photo_queries) == 1 and "is_primary" in photo_queries[0]
 
 

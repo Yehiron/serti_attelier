@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piezas · C · Lista y ficha</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.gem{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.15);margin-right:2px}
+.health{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:14px}
+.health div{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;font-size:12px;color:var(--muted)}
+.health b{display:block;font:600 22px/1.1 Georgia,serif;color:var(--ink)}
+.health .w b{color:var(--warn)}
+.split{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;align-items:start}
+.list{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.lh{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--line);flex-wrap:wrap}.lh .search{flex:1;min-width:180px}
+.it{display:grid;grid-template-columns:48px 1fr auto;gap:12px;align-items:center;padding:9px 14px;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}
+.it:last-child{border-bottom:0}.it.on{background:var(--accent-soft);box-shadow:inset 3px 0 0 var(--accent)}
+.it .ph{width:48px;height:48px;border-radius:8px;background:center/cover #f1e9e2}
+.it b{display:block;font-size:14px}.it small{color:var(--muted);font-size:12px}
+.it .rt{text-align:right;display:grid;gap:3px;justify-items:end}
+.dot{width:8px;height:8px;border-radius:50%;display:inline-block}
+.card{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden;position:sticky;top:16px}
+.gal{display:grid;grid-template-columns:2fr 1fr;gap:3px;height:240px}
+.gal span{background:center/cover #f1e9e2}.gal .add{display:grid;place-items:center;color:var(--muted);font-size:12px;text-align:center;background:repeating-linear-gradient(135deg,#f4efe9 0 10px,#efe7df 10px 20px)}
+.cb{padding:16px;display:grid;gap:12px}
+.cb h2{margin:0;font:400 24px/1.1 Georgia,serif;color:#651c32}
+.tg{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:8px 0;border-top:1px solid var(--line)}
+.sw{width:38px;height:22px;border-radius:99px;background:var(--ok);position:relative}.sw::after{content:"";position:absolute;right:3px;top:3px;width:16px;height:16px;border-radius:50%;background:#fff}
+.sw.off{background:#d9d2cc}.sw.off::after{right:auto;left:3px}
+.chk{display:grid;gap:6px;font-size:12px}.chk span{display:flex;gap:8px;align-items:center}
+.ac{display:flex;gap:8px;flex-wrap:wrap}
+@media(max-width:900px){.split{grid-template-columns:1fr}.card{position:static}.health{grid-template-columns:1fr 1fr}}
+</style></head>
+<body><div class="shell"><div id="side"></div><main class="main">
+<div class="top"><h1>Piezas</h1><button class="btn primary">＋ Nueva pieza</button></div>
+<div class="health"><div><b>29</b>En la tienda y disponibles</div><div><b>2</b>Vendidas</div><div class="w"><b>9</b>Con una sola foto</div><div class="w"><b>4</b>Sin piedra asignada</div></div>
+<div class="split">
+<section class="list"><div class="lh"><label class="search">⌕ <span>Buscar…</span></label><span class="chip on">Todas</span><span class="chip">Disponibles</span><span class="chip">Vendidas</span><span class="chip">Por revisar</span></div><div id="l"></div></section>
+<aside class="card">
+<div class="gal"><span style="background-image:url(028.webp)"></span><span class="add">＋<br>Agregar fotos<br><small>Solo tiene 1</small></span></div>
+<div class="cb">
+<div style="display:flex;justify-content:space-between;align-items:center"><small class="note">SERTI-028 · Anillos</small><span class="good">En la tienda</span></div>
+<h2>Anillo Esmeraldas Esfera</h2>
+<div style="display:flex;justify-content:space-between;align-items:center"><span class="money" style="font-size:18px">$ 4.300.000</span><span style="font-size:12px"><i class="gem" style="background:#e9eef2"></i><i class="gem" style="background:#1f7a55"></i> Diamante, Esmeralda</span></div>
+<div class="tg"><span>Visible en la tienda</span><span class="sw"></span></div>
+<div class="tg"><span>Disponible para comprar</span><span class="sw"></span></div>
+<div class="tg"><span>Preventa / por encargo</span><span class="sw off"></span></div>
+<div class="chk"><b style="font-size:12px;color:var(--muted);letter-spacing:.08em;text-transform:uppercase">Para que luzca mejor</b><span>✓ Nombre, precio y descripción</span><span>✓ Traducción al inglés</span><span style="color:var(--warn)">! Solo 1 foto — sube al menos 2</span><span>✓ En 2 colecciones</span></div>
+<div class="ac"><button class="btn primary">Editar pieza</button><button class="btn">↗ Ver</button><button class="btn">⧉ Duplicar</button><button class="btn danger">Eliminar…</button></div>
+</div></aside>
+</div></main></div>
+<script src="data.js"></script>
+<script>
+document.getElementById('side').outerHTML=SIDE;
+document.getElementById('l').innerHTML=[27,0,1,2,3,16,19,21,25,28].map(i=>P[i]).map((p,j)=>`<div class="it ${j===0?'on':''}"><span class="ph" style="background-image:url(${p.n}.webp)"></span><div><b>${p.name}</b><small>SERTI-${p.n} · ${p.cat} · ${dots(p.stones)}</small></div><div class="rt"><span class="money">${money(p.price)}</span>${p.sold?'<small><i class="dot" style="background:#8c817a"></i> Vendida</small>':issues(p).length?`<small style="color:var(--warn)">! ${issues(p)[0]}</small>`:'<small style="color:var(--ok)"><i class="dot" style="background:var(--ok)"></i> En la tienda</small>'}</div></div>`).join('');
+</script></body></html>

@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Colecciones · B · Mesa de curaduría</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.switch { display: flex; gap: 8px; overflow-x: auto; scrollbar-width: none; margin-bottom: 14px; }
+.switch button { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--line); background: #fff; border-radius: 99px; padding: 6px 14px 6px 6px; font: inherit; font-size: 13px; cursor: pointer; white-space: nowrap; }
+.switch button span { width: 26px; height: 26px; border-radius: 50%; background: center/cover #f1e9e2; }
+.switch button.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.desk { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+.board { background: #fbf7f3; border: 1px solid var(--line); border-radius: 18px; overflow: hidden; }
+.bn { position: relative; height: 200px; background: url(timeless.webp) center 35%/cover; color: #ead9cb; display: flex; align-items: flex-end; }
+.bn::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(51,4,20,.85), rgba(51,4,20,.3) 60%, transparent); }
+.bn .c { position: relative; z-index: 1; padding: 0 22px 18px; }
+.bn small { color: #c9a96e; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; }
+.bn h2 { margin: 6px 0 4px; font: 400 44px/1 Georgia, serif; }
+.bn .edit { position: absolute; z-index: 2; right: 14px; top: 14px; }
+.legend { display: flex; justify-content: space-between; align-items: center; padding: 14px 18px 0; font-size: 12px; color: var(--muted); flex-wrap: wrap; gap: 6px; }
+.grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; padding: 14px 18px 18px; }
+.card { position: relative; cursor: grab; }
+.card span.img { display: block; aspect-ratio: 4/5; background: center/cover #f1e9e2; border-radius: 4px; }
+.card b { display: block; font: 400 15px/1.2 Georgia, serif; color: #651c32; margin-top: 8px; }
+.card small { font-size: 11px; color: var(--muted); }
+.card .tools { position: absolute; top: 8px; left: 8px; right: 8px; display: flex; justify-content: space-between; }
+.card .tools span { background: rgba(255,255,255,.92); border-radius: 99px; padding: 1px 8px; font-size: 11px; font-weight: 700; }
+.card .tools button { background: rgba(255,255,255,.92); border: 0; border-radius: 50%; width: 24px; height: 24px; cursor: pointer; }
+.card.ghost span.img { outline: 2px dashed var(--accent); outline-offset: -2px; background: var(--accent-soft); }
+.card.ghost b { color: var(--accent); }
+.shelf { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: grid; gap: 10px; position: sticky; top: 16px; }
+.shelf h3 { margin: 0; font-size: 14px; }
+.shelf input { border: 1px solid var(--line); border-radius: 10px; min-height: 40px; padding: 0 12px; font: inherit; }
+.chips2 { display: flex; gap: 6px; flex-wrap: wrap; } .chips2 span { font-size: 12px; border: 1px solid var(--line); border-radius: 99px; padding: 4px 10px; }
+.chips2 span.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.item { display: grid; grid-template-columns: 44px 1fr auto; gap: 10px; align-items: center; padding: 6px; border-radius: 10px; font-size: 12px; cursor: grab; }
+.item:hover { background: var(--soft); }
+.item span { width: 44px; height: 44px; border-radius: 8px; background: center/cover #f1e9e2; }
+.item b { display: block; font-size: 13px; }
+.foot { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 18px; border-top: 1px solid var(--line); background: #fff; flex-wrap: wrap; }
+@media (max-width: 960px) { .bn small { display: none; } .bn h2 { font-size: 34px; } .desk { grid-template-columns: 1fr; } .shelf { position: static; } .grid { grid-template-columns: repeat(2, 1fr); } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#">Categorías</a><a href="#">Piedras</a><a href="#" class="on">Colecciones</a></nav>
+  <main class="main">
+    <div class="top"><h1>Colecciones</h1><button class="btn">＋ Nueva colección</button></div>
+    <div class="switch"><button><span style="background-image:url(regalos.webp)"></span>Regalos · 5</button><button class="on"><span style="background-image:url(timeless.webp)"></span>The Timeless Collection · 13</button><button><span style="background-image:url(novedades.webp)"></span>Novedades y Destacados · 8</button><button><span></span>Sets · 0</button><button><span></span>Descuentos · 0</button></div>
+    <div class="desk">
+      <section class="board">
+        <div class="bn"><button class="btn sm edit">✎ Editar nombre, texto y portada</button><div class="c"><small>SERTI · Pieza única · 1 de 1</small><h2>The Timeless Collection</h2><span style="font-size:13px">Anillos de autor en oro de 18 kilates con esmeraldas, zafiros, rubíes y diamantes.</span></div></div>
+        <div class="legend"><span>Así se ordenan en la tienda · arrastra para mover · suelta aquí piezas del catálogo</span><span class="good">13 piezas · 12 disponibles · 1 vendida</span></div>
+        <div class="grid">
+          <div class="card"><div class="tools"><span>1</span><button aria-label="Quitar">×</button></div><span class="img" style="background-image:url(t0.webp)"></span><b>Sapphire Chain Link</b><small>$ 3.900.000</small></div>
+          <div class="card"><div class="tools"><span>2</span><button>×</button></div><span class="img" style="background-image:url(t1.webp)"></span><b>Rubie Flower Cluster</b><small>$ 5.100.000</small></div>
+          <div class="card ghost"><div class="tools"><span>3</span></div><span class="img"></span><b>Soltar aquí: Anillo Esmeraldas Bisel</b></div>
+          <div class="card"><div class="tools"><span>4</span><button>×</button></div><span class="img" style="background-image:url(t2.webp)"></span><b>Pinky Ring</b><small>$ 2.600.000</small></div>
+          <div class="card"><div class="tools"><span>5</span><button>×</button></div><span class="img" style="background-image:url(t3.webp)"></span><b>Anillo Esmeraldas Esfera</b><small>$ 4.300.000</small></div>
+          <div class="card"><div class="tools"><span>6</span><button>×</button></div><span class="img" style="background-image:url(t4.webp)"></span><b>Anillo Open Pera &amp; Baguette</b><small>$ 3.600.000</small></div>
+          <div class="card"><div class="tools"><span>7</span><button>×</button></div><span class="img" style="background-image:url(t5.webp)"></span><b>Sapphire Statement Ring</b><small>$ 5.200.000</small></div>
+          <div class="card"><div class="tools"><span>8</span><button>×</button></div><span class="img" style="background-image:url(t8.webp)"></span><b>Lady Di Emerald</b><small>$ 7.900.000</small></div>
+        </div>
+        <div class="foot"><span class="note">Cambios sin guardar: 1 pieza agregada, orden modificado</span><div style="display:flex;gap:8px"><button class="btn ghost">Ver en la tienda ↗</button><button class="btn primary">Guardar colección</button></div></div>
+      </section>
+      <aside class="shelf">
+        <h3>Agregar desde el catálogo</h3>
+        <input placeholder="Buscar pieza o SKU">
+        <div class="chips2"><span class="on">Todas</span><span>Anillos</span><span>Aretes</span><span>Esmeralda</span><span>Diamante</span></div>
+        <div class="item"><span style="background-image:url(t7.webp)"></span><div><b>Anillo Esmeraldas Bisel</b><small class="sku">SERTI-007 · arrastrando…</small></div><button class="btn sm">＋</button></div>
+        <div class="item"><span style="background-image:url(t9.webp)"></span><div><b>Zafiro Oval</b><small class="sku">SERTI-008 · ya está</small></div><small class="good">✓</small></div>
+        <div class="item"><span style="background-image:url(t6.webp)"></span><div><b>Emerald Solitaire Ring</b><small class="sku">ya está</small></div><small class="good">✓</small></div>
+        <small class="note">Arrastra una pieza al tablero o toca ＋ para ponerla al final.</small>
+      </aside>
+    </div>
+  </main>
+</div>
+</body></html>

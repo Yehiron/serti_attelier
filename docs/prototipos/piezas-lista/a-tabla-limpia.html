@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piezas · A · Tabla limpia</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.gem{width:10px;height:10px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.12);margin-right:3px}
+.tabs{display:flex;gap:4px;border-bottom:1px solid var(--line);margin-bottom:14px;overflow-x:auto;scrollbar-width:none}
+.tabs a{padding:10px 12px;color:var(--muted);text-decoration:none;font-size:13px;white-space:nowrap;border-bottom:2px solid transparent}
+.tabs a.on{color:var(--ink);font-weight:600;border-color:var(--accent)}
+.tabs span{font-size:11px;margin-left:4px;opacity:.7}
+.tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px}
+.tools .search{flex:1;min-width:220px}
+.tbl{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.r{display:grid;grid-template-columns:28px 56px minmax(0,1fr) 110px 130px 150px 150px;gap:14px;align-items:center;padding:10px 16px;border-bottom:1px solid var(--line);font-size:13px}
+.r.h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);padding:10px 16px;background:#fbf9f7}
+.r:last-child{border-bottom:0}
+.r .ph{width:56px;height:56px;border-radius:10px;background:center/cover #f1e9e2}
+.r b{display:block;font-size:14px}.r small{color:var(--muted);font-size:12px}
+.r.sel{background:var(--accent-soft)}
+.r.is-sold .ph{filter:grayscale(.6);opacity:.8}
+.st{display:inline-flex;align-items:center;gap:6px;font-size:12px;border-radius:99px;padding:3px 10px}
+.st.ok{background:var(--ok-soft);color:var(--ok)}.st.sold{background:#ece8e4;color:#6d625b}
+.st i{width:7px;height:7px;border-radius:50%;background:currentColor}
+.acts{display:flex;gap:6px;justify-content:flex-end;position:relative}
+.menu{position:absolute;right:0;top:38px;background:#fff;border:1px solid var(--line);border-radius:12px;box-shadow:0 20px 40px -20px rgba(31,26,23,.45);padding:6px;width:190px;z-index:4;display:grid}
+.menu a{padding:8px 10px;border-radius:8px;font-size:13px;color:var(--ink);text-decoration:none}.menu a:hover{background:var(--soft)}
+.menu a.d{color:var(--danger)}.menu hr{border:0;border-top:1px solid var(--line);margin:4px 0}
+.bulk{position:sticky;bottom:12px;margin:12px auto 0;max-width:640px;background:var(--ink);color:#fff;border-radius:14px;padding:10px 14px;display:flex;gap:8px;align-items:center;justify-content:space-between;flex-wrap:wrap;box-shadow:0 20px 40px -20px rgba(0,0,0,.6)}
+.bulk .btn{background:transparent;color:#fff;border-color:rgba(255,255,255,.3)}
+@media(max-width:860px){.r.h{display:none}.r{grid-template-columns:24px 64px minmax(0,1fr);row-gap:8px;column-gap:12px}.r .ph{width:64px;height:64px}.r .c-cat,.r .c-pr{display:none}.r .c-st{grid-column:3;grid-row:2}.r .acts{grid-column:3;grid-row:3;justify-content:flex-start}.r .mob{display:block!important}.r .stn{display:none}.menu{display:none}.bulk{margin-top:12px}}
+</style></head>
+<body><div class="shell"><div id="side"></div><main class="main">
+<div class="top"><div><h1>Piezas</h1><p class="note" style="margin:6px 0 0">31 piezas · 29 disponibles · 2 vendidas</p></div><button class="btn primary">＋ Nueva pieza</button></div>
+<nav class="tabs"><a class="on">Todas<span>31</span></a><a>En la tienda<span>31</span></a><a>Borradores<span>0</span></a><a>Ocultas<span>0</span></a><a>Vendidas<span>2</span></a><a>Archivadas<span>0</span></a></nav>
+<div class="tools"><label class="search">⌕ <span>Buscar por nombre o SERTI-0…</span></label><span class="chip">Categoría ▾</span><span class="chip">Piedra ▾</span><span class="chip">Colección ▾</span><span class="chip on">Revisar · 11</span></div>
+<div class="tbl" id="t"></div>
+<div class="bulk"><b>3 seleccionadas</b><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn sm">Ocultar</button><button class="btn sm">Mover a colección</button><button class="btn sm">Archivar</button><button class="btn sm">Eliminar…</button></div></div>
+</main></div>
+<script src="data.js"></script>
+<script>
+document.getElementById('side').outerHTML=SIDE;
+const rows=P.slice(0,9).map((p,i)=>`<div class="r ${p.sold?"is-sold":""} ${[1,2,4].includes(i)?'sel':''}"><input type="checkbox" ${[1,2,4].includes(i)?'checked':''}><span class="ph" style="background-image:url(${p.n}.webp)"></span><div><b>${p.name}${p.isNew?' <small class="good" style="padding:1px 7px;font-size:10px">Nueva</small>':''}</b><small>SERTI-${p.n} · ${dots(p.stones)}<span class="stn">${p.stones.map(k=>GEM[k][0]).join(", ")||"sin piedra"}</span></small><small class="mob" style="display:none">${p.cat} · ${money(p.price)}</small></div><span class="c-cat">${p.cat}</span><span class="c-pr money">${money(p.price)}</span><span class="c-st">${p.sold?'<span class="st sold"><i></i>Vendida</span>':'<span class="st ok"><i></i>En la tienda</span>'}</span><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost" aria-label="Más">⋯</button>${i===0?'<div class="menu"><a>↗ Ver en la tienda</a><a>⧉ Duplicar</a><a>◌ Ocultar de la tienda</a><a>▤ Agregar a colección</a><hr><a class="d">Eliminar…</a></div>':''}</div></div>`).join('');
+document.getElementById('t').innerHTML=`<div class="r h"><input type="checkbox"><span></span><span>Pieza</span><span class="c-cat">Categoría</span><span class="c-pr">Precio</span><span>Estado</span><span></span></div>`+rows;
+</script></body></html>

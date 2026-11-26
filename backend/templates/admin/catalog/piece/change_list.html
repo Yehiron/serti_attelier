@@ -1,11 +1,23 @@
 {% extends "admin/change_list.html" %}{% load admin_urls static %}
-{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/piece-modal.css' %}">{% endblock %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/piece-modal.css' %}"><link rel="stylesheet" href="{% static 'catalog/piece-showcase.css' %}">{% endblock %}
 {% block object-tools-items %}{% endblock %}
 {% block content %}
-<header class="ca-list-head"><div><h1>Piezas</h1><p>Tus joyas: crea, edita y publica.</p></div>{% if has_add_permission %}<a class="ca-button ca-primary" href="{% url 'admin:catalog_piece_add' %}">+ Nueva pieza</a>{% endif %}</header>
+<header class="ca-list-head"><div><h1>Piezas</h1><p>Tu vitrina: así se ven en la tienda</p></div>{% if has_add_permission %}<a class="ca-button ca-primary" href="{% url 'admin:catalog_piece_add' %}">+ Nueva pieza</a>{% endif %}</header>
 {{ block.super }}
 <dialog class="pe-dialog" aria-label="Editar pieza"><iframe title="Editar pieza"></iframe></dialog>
-<script src="{% static 'catalog/piece-modal.js' %}" defer></script>
+<script src="{% static 'catalog/piece-modal.js' %}" defer></script><script src="{% static 'catalog/piece-showcase.js' %}" defer></script>
 {% endblock %}
-{% block date_hierarchy %}<nav class="ca-tabs" aria-label="Estado de las piezas">{% for tab in piece_tabs %}<a href="{{ tab.url }}" {% if tab.active %}aria-current="page"{% endif %}>{{ tab.label }} <span>{{ tab.count }}</span></a>{% endfor %}</nav>{% endblock %}
-{% block result_list %}{% if cl.result_count %}{{ block.super }}{% else %}<div class="ca-empty">{% if catalog_has_pieces %}<p>No encontramos piezas con estos filtros.</p><a class="ca-button" href="{% url 'admin:catalog_piece_changelist' %}">Limpiar filtros</a>{% else %}<p>Aún no tienes piezas. Crea la primera con sus fotos y descripción.</p>{% if has_add_permission %}<a class="ca-button ca-primary" href="{% url 'admin:catalog_piece_add' %}">+ Nueva pieza</a>{% endif %}{% endif %}</div>{% endif %}{% endblock %}
+{% block date_hierarchy %}{% endblock %}
+{% block search %}{{ block.super }}<div class="showcase-controls"><div class="showcase-switch" aria-label="Vista"><button type="button" data-view="showcase">▦ Vitrina</button><button type="button" data-view="list">☰ Lista</button></div><label>Ordenar: <select id="showcase-order">{% for value, label in showcase_orders %}<option value="{{ value }}" {% if showcase_order == value %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label></div><nav class="showcase-chips" aria-label="Filtros de piezas">{% for chip in showcase_chips %}<a href="{{ chip.url }}" {% if chip.active %}aria-current="page"{% endif %}>{{ chip.label }} <b>{{ chip.count }}</b></a>{% endfor %}</nav>{% endblock %}
+{% block result_list %}{% if cl.result_count %}
+<div class="showcase-grid" hidden>
+{% if has_add_permission %}<a class="showcase-new" href="{% url 'admin:catalog_piece_add' %}"><span><b>＋</b>Nueva pieza</span></a>{% endif %}
+{% for card in showcase_cards %}<article class="showcase-card {% if card.obj.sale_state == 'sold' %}sold{% endif %}">
+<div class="showcase-photo"><a href="{{ card.edit }}" aria-label="Editar" class="showcase-photo-link">{% if card.image %}<img src="{{ card.image }}" alt="" loading="lazy">{% endif %}</a>
+<input class="showcase-check" type="checkbox" data-piece-id="{{ card.obj.pk }}" aria-label="Seleccionar {{ card.obj.name_es }}">
+{% if card.obj.showcase_image_count < 2 %}<span class="showcase-flag">{% if card.obj.showcase_image_count == 1 %}1 foto{% else %}Sin fotos{% endif %}</span>{% endif %}
+{% if card.obj.sale_state == 'sold' %}<span class="showcase-ribbon">Vendida</span>{% elif card.obj.sale_state == 'reserved' %}<span class="showcase-ribbon">Reservada</span>{% elif card.obj.sale_state == 'preorder' %}<span class="showcase-ribbon">Preventa</span>{% elif card.obj.status == 'hidden' %}<span class="showcase-ribbon">Oculta</span>{% elif card.obj.status == 'draft' %}<span class="showcase-ribbon">Borrador</span>{% endif %}
+<div class="showcase-actions"><a href="{{ card.edit }}" aria-label="Editar">Editar</a>{% if card.store %}<a href="{{ card.store }}" target="_blank" rel="noopener" aria-label="Ver en la tienda">↗</a>{% endif %}{% if card.operations or card.delete %}<details><summary aria-label="Más acciones">⋯</summary><div class="showcase-menu">{% for url, label, icon, external in card.operations %}<a href="{{ url }}">{{ label }}</a>{% endfor %}{% if card.delete %}<a class="showcase-delete" href="{{ card.delete }}">Eliminar…</a>{% endif %}</div></details>{% endif %}</div></div>
+<b class="showcase-name">{{ card.obj.name_es }}</b><div class="showcase-meta"><span>{% for stone in card.obj.stones.all %}<span class="showcase-gem" title="{{ stone.name_es }}" style="background-color:{{ stone.color|default:'#c9a96e' }}"></span>{% endfor %} {{ card.obj.sku }}</span><span>{{ card.price }}</span></div></article>{% endfor %}</div>
+{{ block.super }}
+{% else %}<div class="ca-empty">{% if catalog_has_pieces %}<p>No encontramos piezas con estos filtros.</p><a class="ca-button" href="{% url 'admin:catalog_piece_changelist' %}">Limpiar filtros</a>{% else %}<p>Aún no tienes piezas. Crea la primera con sus fotos y descripción.</p>{% if has_add_permission %}<a class="ca-button ca-primary" href="{% url 'admin:catalog_piece_add' %}">+ Nueva pieza</a>{% endif %}{% endif %}</div>{% endif %}{% endblock %}

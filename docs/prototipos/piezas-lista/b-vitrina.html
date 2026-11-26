@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Piezas · B · Vitrina</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.gem{width:9px;height:9px;border-radius:50%;display:inline-block;box-shadow:0 0 0 1px rgba(0,0,0,.15);margin-right:2px}
+.bar{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px}
+.bar .search{flex:1;min-width:220px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.seg span{padding:8px 12px;font-size:13px;color:var(--muted)}.seg span.on{background:var(--ink);color:#fff}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:18px;margin-top:14px}
+.card{position:relative}
+.card .ph{display:block;aspect-ratio:4/5;background:center/cover #f1e9e2;border-radius:6px;position:relative;overflow:hidden}
+.card.sold .ph{filter:grayscale(.75)}
+.card .rib{position:absolute;left:0;right:0;bottom:0;background:rgba(51,4,20,.85);color:#ead9cb;text-align:center;font-size:11px;letter-spacing:.14em;text-transform:uppercase;padding:6px}
+.card .ck{position:absolute;left:8px;top:8px;width:22px;height:22px;border-radius:6px;background:rgba(255,255,255,.92);border:1px solid var(--line)}
+.card .flag{position:absolute;right:8px;top:8px;font-size:10px;background:#fff;border-radius:99px;padding:2px 8px;color:var(--warn)}
+.card b{display:block;font:400 16px/1.2 Georgia,serif;color:#651c32;margin-top:9px}
+.card .meta{display:flex;flex-wrap:wrap;gap:2px 8px;justify-content:space-between;align-items:center;font-size:12px;color:var(--muted);margin-top:4px}
+.card .hov{position:absolute;inset:auto 8px 8px 8px;display:flex;gap:6px}
+.card .hov .btn{flex:1;background:rgba(255,255,255,.95)}
+.card.h .ph{box-shadow:0 0 0 2px var(--accent)}
+.newc{border:2px dashed var(--line);border-radius:6px;aspect-ratio:4/5;display:grid;place-items:center;color:var(--muted);text-align:center;font-size:13px}
+.newc b{display:block;font-size:30px;color:var(--accent);font-family:inherit}
+.card{min-width:0}.bar .chip{white-space:normal}@media(max-width:700px){.bar .search{min-width:0}.grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px}.card b{font-size:14px}.seg{display:none}}
+</style></head>
+<body><div class="shell"><div id="side"></div><main class="main">
+<div class="top"><div><h1>Piezas</h1><p class="note" style="margin:6px 0 0">Tu vitrina: así se ven en la tienda</p></div><button class="btn primary">＋ Nueva pieza</button></div>
+<div class="bar"><label class="search">⌕ <span>Buscar pieza o SERTI-0…</span></label><div class="seg"><span class="on">▦ Vitrina</span><span>☰ Lista</span></div><span class="chip">Ordenar: más recientes ▾</span></div>
+<div class="chips"><span class="chip on">Todas <b>31</b></span><span class="chip">Anillos <b>20</b></span><span class="chip">Aretes <b>6</b></span><span class="chip">Dijes <b>3</b></span><span class="chip">Pulseras <b>3</b></span><span class="chip">● Vendidas <b>2</b></span><span class="chip">Ocultas <b>0</b></span><span class="chip">Necesitan fotos <b>9</b></span></div>
+<div class="grid" id="g"></div>
+</main></div>
+<script src="data.js"></script>
+<script>
+document.getElementById('side').outerHTML=SIDE;
+document.getElementById('g').innerHTML=`<div class="newc"><div><b>＋</b>Nueva pieza<br><small>Arrastra fotos aquí</small></div></div>`+[0,1,2,3,7,16,21,27,29,30,24].map(i=>P[i]).map((p,j)=>`<article class="card ${p.sold?'sold':''} ${j===2?'h':''}"><span class="ph" style="background-image:url(${p.n}.webp)"><span class="ck"></span>${p.photos<2?'<span class="flag">1 foto</span>':''}${p.sold?'<span class="rib">Vendida</span>':''}${j===2?'<span class="hov"><button class="btn sm">Editar</button><button class="btn sm">↗</button><button class="btn sm">⋯</button></span>':''}</span><b>${p.name}</b><div class="meta"><span>${dots(p.stones)} SERTI-${p.n}</span><span class="money" style="color:var(--ink)">${money(p.price)}</span></div></article>`).join('');
+</script></body></html>

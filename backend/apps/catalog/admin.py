@@ -23,6 +23,7 @@ from django.db.models import (
     Prefetch,
     Q,
     QuerySet,
+    Subquery,
     When,
 )
 from django.db.models.functions import Coalesce
@@ -46,7 +47,7 @@ from unfold.decorators import action
 from apps.core.admin_presentation import ClientPresentationMixin, thumbnail_url
 from apps.core.admin_selection import OptionalSelectionMixin
 from apps.core.exceptions import DomainError
-from apps.core.formatting import format_admin_cop
+from apps.core.formatting import format_admin_cop, format_cop
 from apps.core.selectors import piece_url
 from apps.inventory.services import set_preorder
 
@@ -611,7 +612,117 @@ class CategoryAdmin(TaxonomyPaneMixin):
         return JsonResponse({"errors": dict(form.errors)}, status=400)
 
 
-admin.site.register(Collection, TranslatedAdmin)
+@admin.register(Collection)
+class CollectionAdmin(TaxonomyPaneMixin):
+    change_list_template = "admin/catalog/collection/change_list.html"
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        collections = list(self.get_queryset(request).order_by("position", "pk"))
+        selected_id = request.GET.get("collection", "")
+        creating = selected_id == "new"
+        obj = next((item for item in collections if str(item.pk) == selected_id), None)
+        if not creating and obj is None and collections:
+            obj = collections[0]
+        if creating and not self.has_add_permission(request):
+            raise PermissionDenied
+        can_edit = (
+            self.has_change_permission(request, obj) if obj else self.has_add_permission(request)
+        )
+        form = self.get_form(request, obj)(
+            request.POST or None, request.FILES or None, instance=obj
+        )
+        if request.method == "POST":
+            if not can_edit:
+                raise PermissionDenied
+            if form.is_valid():
+                saved = self.save_pane(request, form, obj)
+                if saved:
+                    messages.success(request, "La colección se guardó correctamente.")
+                    return HttpResponseRedirect(
+                        reverse("admin:catalog_collection_changelist") + f"?collection={saved.pk}"
+                    )
+        for item in collections:
+            item.pane_cover = self.cover_url(item)
+        links = (
+            list(
+                CollectionPiece.objects.filter(collection=obj)
+                .select_related("piece", "piece__category", "piece__category__parent")
+                .prefetch_related("piece__images")
+            )
+            if obj
+            else []
+        )
+        catalog = list(
+            Piece.objects.exclude(status=Piece.Status.ARCHIVED)
+            .select_related("category", "category__parent")
+            .prefetch_related("images")
+            .order_by("name_es", "pk")[:500]
+        )
+
+        def piece_data(piece):
+            photo = next(iter(piece.images.all()), None)
+            category = piece.category
+            return {
+                "id": piece.pk,
+                "name": piece.name_es,
+                "sku": piece.sku,
+                "image": thumbnail_url(photo) if photo and photo.original else "",
+                "price": f"$ {piece.price_cents // 100:,}".replace(",", "."),
+                "status": piece.status,
+                "sale_state": piece.sale_state,
+                "category": (category.parent_id or category.pk) if category else None,
+            }
+
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Colecciones",
+            "opts": self.opts,
+            "collections": collections,
+            "selected": obj,
+            "creating": creating,
+            "pane_form": form,
+            "can_edit": can_edit,
+            "can_add": self.has_add_permission(request),
+            "can_delete": bool(obj and self.has_delete_permission(request, obj)),
+            "cover_url": self.cover_url(obj),
+            "catalog_data": [piece_data(p) for p in catalog],
+            "selected_data": [piece_data(link.piece) for link in links],
+            "categories": Category.objects.filter(parent__isnull=True).order_by("position", "pk"),
+            "store_url": settings.PUBLIC_SITE_URL.rstrip("/")
+            + "/es/colecciones/"
+            + quote(obj.slug_es)
+            if obj
+            else "",
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+    @method_decorator(require_POST)
+    def curate(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        try:
+            data = json.loads(request.body)
+            if not isinstance(data, dict) or type(data.get("collection")) is not int:
+                raise ValueError
+            obj = get_object_or_404(Collection, pk=data["collection"])
+            if not self.has_change_permission(request, obj):
+                raise PermissionDenied
+            services.curate_collection(obj, data.get("pieces"), actor=request.user, request=request)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return JsonResponse({"error": "Datos inválidos."}, status=400)
+        except ValidationError as exc:
+            return JsonResponse({"error": "; ".join(exc.messages)}, status=400)
+        return JsonResponse({"ok": True, "count": len(data["pieces"])})
+
+    def get_urls(self):
+        return [
+            path(
+                "curar/", self.admin_site.admin_view(self.curate), name="catalog_collection_curate"
+            ),
+            *super().get_urls(),
+        ]
 
 
 def stone_test_phrase(value):
@@ -837,6 +948,21 @@ class CollectionPieceInline(TabularInline):  # type: ignore[misc]  # Unfold is u
     extra = 0
 
 
+def piece_image_count() -> Coalesce:
+    # A correlated subquery instead of Count(): keeps the changelist queryset free of
+    # GROUP BY, so bulk actions can still lock it with select_for_update().
+    return Coalesce(
+        Subquery(
+            PieceImage.objects.filter(piece=OuterRef("pk"))
+            .order_by()
+            .values("piece")
+            .annotate(total=Count("pk"))
+            .values("total")[:1]
+        ),
+        0,
+    )
+
+
 class CatalogHealthFilter(admin.SimpleListFilter):
     title = _("Salud del catálogo")
     parameter_name = "health"
@@ -845,13 +971,33 @@ class CatalogHealthFilter(admin.SimpleListFilter):
         return [
             ("missing_en", str(_("Sin traducción inglesa"))),
             ("failed_images", str(_("Imágenes con errores"))),
+            ("few_photos", str(_("Necesitan fotos"))),
         ]
 
     def queryset(self, request: HttpRequest, queryset: QuerySet[Piece]) -> QuerySet[Piece]:
         if self.value() == "missing_en":
             return queryset.filter(missing_english_translation())
+        if self.value() == "few_photos":
+            return queryset.annotate(health_image_count=piece_image_count()).filter(
+                health_image_count__lt=2
+            )
         if self.value() == "failed_images":
             return queryset.filter(images__processing_status="failed").distinct()
+        return queryset
+
+
+class RootCategoryFilter(admin.SimpleListFilter):
+    title = _("Categoría raíz")
+    parameter_name = "category_root"
+
+    def lookups(self, request, model_admin):
+        return [(str(c.pk), c.name_es) for c in Category.objects.filter(parent__isnull=True)]
+
+    def queryset(self, request, queryset):
+        if self.value():
+            return queryset.filter(
+                Q(category_id=self.value()) | Q(category__parent_id=self.value())
+            )
         return queryset
 
 
@@ -884,6 +1030,7 @@ class PieceAdmin(
         "status",
         "sale_state",
         "category",
+        RootCategoryFilter,
         "stones",
         "collections",
         "is_new",
@@ -984,30 +1131,7 @@ class PieceAdmin(
     def get_list_display(self, request: HttpRequest) -> Any:
         @admin.display(description="Acciones")
         def row_actions(obj: Piece) -> str:
-            links = [
-                (reverse("admin:catalog_piece_change", args=[obj.pk]), "Editar", "edit", False)
-            ]
-            if obj.status == Piece.Status.PUBLISHED:
-                links.append((piece_url(obj, "es"), "Ver en la tienda", "open_in_new", True))
-            if self.has_commercial_permission(request, obj):
-                operations = []
-                if self.has_duplicate_permission(request):
-                    operations.append(("duplicate", "Duplicar", "content_copy"))
-                if Piece.Status.PUBLISHED in services.EDITORIAL_TRANSITIONS[obj.status]:
-                    operations.append(
-                        ("unhide" if obj.status == "hidden" else "publish", "Publicar", "publish")
-                    )
-                if Piece.Status.HIDDEN in services.EDITORIAL_TRANSITIONS[obj.status]:
-                    operations.append(("hide", "Ocultar", "visibility_off"))
-                for operation, label, icon in operations:
-                    links.append(
-                        (
-                            reverse(f"admin:catalog_piece_detail_{operation}", args=[obj.pk]),
-                            label,
-                            icon,
-                            False,
-                        )
-                    )
+            links = self.piece_action_links(request, obj)
             # Destructive action last, away from "Editar", to avoid accidental clicks.
             return format_html(
                 '<div class="ca-actions">{}{}</div>',
@@ -1032,6 +1156,42 @@ class PieceAdmin(
             )
 
         return (*self.list_display, row_actions)
+
+    def piece_action_links(self, request, obj):
+        links = [
+            (
+                reverse("admin:catalog_piece_change", args=[obj.pk]),
+                "Editar",
+                "edit",
+                False,
+            )
+        ]
+        if obj.status == Piece.Status.PUBLISHED:
+            links.append((piece_url(obj, "es"), "Ver en la tienda", "open_in_new", True))
+        if self.has_commercial_permission(request, obj):
+            operations = []
+            if self.has_duplicate_permission(request):
+                operations.append(("duplicate", "Duplicar", "content_copy"))
+            if Piece.Status.PUBLISHED in services.EDITORIAL_TRANSITIONS[obj.status]:
+                operations.append(
+                    (
+                        "unhide" if obj.status == "hidden" else "publish",
+                        "Publicar",
+                        "publish",
+                    )
+                )
+            if Piece.Status.HIDDEN in services.EDITORIAL_TRANSITIONS[obj.status]:
+                operations.append(("hide", "Ocultar", "visibility_off"))
+            links.extend(
+                (
+                    reverse(f"admin:catalog_piece_detail_{op}", args=[obj.pk]),
+                    label,
+                    icon,
+                    False,
+                )
+                for op, label, icon in operations
+            )
+        return links
 
     @admin.display(description="Nombre", ordering="name_es")
     def piece_name(self, obj: Piece) -> str:
@@ -1100,8 +1260,126 @@ class PieceAdmin(
                         "url": "?" + query.urlencode(),
                     }
                 )
+            # Count chips against the current search and other filters, excluding chip filters.
+            base = copy(cl)
+            chip_keys = (
+                "status__exact",
+                "sale_state__exact",
+                "category_root",
+                "health",
+            )
+            base.filter_params = {k: v for k, v in cl.filter_params.items() if k not in chip_keys}
+            # One filtered queryset (filter lookups are evaluated once) feeds every chip count.
+            base_queryset = base.get_queryset(request)
+            rows = list(
+                base_queryset.order_by()
+                .values("category_id", "category__parent_id", "status", "sale_state")
+                .annotate(total=Count("pk", distinct=True))
+            )
+            few = base_queryset.filter(showcase_image_count__lt=2).count()
+            categories = list(Category.objects.filter(parent__isnull=True))
+            chips = []
+
+            def chip(label, key, value, count):
+                query = request.GET.copy()
+                for k in (*chip_keys, "p"):
+                    query.pop(k, None)
+                if key:
+                    query[key] = value
+                active = (
+                    request.GET.get(key) == value
+                    if key
+                    else not any(request.GET.get(k) for k in chip_keys)
+                )
+                chips.append(
+                    dict(
+                        label=label,
+                        count=count,
+                        url="?" + query.urlencode(),
+                        active=active,
+                    )
+                )
+
+            chip("Todas", "", "", sum(row["total"] for row in rows))
+            for category in categories:
+                chip(
+                    category.name_es,
+                    "category_root",
+                    str(category.pk),
+                    sum(
+                        row["total"]
+                        for row in rows
+                        if category.pk in (row["category_id"], row["category__parent_id"])
+                    ),
+                )
+            chip(
+                "Vendidas",
+                "sale_state__exact",
+                "sold",
+                sum(r["total"] for r in rows if r["sale_state"] == "sold"),
+            )
+            for status, label in (
+                ("hidden", "Ocultas"),
+                ("draft", "Borradores"),
+                ("archived", "Archivadas"),
+            ):
+                chip(
+                    label,
+                    "status__exact",
+                    status,
+                    sum(r["total"] for r in rows if r["status"] == status),
+                )
+            chip("Necesitan fotos", "health", "few_photos", few)
+            cards = []
+            for obj in cl.result_list:
+                links = self.piece_action_links(request, obj)
+                image = next(
+                    (i for i in obj.list_primary_images if i.processing_status == "ready"),
+                    None,
+                )
+                image_url = ""
+                if image:
+                    paths = (image.renditions or {}).get("webp", {})
+                    image_url = (
+                        default_storage.url(
+                            paths[min(paths, key=lambda size: abs(int(size) - 400))]
+                        )
+                        if paths
+                        else thumbnail_url(image)
+                    )
+                cards.append(
+                    dict(
+                        obj=obj,
+                        edit=links[0][0],
+                        store=next((link[0] for link in links if link[3]), None),
+                        operations=[
+                            link for link in links if link[2] not in ("edit", "open_in_new")
+                        ],
+                        delete=reverse("admin:catalog_piece_delete", args=[obj.pk])
+                        if self.has_delete_permission(request)
+                        else None,
+                        image=image_url,
+                        price=format_cop(obj.effective_price.amount_cents, "es"),
+                    )
+                )
+            display = list(cl.list_display)
+            price_index, name_index = (
+                display.index("formatted_price"),
+                display.index("piece_name"),
+            )
             response.context_data.update(
-                piece_tabs=tabs, catalog_has_pieces=Piece.objects.exists(), title="Piezas"
+                piece_tabs=tabs,
+                catalog_has_pieces=Piece.objects.exists(),
+                title="Piezas",
+                showcase_chips=chips,
+                showcase_cards=cards,
+                showcase_orders=[
+                    ("", "Orden del catálogo"),
+                    (str(price_index), "Precio ↑"),
+                    (f"-{price_index}", "Precio ↓"),
+                    (str(name_index), "Nombre A–Z"),  # noqa: RUF001
+                ],
+                showcase_order=request.GET.get("o", ""),
             )
         return response
 
@@ -1658,6 +1936,7 @@ class PieceAdmin(
         queryset = Piece.objects.select_related("category__parent")
         if request.resolver_match and request.resolver_match.url_name == "catalog_piece_changelist":
             return queryset.annotate(
+                showcase_image_count=piece_image_count(),
                 hard_delete_active_reservation=Exists(
                     Piece.objects.filter(pk=OuterRef("pk"), reservations__status="active")
                 ),
@@ -1681,7 +1960,8 @@ class PieceAdmin(
                     "images",
                     queryset=PieceImage.objects.filter(is_primary=True),
                     to_attr="list_primary_images",
-                )
+                ),
+                "stones",
             )
         return queryset.prefetch_related("images")
 
@@ -1895,7 +2175,7 @@ class PieceAdmin(
             else "—"
         )
 
-    @admin.display(description=_("Precio COP"))
+    @admin.display(description=_("Precio COP"), ordering="price_cents")
     def formatted_price(self, obj: Piece) -> str:
         return format_admin_cop(obj.effective_price.amount_cents)
 

@@ -13,7 +13,14 @@ from django.db.models.deletion import ProtectedError
 from apps.accounts.models import User
 from apps.cart.models import CartItem
 from apps.catalog.image_cleanup import batch_file_cleanup
-from apps.catalog.models import CollectionPiece, Piece, PieceImage, PieceRelation, PieceVideo
+from apps.catalog.models import (
+    Collection,
+    CollectionPiece,
+    Piece,
+    PieceImage,
+    PieceRelation,
+    PieceVideo,
+)
 from apps.inventory.models import PieceReservation, PieceStatusChange
 from apps.notifications.models import (
     AdminNotification,
@@ -96,6 +103,16 @@ class Command(BaseCommand):
                 count = queryset.count()
                 queryset.delete()
                 self.stdout.write(f"{label}: {count}")
+
+            # Only collections marked by this E2E test and left without real pieces.
+            collections = Collection.objects.filter(
+                slug_es__regex=r"^e2e-coleccion-[0-9]+$"
+            ).exclude(
+                pk__in=CollectionPiece.objects.exclude(piece__sku__startswith="E2E-").values(
+                    "collection_id"
+                )
+            )
+            self.stdout.write(f"colecciones: {collections.delete()[0]}")
 
             users = User.objects.filter(
                 username__regex=r"^e2e-[0-9a-f]{32}$", email__endswith="@e2e.invalid"

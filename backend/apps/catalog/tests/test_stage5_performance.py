@@ -66,7 +66,8 @@ def test_query_budgets():
     print("CONSULTAS etapa 5", {"5": small, "25": large, "creación rápida": quick})
     # Presupuestos fijados después de medir; también congelan crecimiento cero por fila.
     assert small == large
-    for count, budget in zip(large, [25, 35, 18, 15, 25], strict=True):
+    # La vitrina agrega consultas fijas (conteos de chips, categorías raíz, piedras); medido: 33.
+    for count, budget in zip(large, [35, 35, 18, 15, 25], strict=True):
         assert count <= budget
     assert quick == quick_small
     assert quick <= 35
