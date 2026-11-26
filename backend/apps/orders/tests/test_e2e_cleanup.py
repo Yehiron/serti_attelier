@@ -44,3 +44,40 @@ def test_cleanup_requires_debug(settings):
     settings.DEBUG = False
     with pytest.raises(CommandError):
         call_command("e2e_cleanup")
+
+
+def test_cleanup_archives_only_e2e_test_covers(settings):
+    from apps.cms.models import MediaAsset
+
+    settings.DEBUG = True
+    test_cover = MediaAsset.objects.create(
+        original="cms/a.webp", alt_es="Portada de prueba 1795711057283"
+    )
+    real = MediaAsset.objects.create(
+        original="cms/b.webp", alt_es="Portada de prueba de la colección"
+    )
+    call_command("e2e_cleanup", stdout=StringIO())
+    test_cover.refresh_from_db()
+    real.refresh_from_db()
+    assert test_cover.archived and not real.archived
+
+
+def test_cleanup_removes_orders_of_hard_deleted_e2e_pieces(payload, settings):
+    from apps.accounts.roles import PROPIETARIO
+    from apps.catalog.services import hard_delete_piece
+    from apps.core.tests.test_dashboard_client import staff
+
+    settings.DEBUG = True
+    e2e = Piece.objects.create(
+        sku="E2E-GONE", name_es="E2E", slug_es="e2e-gone", price_cents=100, status="published"
+    )
+    client = APIClient()
+    assert add(client, e2e).status_code == 201
+    assert submit(client, payload).status_code == 201
+    order = Order.objects.get()
+    Order.objects.filter(pk=order.pk).update(payment_status="approved")
+    e2e.reservations.update(status="converted")
+    hard_delete_piece(e2e, actor=staff(PROPIETARIO)[1])
+    assert order.items.get().piece_id is None
+    call_command("e2e_cleanup", stdout=StringIO())
+    assert not Order.objects.filter(pk=order.pk).exists()

@@ -68,9 +68,10 @@ test('pending PSE updates without reloading, tracking timeline and accessible pa
   expect(adminNavigations).toBe(0);
   if (test.info().project.name === 'mobile') {
     expect(await admin.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-    const row = admin.locator('#result_list tbody tr').first();
+    // Inbox design: each order is a compact link row.
+    const row = admin.locator('.ord-row').first();
+    await expect(row).toHaveAttribute('aria-label', /Ver pedido/);
     expect((await row.boundingBox())!.height).toBeLessThan(220);
-    await expect(row.getByRole('link', { name: /Ver pedido/ })).toBeVisible();
   }
   await admin.getByRole('button', { name: 'Avisos de pedidos', exact: true }).click();
   const orderLink = admin.locator('[data-notice-list] a');

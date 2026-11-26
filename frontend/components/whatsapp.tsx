@@ -1,18 +1,22 @@
 'use client';
 import { usePathname } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import type { Settings } from '@/lib/api/types';
 import type { Dictionary } from '@/app/[locale]/dictionaries';
+const noop = () => () => {};
 export function FloatingWhatsApp({ settings, dict }: { settings: Settings; dict: Dictionary }) {
   const path = usePathname();
   const [pieceUrl, setPieceUrl] = useState<string | null>(null);
+  // The root layout can be prerendered without the real pathname (e.g. /checkout), so the
+  // button is only drawn after hydration: server and first client render always match.
+  const mounted = useSyncExternalStore(noop, () => true, () => false);
   const piece = /\/(pieces|piezas)\//.test(path);
   useEffect(() => {
     const update = () => setPieceUrl(document.querySelector<HTMLElement>('[data-page-whatsapp]')?.dataset.pageWhatsapp ?? null);
     update(); const observer = new MutationObserver(update); observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['data-page-whatsapp'] }); return () => observer.disconnect();
   }, [path]);
   const target = piece ? pieceUrl : settings.whatsapp.general_url;
-  if (/\/checkout\/?$/.test(path) || !target) return null;
+  if (!mounted || /\/checkout\/?$/.test(path) || !target) return null;
   // Burbuja: centro (16,16), radio 14, caja [2,2]–[30,30].
   // Cola (3,29) dentro de esa caja; auricular [9,9]–[23,23], centro (16,16).
   return <a className={`floating-whatsapp ${piece ? 'with-sticky' : ''}`} href={target} aria-label={dict.ui.whatsapp} rel="noopener noreferrer" target="_blank">

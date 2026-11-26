@@ -22,6 +22,7 @@ from apps.catalog.models import (
     PieceRelation,
     PieceVideo,
 )
+from apps.cms.models import MediaAsset
 from apps.inventory.models import PieceReservation, PieceStatusChange
 from apps.notifications.models import (
     AdminNotification,
@@ -44,10 +45,14 @@ class Command(BaseCommand):
             raise CommandError("e2e_cleanup solo funciona con DEBUG activo.")
         with transaction.atomic(), batch_file_cleanup():
             all_pieces = Piece.objects.filter(sku__startswith="E2E-")
-            candidates = Order.objects.filter(items__piece__in=all_pieces).distinct()
-            mixed = candidates.filter(
-                pk__in=OrderItem.objects.exclude(piece__sku__startswith="E2E-").values("order_id")
+            # A hard-deleted E2E piece leaves its lines with piece=NULL and only the SKU snapshot.
+            e2e_line = Q(piece__sku__startswith="E2E-") | Q(
+                piece__isnull=True, sku__startswith="E2E-"
             )
+            candidates = Order.objects.filter(
+                pk__in=OrderItem.objects.filter(e2e_line).values("order_id")
+            )
+            mixed = candidates.filter(pk__in=OrderItem.objects.exclude(e2e_line).values("order_id"))
             mixed_ids = list(mixed.values_list("pk", flat=True))
             self.stdout.write(f"Pedidos mixtos conservados: {mixed_ids}")
             orders = candidates.exclude(pk__in=mixed_ids)
@@ -119,6 +124,13 @@ class Command(BaseCommand):
                 pieces__isnull=False
             )
             self.stdout.write(f"materiales de prueba: {materials.delete()[0]}")
+
+            # cms-phase4 uploads covers named «Portada de prueba <ms>». Publication history keeps
+            # referencing them, so they cannot be deleted; archiving hides them from the library.
+            test_media = MediaAsset.objects.filter(
+                alt_es__regex=r"^Portada de prueba [0-9]+$", archived=False
+            )
+            self.stdout.write(f"fotos de prueba archivadas: {test_media.update(archived=True)}")
 
             users = User.objects.filter(
                 username__regex=r"^e2e-[0-9a-f]{32}$", email__endswith="@e2e.invalid"
