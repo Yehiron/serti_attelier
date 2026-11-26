@@ -108,9 +108,9 @@ def test_categories_order_count_queries_and_parent(make_piece):
     with CaptureQueriesContext(connection) as small_queries:
         response = browser.get(reverse("admin:catalog_category_changelist"))
     assert response.status_code == 200
-    assert [row.pk for row in response.context["cl"].result_list] == [root.pk, child.pk, other.pk]
+    assert [row.pk for row in response.context["categories"]] == [root.pk, child.pk, other.pk]
     html = response.content.decode()
-    assert 'aria-label="Editar"' in html and 'aria-label="Ver en la tienda"' in html
+    assert "cat-detail" in html and "Ver en la tienda" in html
     for index in range(20):
         Category.objects.create(name_es=f"Otra {index}", slug_es=f"otra-{index}", parent=other)
     with CaptureQueriesContext(connection) as many_queries:

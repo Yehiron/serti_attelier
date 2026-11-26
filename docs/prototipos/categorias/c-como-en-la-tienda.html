@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Categorías · C · Como en la tienda</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.wrap { display: grid; grid-template-columns: 1fr 320px; gap: 16px; align-items: start; }
+.stage { background: #ead9cb; border-radius: 18px; padding: 18px; display: grid; gap: 16px; }
+.menu-mock { background: #f3e9e0; border-radius: 14px; padding: 12px 16px; display: flex; gap: 22px; align-items: center; color: #651c32; font-size: 13px; flex-wrap: wrap; }
+.menu-mock b { border-bottom: 1px solid #651c32; }
+.drop { background: #fff; border-radius: 12px; padding: 12px; display: grid; gap: 4px; font-size: 13px; min-width: 200px; box-shadow: 0 14px 30px -18px rgba(51,4,20,.5); }
+.drop span { padding: 6px 8px; border-radius: 6px; } .drop span:hover { background: var(--soft); }
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.tile { aspect-ratio: 4/5; border-radius: 4px; position: relative; overflow: hidden; color: #fff; cursor: grab; outline: 2px solid transparent; transition: outline-color .2s; }
+.tile:hover { outline-color: var(--accent); }
+.tile::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(51,4,20,.7), transparent 55%); }
+.tile b { position: absolute; z-index: 1; left: 12px; bottom: 10px; font: 400 26px Georgia, serif; }
+.tile .flag { position: absolute; z-index: 1; right: 8px; top: 8px; }
+.tile .hd { position: absolute; z-index: 1; left: 8px; top: 8px; background: rgba(255,255,255,.9); color: var(--ink); border-radius: 6px; padding: 0 6px; }
+.tile.dim { opacity: .5; }
+.health { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 12px; }
+.health h3 { margin: 0; font-size: 14px; }
+.hrow { display: grid; grid-template-columns: 36px 1fr; gap: 10px; align-items: center; font-size: 13px; }
+.hrow .th { width: 36px; height: 36px; border-radius: 8px; }
+.hrow small { display: block; color: var(--muted); }
+.legend { font-size: 12px; color: #58513d; display: flex; justify-content: space-between; }
+@media (max-width: 900px) { .wrap { grid-template-columns: 1fr; } .tiles { grid-template-columns: 1fr 1fr; } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#" class="on">Categorías</a><a href="#">Piedras</a><a href="#">Colecciones</a></nav>
+  <main class="main">
+    <div class="top"><div><h1>Categorías</h1><p class="note" style="margin:6px 0 0">Ordénalas como quieres que se vean en la tienda</p></div><div style="display:flex;gap:8px"><button class="btn">Deshacer</button><button class="btn primary">Guardar orden</button></div></div>
+    <div class="wrap">
+      <section class="stage">
+        <div class="legend"><span>Vista de la tienda · menú «Joyería»</span><span>⠿ arrastra para reordenar</span></div>
+        <div style="display:flex;gap:16px;align-items:flex-start;flex-wrap:wrap"><div class="menu-mock"><b>Joyería ▾</b><span>Piedras</span><span>Colecciones</span><span>Personaliza</span></div><div class="drop"><span>Ver todas</span><span>⠿ Anillos</span><span style="padding-left:24px;color:var(--muted)">— Bridal</span><span>⠿ Aretes</span><span>⠿ Cadenas</span><span>⠿ Dijes</span><span>⠿ Pulseras</span></div></div>
+        <div class="legend"><span>Vista de la tienda · sección «Categorías» del inicio</span></div>
+        <div class="tiles">
+          <div class="tile cover" style="background-image:url(anillos.webp)"><span class="hd">⠿</span><b>Anillos</b></div>
+          <div class="tile cover" style="background-image:url(aretes.webp)"><span class="hd">⠿</span><b>Aretes</b></div>
+          <div class="tile cover dim" style="background-image:url(cadenas.webp)"><span class="hd">⠿</span><span class="flag bad">Sin piezas</span><b>Cadenas</b></div>
+          <div class="tile cover" style="background-image:url(dijes.webp)"><span class="hd">⠿</span><b>Dijes</b></div>
+          <div class="tile cover" style="background-image:url(pulseras.webp)"><span class="hd">⠿</span><b>Pulseras</b></div>
+          <div class="tile nocover" style="color:var(--muted)"><span class="hd">⠿</span><span class="flag bad">Sin portada</span><b style="color:var(--ink)">Bridal</b></div>
+        </div>
+      </section>
+      <aside class="health">
+        <h3>Revisión rápida</h3>
+        <div class="hrow"><span class="th cover" style="background-image:url(cadenas.webp)"></span><div><b>Cadenas</b><small>Sin piezas: se ve vacía en la tienda. ¿Ocultarla del menú?</small><button class="btn sm" style="margin-top:6px">Ocultar</button></div></div>
+        <div class="hrow"><span class="th cover" style="background-image:url(cadenas.webp)"></span><div><b>Cadenas · portada</b><small>Revisa la foto: parece una imagen de archivo.</small><button class="btn sm" style="margin-top:6px">Cambiar portada</button></div></div>
+        <div class="hrow"><span class="th nocover"></span><div><b>Bridal</b><small>Sin portada y sin piezas.</small><button class="btn sm" style="margin-top:6px">Completar</button></div></div>
+        <div class="hrow"><span class="th cover" style="background-image:url(aretes.webp)"></span><div><b>Aretes, Dijes y Pulseras</b><small>Sin descripción para el banner.</small><button class="btn sm" style="margin-top:6px">Escribir</button></div></div>
+        <div class="hrow"><span class="th cover" style="background-image:url(anillos.webp)"></span><div><b>Anillos</b><small style="color:var(--ok)">✓ Completa</small></div></div>
+      </aside>
+    </div>
+  </main>
+</div>
+</body></html>

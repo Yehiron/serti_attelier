@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Categorías · B · Lista y detalle</title>
+<link rel="stylesheet" href="cat.css">
+<style>
+.split { display: grid; grid-template-columns: minmax(320px, 400px) 1fr; gap: 16px; align-items: start; }
+.tree { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.trow { display: grid; grid-template-columns: 18px 44px 1fr auto; gap: 12px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+.trow:last-child { border-bottom: 0; }
+.trow.on { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
+.trow .th { width: 44px; height: 44px; border-radius: 10px; }
+.trow b { display: block; font-size: 14px; } .trow small { color: var(--muted); font-size: 12px; }
+.trow.child { padding-left: 44px; grid-template-columns: 18px 36px 1fr auto; }
+.trow.child .th { width: 36px; height: 36px; }
+.detail { background: #fff; border: 1px solid var(--line); border-radius: 14px; overflow: hidden; }
+.dtop { display: grid; grid-template-columns: 220px 1fr; gap: 18px; padding: 18px; border-bottom: 1px solid var(--line); }
+.dcover { aspect-ratio: 4/5; border-radius: 14px; position: relative; }
+.dcover button { position: absolute; left: 10px; right: 10px; bottom: 10px; }
+.preview { margin: 18px; border-radius: 14px; overflow: hidden; position: relative; height: 190px; background: center 38%/cover; color: #ead9cb; display: flex; align-items: flex-end; }
+.preview::after { content: ""; position: absolute; inset: 0; background: linear-gradient(90deg, rgba(51,4,20,.82), rgba(51,4,20,.3) 55%, transparent); }
+.preview div { position: relative; z-index: 1; padding: 16px 20px; }
+.preview small { color: #c9a96e; font-size: 10px; letter-spacing: .2em; text-transform: uppercase; }
+.preview h4 { margin: 6px 0 4px; font: 400 48px/1 Georgia, serif; }
+.dform { padding: 0 18px 18px; display: grid; gap: 14px; }
+.lbl { font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin: 0 18px; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; } .dtop { grid-template-columns: 1fr; } .dcover { aspect-ratio: 16/10; } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#" class="on">Categorías</a><a href="#">Piedras</a><a href="#">Colecciones</a></nav>
+  <main class="main">
+    <div class="top"><h1>Categorías</h1><div style="display:flex;gap:8px"><div class="search">🔎 Buscar</div><button class="btn primary">＋ Nueva</button></div></div>
+    <div class="split">
+      <section class="tree">
+        <div class="trow on"><span class="handle">⠿</span><span class="th cover" style="background-image:url(anillos.webp)"></span><div><b>Anillos</b><small>19 piezas · 1 subcategoría</small></div><span class="good">✓</span></div>
+        <div class="trow child"><span class="handle">⠿</span><span class="th nocover"></span><div><b>Bridal</b><small>0 piezas · ejemplo de subcategoría</small></div><span class="bad">!</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(aretes.webp)"></span><div><b>Aretes</b><small>6 piezas</small></div><span class="warn">!</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(cadenas.webp)"></span><div><b>Cadenas</b><small>0 piezas</small></div><span class="bad">!</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(dijes.webp)"></span><div><b>Dijes</b><small>3 piezas</small></div><span class="warn">!</span></div>
+        <div class="trow"><span class="handle">⠿</span><span class="th cover" style="background-image:url(pulseras.webp)"></span><div><b>Pulseras</b><small>3 piezas</small></div><span class="warn">!</span></div>
+      </section>
+      <section class="detail">
+        <div class="dtop">
+          <div class="dcover cover" style="background-image:url(anillos.webp)"><button class="btn sm">Cambiar portada</button></div>
+          <div style="display:grid;gap:12px;align-content:start">
+            <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><span class="lang"><b>ES</b><span>EN</span></span><span class="good">✓ Lista para la tienda</span></div>
+            <label class="f"><span>Nombre</span><input value="Anillos"></label>
+            <label class="f"><span>Descripción</span><textarea style="min-height:80px" placeholder="Aparece en el banner de la categoría.">Anillos hechos a mano en oro de 18k, con esmeraldas colombianas, diamantes y piedras preciosas.</textarea></label>
+            <div class="row2"><label class="f"><span>Categoría superior</span><select><option>— Ninguna (principal)</option></select></label><label class="f"><span>En el menú</span><select><option>Visible</option><option>Oculta</option></select></label></div>
+          </div>
+        </div>
+        <p class="lbl" style="margin-top:16px">Así se ve el banner en la tienda</p>
+        <div class="preview" style="background-image:url(anillos.webp)"><div><small>SERTI · Pieza única · 1 de 1</small><h4>Anillos</h4><span style="font-size:13px">19 piezas, cada una irrepetible</span></div></div>
+        <div class="dform">
+          <details><summary style="cursor:pointer;font-weight:600;font-size:13px">Google y dirección web</summary><div style="display:grid;gap:12px;margin-top:12px"><label class="f"><span>Dirección</span><input value="/es/joyeria/anillos"></label><label class="f"><span>Título en Google</span><input></label></div></details>
+          <div style="display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap"><button class="btn danger">Eliminar…</button><div style="display:flex;gap:8px"><button class="btn ghost">Ver en la tienda ↗</button><button class="btn primary">Guardar</button></div></div>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+</body></html>

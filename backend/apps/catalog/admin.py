@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from copy import copy
 from typing import Any, ClassVar, cast
@@ -343,6 +344,126 @@ class CategoryAdmin(TranslatedAdmin):
     class Media:
         css = {"all": ("catalog/catalog-admin.css",)}
 
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        categories = list(self.get_queryset(request))
+        selected_id = request.GET.get("category", "")
+        creating = selected_id == "new"
+        obj = next((item for item in categories if str(item.pk) == selected_id), None)
+        if not creating and obj is None and categories:
+            obj = categories[0]
+        can_edit = (
+            self.has_change_permission(request, obj) if obj else self.has_add_permission(request)
+        )
+        if creating and not self.has_add_permission(request):
+            raise PermissionDenied
+        form_class = self.get_form(request, obj)
+        form = form_class(request.POST or None, request.FILES or None, instance=obj)
+        if request.method == "POST":
+            if not can_edit:
+                raise PermissionDenied
+            if form.is_valid():
+                try:
+                    with transaction.atomic():
+                        saved = form.save(commit=False)
+                        self.save_model(request, saved, form, bool(obj))
+                        form.save_m2m()
+                        if obj:
+                            self.log_change(
+                                request, saved, self.construct_change_message(request, form, [])
+                            )
+                        else:
+                            self.log_addition(
+                                request,
+                                saved,
+                                self.construct_change_message(request, form, [], add=True),
+                            )
+                except ValidationError as exc:
+                    errors = (
+                        exc.message_dict
+                        if hasattr(exc, "message_dict")
+                        else {"__all__": exc.messages}
+                    )
+                    for field, errors_for_field in errors.items():
+                        form.add_error(field if field in form.fields else None, errors_for_field)
+                else:
+                    messages.success(request, "La categoría se guardó correctamente.")
+                    return HttpResponseRedirect(
+                        reverse("admin:catalog_category_changelist") + f"?category={saved.pk}"
+                    )
+        for item in categories:
+            item.pane_cover = self.cover_url(item)
+            item.pane_health = (
+                "bad"
+                if not item.published_total or not item.cover_image
+                else "warn"
+                if not item.description_es
+                else "good"
+            )
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Categorías",
+            "opts": self.opts,
+            "categories": categories,
+            "selected": obj,
+            "creating": creating,
+            "pane_form": form,
+            "can_edit": can_edit,
+            "can_add": self.has_add_permission(request),
+            "can_delete": bool(obj and self.has_delete_permission(request, obj)),
+            "cover_url": self.cover_url(obj) if obj else "",
+            "store_url": (
+                settings.PUBLIC_SITE_URL.rstrip("/") + "/es/joyeria/" + quote(obj.slug_es)
+            )
+            if obj
+            else "",
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+    @staticmethod
+    def cover_url(obj):
+        if not obj:
+            return ""
+        paths = obj.cover_renditions.get("webp", {})
+        return (
+            default_storage.url(paths[min(paths, key=int)])
+            if paths
+            else (obj.cover_image.url if obj.cover_image else "")
+        )
+
+    @method_decorator(require_POST)
+    def reorder_categories(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        try:
+            ids = json.loads(request.POST.get("ids", ""))
+            if (
+                not isinstance(ids, list)
+                or not ids
+                or any(type(pk) is not int for pk in ids)
+                or len(set(ids)) != len(ids)
+            ):
+                raise ValueError
+            with transaction.atomic():
+                items = list(Category.objects.select_for_update().filter(pk__in=ids))
+                if len(items) != len(ids) or len({item.parent_id for item in items}) != 1:
+                    raise ValueError
+                parent_id = items[0].parent_id
+                siblings = set(
+                    Category.objects.filter(parent_id=parent_id).values_list("pk", flat=True)
+                )
+                if set(ids) != siblings:
+                    raise ValueError
+                by_id = {item.pk: item for item in items}
+                for position, pk in enumerate(ids):
+                    if by_id[pk].position != position:
+                        by_id[pk].position = position
+                        services.save_taxonomy(by_id[pk], actor=request.user, request=request)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return JsonResponse({"error": "Orden inválido"}, status=400)
+        return JsonResponse({"ok": True})
+
     def get_list_display(self, request):
         @admin.display(description="Acciones")
         def actions(obj):
@@ -442,6 +563,11 @@ class CategoryAdmin(TranslatedAdmin):
 
     def get_urls(self):
         return [
+            path(
+                "reordenar/",
+                self.admin_site.admin_view(self.reorder_categories),
+                name="catalog_category_reorder",
+            ),
             path(
                 "quick-add/",
                 self.admin_site.admin_view(self.quick_add),

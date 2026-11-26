@@ -10,7 +10,7 @@ from django.test import override_settings
 from django.urls import reverse
 
 from apps.accounts.roles import PROPIETARIO
-from apps.catalog.models import Piece
+from apps.catalog.models import Category, Piece
 from apps.core.tests.test_dashboard_client import staff
 
 pytestmark = pytest.mark.django_db
@@ -32,6 +32,7 @@ def test_dashboard_pages_render_with_hashed_static_files(tmp_path: Path) -> None
             piece = Piece.objects.create(
                 sku="ST-1", name_es="Anillo", slug_es="anillo-st", price_cents=1000
             )
+            category = Category.objects.create(name_es="Anillos", slug_es="anillos")
             pages = [
                 reverse("admin:index"),
                 reverse("admin:orders_order_changelist"),
@@ -41,6 +42,7 @@ def test_dashboard_pages_render_with_hashed_static_files(tmp_path: Path) -> None
                 reverse("admin:catalog_piece_delete", args=[piece.pk]),
                 reverse("admin:catalog_stone_changelist"),
                 reverse("admin:catalog_category_changelist"),
+                reverse("admin:catalog_category_changelist") + f"?category={category.pk}",
             ]
             for url in pages:
                 response = browser.get(url)

@@ -288,6 +288,29 @@ def test_sorting_uses_existing_save_service(model: str) -> None:
         url = reverse("admin:cms_homesection_changelist")
         target = "apps.cms.services.save_section"
         service = cms_services.save_section
+    if model == "category":
+        # Categories are reordered by dragging in the list-detail screen (JSON endpoint),
+        # which must still go through the shared save service.
+        sibling = Category.objects.create(name_es="Aretes", slug_es="sort-test-2")
+        ids = list(
+            Category.objects.filter(parent=None)
+            .order_by("position", "pk")
+            .values_list("pk", flat=True)
+        )
+        ids.remove(obj.pk)
+        ids.append(obj.pk)
+        import json
+
+        with patch(target, wraps=service) as saved:
+            response = browser.post(
+                reverse("admin:catalog_category_reorder"), {"ids": json.dumps(ids)}
+            )
+            assert response.status_code == 200
+            assert saved.called
+        obj.refresh_from_db()
+        sibling.refresh_from_db()
+        assert obj.position == len(ids) - 1
+        return
     page = browser.get(url)
     formset = page.context["cl"].formset
     data: dict[str, Any] = {"_save": "Guardar"}

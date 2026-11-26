@@ -1,3 +1,33 @@
-{% extends "admin/change_list.html" %}
-{% block object-tools-items %}{% endblock %}
-{% block content %}<header class="ca-list-head"><div><h1>Categorías</h1><p>Organiza tus piezas por categoría y subcategoría.</p></div>{% if has_add_permission %}<a class="ca-button ca-primary" href="{% url 'admin:catalog_category_add' %}"><span class="material-symbols-outlined" aria-hidden="true">add</span>Nueva categoría</a>{% endif %}</header>{{ block.super }}{% endblock %}
+{% extends "admin/base_site.html" %}
+{% load static %}
+{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/catalog-admin.css' %}"><script src="{% static 'catalog/category-pane.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div class="cat-app{% if request.GET.category or request.method == "POST" %} cat-has-detail{% endif %}" data-reorder-url="{% url 'admin:catalog_category_reorder' %}">
+  <header class="cat-header"><h1>Categorías</h1><div><label><span class="cat-sr">Buscar categorías</span><input class="cat-search" type="search" placeholder="Buscar categorías"></label>{% if can_add %}<a class="cat-button cat-primary" href="?category=new">＋ Nueva</a>{% endif %}</div></header>
+  <div class="cat-split">
+    <section class="cat-tree" aria-label="Categorías">
+      {% for category in categories %}
+      <div class="cat-row{% if category.parent_id %} cat-child{% endif %}{% if selected.pk == category.pk %} cat-selected{% endif %}" data-id="{{ category.pk }}" data-parent="{{ category.parent_id|default:'' }}" data-name="{{ category.name_es|lower }}" draggable="{% if can_edit %}true{% else %}false{% endif %}">
+        <span class="cat-handle" title="Arrastrar para ordenar" aria-hidden="true">⠿</span><a class="cat-row-link" href="?category={{ category.pk }}"><span class="cat-thumb">{% if category.pane_cover %}<img src="{{ category.pane_cover }}" alt="">{% endif %}</span><span><b>{{ category.name_es }}</b><small>{{ category.published_total }} piezas{% if category.deletion_child_count %} · {{ category.deletion_child_count }} subcategorías{% endif %}</small></span><span class="cat-health cat-{{ category.pane_health }}" aria-label="{% if category.pane_health == 'good' %}Lista{% elif category.pane_health == 'warn' %}Falta descripción{% else %}Sin piezas publicadas o sin portada{% endif %}">{% if category.pane_health == 'good' %}✓{% else %}!{% endif %}</span></a>
+      </div>{% empty %}<p class="cat-empty">Aún no hay categorías.</p>{% endfor %}
+    </section>
+    {% if selected or creating %}<section class="cat-detail" aria-label="Detalle de categoría">
+      <a href="{% url 'admin:catalog_category_changelist' %}" class="cat-back">← Categorías</a>
+      <form method="post" enctype="multipart/form-data" novalidate>{% csrf_token %}
+        {{ pane_form.non_field_errors }}
+        <div class="cat-top">
+          <div class="cat-cover" {% if cover_url %}style="background-image: url('{{ cover_url }}')"{% endif %}><label class="cat-cover-input">Cambiar portada {{ pane_form.cover_image }}</label>{{ pane_form.cover_image.errors }}</div>
+          <div class="cat-fields"><div class="cat-detail-head"><div class="cat-languages" role="group" aria-label="Idioma"><button type="button" data-lang="es" class="cat-lang-active">ES</button><button type="button" data-lang="en">EN</button></div><span class="cat-health {% if selected.pane_health %}cat-{{ selected.pane_health }}{% else %}cat-warn{% endif %}">{% if selected.pane_health == 'good' %}✓ Lista para la tienda{% elif selected.pane_health == 'warn' %}! Falta descripción{% else %}! Faltan piezas o portada{% endif %}</span></div>
+          <div data-language="es"><label class="cat-field">Nombre {{ pane_form.name_es }}{{ pane_form.name_es.errors }}</label><label class="cat-field">Descripción {{ pane_form.description_es }}{{ pane_form.description_es.errors }}</label></div>
+          <div data-language="en" hidden><label class="cat-field">Nombre {{ pane_form.name_en }}{{ pane_form.name_en.errors }}</label><label class="cat-field">Descripción {{ pane_form.description_en }}{{ pane_form.description_en.errors }}</label></div>
+          <div class="cat-pair"><label class="cat-field">Categoría superior {{ pane_form.parent }}{{ pane_form.parent.errors }}</label><label class="cat-field">En el menú <span>{{ pane_form.is_active }} Visible</span>{{ pane_form.is_active.errors }}</label></div>
+          </div>
+        </div>
+        <p class="cat-preview-label">Así se ve el banner en la tienda</p><div class="cat-preview" {% if cover_url %}style="background-image: url('{{ cover_url }}')"{% endif %}><div><small>SERTI · Pieza única · 1 de 1</small><h2 data-preview-name>{{ selected.name_es|default:'Categoría' }}</h2><span>{{ selected.published_total|default:0 }} piezas, cada una irrepetible</span><p data-preview-description>{{ selected.description_es }}</p></div></div>
+        <div class="cat-bottom"><details {% if pane_form.slug_es.errors or pane_form.slug_en.errors or pane_form.seo_title_es.errors or pane_form.seo_title_en.errors or pane_form.seo_description_es.errors or pane_form.seo_description_en.errors %}open{% endif %}><summary>Google y dirección web</summary><div data-language="es"><label class="cat-field">Dirección {{ pane_form.slug_es }}{{ pane_form.slug_es.errors }}</label><label class="cat-field">Título en Google {{ pane_form.seo_title_es }}{{ pane_form.seo_title_es.errors }}</label><label class="cat-field">Descripción en Google {{ pane_form.seo_description_es }}{{ pane_form.seo_description_es.errors }}</label></div><div data-language="en" hidden><label class="cat-field">Dirección {{ pane_form.slug_en }}{{ pane_form.slug_en.errors }}</label><label class="cat-field">Título en Google {{ pane_form.seo_title_en }}{{ pane_form.seo_title_en.errors }}</label><label class="cat-field">Descripción en Google {{ pane_form.seo_description_en }}{{ pane_form.seo_description_en.errors }}</label></div></details>
+        {{ pane_form.position.as_hidden }}{{ pane_form.position.errors }}<div class="cat-actions">{% if can_delete %}<a class="cat-button cat-danger" href="{% url 'admin:catalog_category_delete' selected.pk %}">Eliminar…</a>{% endif %}<span></span>{% if selected %}<a class="cat-button" href="{{ store_url }}" target="_blank" rel="noopener">Ver en la tienda ↗</a>{% endif %}{% if can_edit %}<button class="cat-button cat-primary" type="submit">Guardar</button>{% endif %}</div></div>
+      </form>
+    </section>{% endif %}
+  </div>
+</div>
+{% endblock %}

@@ -24,7 +24,11 @@ def test_delete_permissions(role, visible):
     for model, label in [("piece", "Eliminar pieza"), ("category", "Eliminar categoría")]:
         response = browser.get(reverse(f"admin:catalog_{model}_changelist"))
         assert response.status_code == 200
-        assert (f'aria-label="{label}"' in response.content.decode()) is visible
+        assert (
+            (f'aria-label="{label}"' in response.content.decode())
+            if model == "piece"
+            else ("Eliminar…" in response.content.decode())
+        ) is visible
     assert cat.pk
 
 
@@ -41,10 +45,7 @@ def test_protected_icons_and_no_category_bulk():
     )
     response = browser.get(reverse("admin:catalog_category_changelist"))
     html = response.content.decode()
-    assert "Tiene 1 pieza" in html
     assert reverse("admin:catalog_category_delete", args=[cat.pk]) in html
-    assert "Ver cuáles" in html
-    assert 'class="ca-icon ca-danger ca-blocked"' in html
     assert 'name="_selected_action"' not in html
     assert 'name="action"' not in html
     html = browser.get(reverse("admin:catalog_piece_changelist")).content.decode()
@@ -114,7 +115,7 @@ def test_empty_category_visible_and_append_position():
     assert {item["slug"] for item in home_categories("es")} >= {"gorras", "nueva"}
     browser, _ = staff(PROPIETARIO)
     assert (
-        "Visible en la tienda · sin piezas publicadas"
+        "Sin piezas publicadas o sin portada"
         in browser.get(reverse("admin:catalog_category_changelist")).content.decode()
     )
     response = browser.get("/api/v1/catalog/taxonomy?locale=en")
@@ -155,7 +156,6 @@ def test_linked_taxonomy_has_no_bulk_and_blocks_delete(model):
         reverse(f"admin:catalog_{model._meta.model_name}_changelist")
     ).content.decode()
     assert "Tiene 1 pieza: retírala antes de eliminarla" in html
-    assert "Ver cuáles" in html
     assert reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk]) in html
     assert 'name="_selected_action"' not in html
     url = reverse(f"admin:catalog_{model._meta.model_name}_delete", args=[obj.pk])
