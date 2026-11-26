@@ -118,6 +118,8 @@ jobs:
           {
             echo "INTERNAL_API_TOKEN=ci-$(openssl rand -hex 24)"
             echo "COUPON_EMAIL_PEPPER=ci-$(openssl rand -hex 24)"
+            # Lets the worker revalidate the storefront cache after CMS publications.
+            echo "REVALIDATE_SECRET=ci-$(openssl rand -hex 24)"
             echo "NEXT_PUBLIC_CART_ENABLED=true"
             echo "WOMPI_PUBLIC_KEY=pub_test_dev_fake"
             echo "WOMPI_INTEGRITY_SECRET=test_integrity_ci_fake"

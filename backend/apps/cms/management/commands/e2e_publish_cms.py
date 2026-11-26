@@ -2,7 +2,8 @@
 
 A new install starts with drafts only: no published home, legal pages or menus, so
 checkout and contact stay disabled. Browser tests (and a new developer) need the same
-starting point as a working shop. Publishing goes through the normal services.
+starting point as a working shop. Publishing goes through the normal services. A blank
+WhatsApp number gets an obviously fake one so the contact links render.
 """
 
 from __future__ import annotations
@@ -22,8 +23,10 @@ from apps.cms.documents import document_key, get_document
 from apps.cms.menus import MENU_KEYS, publish_menu
 from apps.cms.models import Page
 from apps.cms.publishing import pending_changes
+from apps.core.selectors import get_solo
 
 PUBLISHER = "e2e-cms-publisher"
+FAKE_WHATSAPP = "570000000000"
 
 
 class Command(BaseCommand):
@@ -46,6 +49,11 @@ class Command(BaseCommand):
             return bool(pending_changes(key)["count"])
 
         with transaction.atomic():
+            site = get_solo()
+            if not site.whatsapp_number:
+                site.whatsapp_number = FAKE_WHATSAPP
+                site.save(update_fields=["whatsapp_number"])
+                self.stdout.write("whatsapp de prueba")
             for page in Page.objects.order_by("pk"):
                 key = document_key(page)
                 if page.status != "published" or needed(key):
