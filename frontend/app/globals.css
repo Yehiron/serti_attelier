@@ -1068,3 +1068,48 @@ html { scrollbar-gutter: stable; }
  .piece-look-actions { display:flex; align-items:center; }
  .piece-look-actions .state-notice { display:inline-block; padding:10px; }
 }
+
+/* A letter folded and sealed only after the contact request succeeds. */
+.contact-live { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+/* Contact: the letter folds in three and is sealed with gold wax (only after the server accepted it). */
+.contact-letter-sealing { pointer-events: none; animation: letter-paper-off .01s linear .32s both; }
+.contact-letter-sealing > :not(.letter-fold) { animation: letter-content-away .3s ease both; }
+.contact-letter-sealing::after { animation: letter-content-away .01s linear .32s both; }
+.letter-fold { --paper: #f3e8de; --paper-dark: #e6d5c6; --s: clamp(66px, 13%, 108px); perspective: 1800px; }
+.letter-fold--fold { position: absolute; inset: 0; z-index: 2; animation: letter-on .01s linear .3s both; }
+.letter-fold-panel { position: absolute; left: 0; right: 0; height: 33.34%; transform-style: preserve-3d; }
+.letter-fold-top { top: 0; transform-origin: center bottom; z-index: 3; }
+.letter-fold-middle { top: 33.33%; z-index: 1; }
+.letter-fold-bottom { top: 66.66%; transform-origin: center top; z-index: 2; }
+.letter-face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; background: var(--paper); }
+.letter-face-front { box-shadow: inset 0 0 0 12px var(--paper), inset 0 0 0 13px #7a725630; }
+.letter-fold-middle .letter-face-front { box-shadow: inset 0 0 0 12px var(--paper), inset 0 0 0 13px #7a725630, 0 30px 50px -30px #33041455; }
+.letter-face-back { transform: rotateX(180deg); background: linear-gradient(180deg, var(--paper-dark), var(--paper)); }
+.letter-fold-top .letter-face-back { background: transparent; }
+.letter-fold-flap { position: absolute; inset: 0; background: linear-gradient(175deg, #f8eee5, #e2cdbb 85%); clip-path: polygon(0 0, 100% 0, 50% 80%); }
+.letter-fold-top .letter-face-back::after { content: ''; position: absolute; inset: 0; clip-path: polygon(0 0, 100% 0, 50% 80%, 50% 82%, 0 1.5%); background: #60422a22; transform: translateY(3px); z-index: -1; }
+.letter-fold--fold .letter-fold-bottom { animation: letter-fold-bottom .85s cubic-bezier(.45,0,.2,1) .4s both; }
+.letter-fold--fold .letter-fold-top { animation: letter-fold-top .85s cubic-bezier(.45,0,.2,1) 1.15s both; }
+.wax-seal { position: absolute; z-index: 5; width: var(--s); aspect-ratio: 1; left: calc(50% - var(--s) / 2); top: calc(59.99% - var(--s) / 2); opacity: 0; filter: drop-shadow(0 6px 5px #4b321b66); }
+.letter-fold--fold .wax-seal { animation: wax-press .75s cubic-bezier(.22,1,.36,1) 2.05s forwards; }
+.wax-seal svg { width: 100%; height: 100%; display: block; }
+.wax-seal-mark { position: absolute; inset: 27%; background: #765419; opacity: .7; mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; -webkit-mask: url('/brand/logo/monogram-mark.webp') center / contain no-repeat; filter: drop-shadow(0 1px 0 #ffe9a2); }
+.wax-seal-shine { position: absolute; inset: 12%; border-radius: 50%; overflow: hidden; }
+.wax-seal-shine::after { content: ''; position: absolute; inset: -30%; background: linear-gradient(110deg, transparent 40%, #fff3bd88 50%, transparent 60%); transform: translateX(-100%); animation: wax-shine .7s ease 2.2s both; }
+.contact-thanks { animation: letter-thanks .5s cubic-bezier(.22,1,.36,1) both; }
+@keyframes wax-shine { to { transform: translateX(100%); } }
+@keyframes letter-thanks { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+.letter-fold--static { position: relative; width: min(70%, 520px); aspect-ratio: 2.4; margin: 0 auto 32px; animation: letter-thanks .6s cubic-bezier(.22,1,.36,1) both; }
+.letter-fold--static .letter-fold-panel { top: 0; height: 100%; }
+.letter-fold--static .letter-face-front { display: none; }
+.letter-fold--static .letter-fold-middle .letter-face-front { display: block; }
+.letter-fold--static .letter-face-back { transform: none; }
+.letter-fold--static .wax-seal { --s: clamp(60px, 20%, 96px); top: calc(80% - var(--s) / 2); opacity: 1; }
+@keyframes letter-content-away { to { opacity: 0; } }
+@keyframes letter-paper-off { to { background: transparent; box-shadow: none; } }
+@keyframes letter-on { from { opacity: 0; } to { opacity: 1; } }
+@keyframes letter-fold-bottom { from { transform: translateZ(0) rotateX(0); } to { transform: translateZ(1px) rotateX(180deg); } }
+@keyframes letter-fold-top { from { transform: translateZ(0) rotateX(0); } to { transform: translateZ(2px) rotateX(-180deg); } }
+@keyframes wax-press { 0% { opacity: 0; transform: scale(1.6); filter: drop-shadow(0 26px 16px #4b321b44); } 55% { opacity: 1; transform: scale(.93); } 78% { transform: scale(1.04); } 100% { opacity: 1; transform: scale(1); filter: drop-shadow(0 5px 4px #4b321b66); } }
+@media (max-width: 720px) { .letter-fold--static { width: 85%; } }
+@media (prefers-reduced-motion: reduce) { .letter-fold--static, .wax-seal-shine::after, .contact-thanks { animation: none; } }
