@@ -400,5 +400,14 @@
     "response": "Te respondemos a cualquier hora. Sin compromiso.",
     "contact": "Contactar con SERTI",
     "empty": "Tu joya"
+  },
+  "listingBanner": {
+    "singular": "1 pieza, única",
+    "plural": "{count} piezas, cada una irrepetible",
+    "stripe": [
+      "Pieza única",
+      "Hecho a mano",
+      "Envío gratis en Colombia"
+    ]
   }
 }

@@ -400,5 +400,14 @@
     "response": "We reply at any time. No obligation.",
     "contact": "Contact SERTI",
     "empty": "Your jewelry"
+  },
+  "listingBanner": {
+    "singular": "1 piece, one of a kind",
+    "plural": "{count} pieces, each one of a kind",
+    "stripe": [
+      "One of a kind",
+      "Handmade",
+      "Free shipping in Colombia"
+    ]
   }
 }
