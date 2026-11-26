@@ -162,7 +162,9 @@ def test_http_contract_filters_search_taxonomy_and_visibility(
     for photo in detail["gallery"]:
         assert_image(photo)
     assert detail["gallery"][0] == card["image"] and detail["gallery"][1] == card["hover_image"]
-    assert_named(detail["materials"][0])
+    material_detail = dict(detail["materials"][0])
+    assert type(material_detail.pop("color")) is str
+    assert_named(material_detail)
     assert_named(detail["collections"][0])
     for filters in (
         {"category": root_slug},
@@ -177,6 +179,7 @@ def test_http_contract_filters_search_taxonomy_and_visibility(
         assert [row["sku"] for row in response.json()["results"]] == [piece.sku]
     taxonomy = client.get("/api/v1/catalog/taxonomy", {"locale": locale}).json()
     assert set(taxonomy) == {"categories", "collections", "stones", "materials"}
+    assert type(taxonomy["materials"][0]["color"]) is str
     category = next(row for row in taxonomy["categories"] if row["slug"] == root_slug)
     # SEO fields feed listing metadata and the sitemap.
     seo_keys = {"description", "seo_title", "seo_description", "updated_at", "slugs"}

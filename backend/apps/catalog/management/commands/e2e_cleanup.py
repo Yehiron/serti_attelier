@@ -16,6 +16,7 @@ from apps.catalog.image_cleanup import batch_file_cleanup
 from apps.catalog.models import (
     Collection,
     CollectionPiece,
+    Material,
     Piece,
     PieceImage,
     PieceRelation,
@@ -113,6 +114,11 @@ class Command(BaseCommand):
                 )
             )
             self.stdout.write(f"colecciones: {collections.delete()[0]}")
+
+            materials = Material.objects.filter(slug_es__regex=r"^e2e-material-[0-9]+$").exclude(
+                pieces__isnull=False
+            )
+            self.stdout.write(f"materiales de prueba: {materials.delete()[0]}")
 
             users = User.objects.filter(
                 username__regex=r"^e2e-[0-9a-f]{32}$", email__endswith="@e2e.invalid"

@@ -127,7 +127,7 @@ class TranslatedAdmin(
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        if self.model in (Stone, Collection):
+        if self.model in (Stone, Collection, Material):
             qs = qs.annotate(deletion_piece_count=Count("pieces", distinct=True))
         return qs
 
@@ -846,7 +846,92 @@ class StoneAdmin(TaxonomyPaneMixin):
         ]
 
 
-admin.site.register(Material, TranslatedAdmin)
+@admin.register(Material)
+class MaterialAdmin(TaxonomyPaneMixin):
+    change_list_template = "admin/catalog/material/change_list.html"
+
+    def changelist_view(self, request, extra_context=None):
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        materials = list(self.get_queryset(request).prefetch_related("pieces__images"))
+        selected_id = request.GET.get("material", "")
+        creating = selected_id == "new"
+        obj = next((item for item in materials if str(item.pk) == selected_id), None)
+        if creating and not self.has_add_permission(request):
+            raise PermissionDenied
+        can_edit = (
+            self.has_change_permission(request, obj) if obj else self.has_add_permission(request)
+        )
+        form = None
+        if creating or obj:
+            form = self.get_form(request, obj)(request.POST or None, instance=obj)
+        if request.method == "POST":
+            if form is None or not can_edit:
+                raise PermissionDenied
+            if form.is_valid():
+                saved = self.save_pane(request, form, obj)
+                if saved:
+                    messages.success(request, "El material se guardó correctamente.")
+                    return HttpResponseRedirect(reverse("admin:catalog_material_changelist"))
+        for item in materials:
+            item.pane_pieces = []
+            for piece in list(item.pieces.all())[:3]:
+                photo = next(iter(piece.images.all()), None)
+                item.pane_pieces.append(thumbnail_url(photo) if photo and photo.original else "")
+            name = unicodedata.normalize("NFD", item.name_es or "").lower()
+            item.pane_karat = "oro" in name and not re.search(r"(?:18|14|10)\s*k", name)
+            item.pane_delete = self.has_delete_permission(request, item)
+        empty = [item for item in materials if not item.deletion_piece_count]
+        context = {
+            **self.admin_site.each_context(request),
+            "title": "Materiales",
+            "opts": self.opts,
+            "materials": materials,
+            "selected": obj,
+            "creating": creating,
+            "pane_form": form,
+            "can_edit": can_edit,
+            "can_change": self.has_change_permission(request),
+            "can_add": self.has_add_permission(request),
+            "empty_materials": empty,
+        }
+        return TemplateResponse(request, self.change_list_template, context)
+
+    @method_decorator(require_POST)
+    def reorder_materials(self, request):
+        if not self.has_change_permission(request):
+            raise PermissionDenied
+        try:
+            ids = json.loads(request.POST.get("ids", ""))
+            if (
+                not isinstance(ids, list)
+                or not ids
+                or any(type(pk) is not int for pk in ids)
+                or len(set(ids)) != len(ids)
+            ):
+                raise ValueError
+            with transaction.atomic():
+                items = list(Material.objects.select_for_update().all())
+                if set(ids) != {item.pk for item in items}:
+                    raise ValueError
+                by_id = {item.pk: item for item in items}
+                for position, pk in enumerate(ids):
+                    if by_id[pk].position != position:
+                        by_id[pk].position = position
+                        services.save_taxonomy(by_id[pk], actor=request.user, request=request)
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return JsonResponse({"error": "Orden inválido"}, status=400)
+        return JsonResponse({"ok": True})
+
+    def get_urls(self):
+        return [
+            path(
+                "reordenar/",
+                self.admin_site.admin_view(self.reorder_materials),
+                name="catalog_material_reorder",
+            ),
+            *super().get_urls(),
+        ]
 
 
 class PieceImageInline(TranslationTabularInline[PieceImage, Piece], TabularInline):  # type: ignore[misc]  # Unfold is untyped.

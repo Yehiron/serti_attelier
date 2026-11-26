@@ -20,3 +20,10 @@ export function customizeMessage(locale: Locale, type: string, stone: string | n
   const trimmed = note.slice(0, 300).trim();
   return base + (trimmed ? ` ${trimmed}` : '');
 }
+
+export function customizeColor(name: string, metal = false, gemColor?: string) {
+  if (gemColor) return gemColor;
+  const n = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase();
+  if (metal) return /blanco|plata|white|silver/.test(n) ? '#dcdcd8' : /rosa|rose|pink/.test(n) ? '#e3a98e' : '#d9b25f';
+  return /esmeralda|emerald/.test(n) ? '#1f7a55' : /rubi|ruby/.test(n) ? '#a51c3a' : /zafiro|sapphire/.test(n) ? '#244a9c' : /diamante|diamond/.test(n) ? '#e9eef2' : '#c9a96e';
+}

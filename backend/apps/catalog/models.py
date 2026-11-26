@@ -171,6 +171,13 @@ class Stone(CoveredModel):
 
 
 class Material(NamedModel):
+    color = models.CharField(
+        max_length=7,
+        blank=True,
+        validators=[RegexValidator(r"^#[0-9a-fA-F]{6}$")],
+        verbose_name=_("Tono del metal"),
+        help_text=_("Se usa en Personaliza y en la ficha de las piezas"),
+    )
     updated_at = models.DateTimeField(verbose_name=_("Actualizado el"), auto_now=True, null=True)
     objects: MultilingualManager[Material] = MultilingualManager()
 

@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { categoryKind, customizeMessage } from './customize.ts';
+import { categoryKind, customizeMessage, customizeColor } from './customize.ts';
 
 test('category singular and icon mapping, including fallback', () => {
   assert.deepEqual(categoryKind('anillos', 'Anillos'), { singular: 'anillo', icon: 'ring' });
@@ -13,4 +13,10 @@ test('messages include selections and trimmed notes in both languages', () => {
   assert.match(customizeMessage('es', 'Aretes', null, null, ''), /asesoren con la piedra y el metal\.$/);
   assert.match(customizeMessage('en', 'Ring', null, 'Gold', ''), /advice on the stone\.$/);
   assert.equal(customizeMessage('es', 'Anillo', 'Rubí', 'Oro', 'x'.repeat(310)).split('. ').pop()?.length, 300);
+});
+
+test('customizeColor usa el tono guardado y conserva la deducción', () => {
+  assert.equal(customizeColor('Oro blanco', true, '#123456'), '#123456');
+  assert.equal(customizeColor('Oro blanco', true, ''), '#dcdcd8');
+  assert.equal(customizeColor('Oro rosa', true), '#e3a98e');
 });

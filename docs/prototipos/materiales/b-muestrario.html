@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Materiales · B · Muestrario</title>
+<link rel="stylesheet" href="cat.css"><link rel="stylesheet" href="mat.css">
+<style>
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px}
+.card{background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;display:grid}
+.hero{height:170px;position:relative;display:grid;place-items:center;background:linear-gradient(180deg,#faf6f2,#f1e9e2)}
+.hero .metal{width:110px;height:110px}
+.hero .handle{position:absolute;left:12px;top:10px}
+.hero .cnt{position:absolute;right:12px;top:12px;font-size:12px;background:#fff;border-radius:99px;padding:3px 10px;border:1px solid var(--line)}
+.peek{position:absolute;left:12px;bottom:12px;display:flex}.peek span{width:34px;height:34px;border-radius:50%;border:2px solid #fff;background:center/cover #f1e9e2;margin-right:-10px}
+.b{padding:14px;display:grid;gap:8px}
+.b h3{margin:0;font:400 22px/1.1 Georgia,serif;color:#651c32;text-transform:none;letter-spacing:0}
+.b small{color:var(--muted)}
+.acts{display:flex;gap:6px;flex-wrap:wrap}
+.card.edit{box-shadow:0 0 0 2px var(--accent)}
+.card.edit .b input{border:1px solid var(--line);border-radius:8px;min-height:36px;padding:0 10px;font:inherit;width:100%}
+.newc{border:2px dashed var(--line);border-radius:18px;display:grid;place-items:center;text-align:center;color:var(--muted);min-height:300px}
+.newc b{display:block;font-size:30px;color:var(--accent)}
+.tip{background:#fff;border:1px solid var(--line);border-radius:14px;padding:12px 14px;font-size:13px;color:var(--muted);margin-bottom:14px;display:flex;gap:10px;align-items:center;flex-wrap:wrap}
+@media(max-width:600px){.grid{grid-template-columns:1fr 1fr;gap:10px}.hero{height:120px}.hero .metal{width:70px;height:70px}.b h3{font-size:17px}.peek{display:none}}
+</style></head><body><div class="shell">
+<nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#">Categorías</a><a href="#">Piedras</a><a href="#">Colecciones</a><a href="#" class="on">Materiales</a></nav>
+<main class="main"><div class="top"><div><h1>Materiales</h1><p class="note" style="margin:6px 0 0">Arrastra para cambiar el orden en Personaliza y en los filtros</p></div><button class="btn primary">＋ Nuevo material</button></div>
+<div class="tip"><span class="warn">2 sin piezas</span> Plata 925 y Oro rosa se ofrecen en Personaliza pero no tienen joyas en la tienda.</div>
+<div class="grid">
+<article class="card"><div class="hero"><span class="handle">⠿</span><span class="cnt">18 piezas</span><span class="metal m-yellow"></span><div class="peek"><span style="background-image:url(007.webp)"></span><span style="background-image:url(019.webp)"></span><span style="background-image:url(028.webp)"></span></div></div><div class="b"><h3>Oro amarillo 18k</h3><small>EN · 18k yellow gold</small><div class="acts"><button class="btn sm">Editar</button><button class="btn sm ghost">Ver piezas</button></div></div></article>
+<article class="card edit"><div class="hero"><span class="handle">⠿</span><span class="cnt">13 piezas</span><span class="metal m-white"></span><div class="peek"><span style="background-image:url(001.webp)"></span><span style="background-image:url(002.webp)"></span><span style="background-image:url(004.webp)"></span></div></div><div class="b"><input value="Oro blanco 18k" aria-label="Nombre"><input value="18k white gold" aria-label="Name EN"><div class="acts"><button class="btn sm primary">Guardar</button><button class="btn sm ghost">Cancelar</button></div></div></article>
+<article class="card"><div class="hero"><span class="handle">⠿</span><span class="cnt">0 piezas</span><span class="metal m-silver"></span></div><div class="b"><h3>Plata 925</h3><small>EN · 925 Silver</small><div class="acts"><button class="btn sm">Editar</button><button class="btn sm danger">Eliminar…</button></div></div></article>
+<article class="card"><div class="hero"><span class="handle">⠿</span><span class="cnt">0 piezas</span><span class="metal m-rose"></span></div><div class="b"><h3>Oro rosa</h3><small>EN · Rose Gold · <span style="color:var(--warn)">¿18k?</span></small><div class="acts"><button class="btn sm">Editar</button><button class="btn sm danger">Eliminar…</button></div></div></article>
+<div class="newc"><div><b>＋</b>Nuevo material</div></div>
+</div></main></div></body></html>

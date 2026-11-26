@@ -1,0 +1,13 @@
+{% extends "admin/base_site.html" %}{% load static %}
+{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/material-pane.css' %}"><script src="{% static 'catalog/material-pane.js' %}" defer></script>{% endblock %}
+{% block content %}
+<div hidden>{% csrf_token %}</div><div class="mat-app" data-reorder-url="{% url 'admin:catalog_material_reorder' %}">
+<header class="mat-header"><div><h1>Materiales</h1><p>Arrastra para cambiar el orden en Personaliza y en los filtros</p></div>{% if can_add %}<a class="mat-button mat-primary" href="?material=new">＋ Nuevo material</a>{% endif %}</header>
+{% if empty_materials %}<p class="mat-notice">{{ empty_materials|length }} sin piezas — {% for item in empty_materials %}{{ item.name_es }}{% if not forloop.last %}{% if forloop.revcounter == 2 %} e {% else %}, {% endif %}{% endif %}{% endfor %} se ofrecen en Personaliza pero no tienen joyas en la tienda.</p>{% endif %}
+<div class="mat-grid">
+{% for material in materials %}<article class="mat-card{% if selected.pk == material.pk %} mat-editing{% endif %}" data-id="{{ material.pk }}" tabindex="0" draggable="{% if can_change %}true{% else %}false{% endif %}">
+{% if selected.pk == material.pk and can_edit %}{% include 'admin/catalog/material/form.html' %}{% else %}
+<div class="mat-visual"><span class="mat-handle" aria-label="Arrastrar para ordenar">⠿</span><span class="mat-count">{{ material.deletion_piece_count }} piezas</span><div class="mat-orb" style="--mat-color:{{ material.color|default:'#d9b25f' }}"></div><div class="mat-thumbs">{% for image in material.pane_pieces %}<span>{% if image %}<img src="{{ image }}" alt="">{% endif %}</span>{% endfor %}</div></div>
+<div class="mat-body"><h2>{{ material.name_es }}</h2><p class="mat-english">{% if material.name_en %}EN · {{ material.name_en }}{% else %}Falta inglés{% endif %}</p>{% if material.pane_karat %}<span class="mat-karat">¿quilates?</span>{% endif %}<div class="mat-actions">{% if can_change %}<a href="?material={{ material.pk }}">Editar</a>{% endif %}{% if material.deletion_piece_count %}<a href="{% url 'admin:catalog_piece_changelist' %}?materials__id__exact={{ material.pk }}">Ver piezas</a>{% endif %}{% if material.pane_delete %}<a href="{% url 'admin:catalog_material_delete' material.pk %}">Eliminar…</a>{% endif %}</div></div>{% endif %}</article>{% endfor %}
+{% if creating and can_edit %}<article class="mat-card mat-editing">{% include 'admin/catalog/material/form.html' %}</article>{% elif can_add %}<a class="mat-new" href="?material=new"><span>＋</span> Nuevo material</a>{% endif %}
+</div></div>{% endblock %}

@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Materiales · C · Lista con vista de Personaliza</title>
+<link rel="stylesheet" href="cat.css"><link rel="stylesheet" href="mat.css">
+<style>
+.wrap{display:grid;grid-template-columns:1fr 380px;gap:16px;align-items:start}
+.tbl{background:#fff;border:1px solid var(--line);border-radius:14px;overflow:hidden}
+.r{display:grid;grid-template-columns:18px 34px minmax(0,1fr) minmax(0,1fr) 80px auto;gap:12px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line);font-size:13px}
+.r:last-child{border-bottom:0}.r.h{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);background:#fbf9f7}
+.r .metal{width:30px;height:30px}
+.r input{border:1px solid transparent;border-radius:8px;min-height:36px;padding:0 10px;font:inherit;width:100%;background:transparent}
+.r input:hover{border-color:var(--line)}.r input:focus{border-color:var(--accent);background:#fff;outline:0}
+.r.dirty{background:#fff9ec}.r.dirty input.ch{border-color:#e6c77a;background:#fff}
+.r a{color:var(--accent);text-decoration:none}
+.add{display:grid;grid-template-columns:18px 34px 1fr 1fr 80px auto;gap:12px;align-items:center;padding:10px 14px;background:#fbf9f7;border-top:1px dashed var(--line)}
+.add input{border:1px dashed var(--line);border-radius:8px;min-height:36px;padding:0 10px;font:inherit;width:100%;background:#fff}
+.save{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-top:12px;flex-wrap:wrap}
+.phone{background:#fbf7f3;border:1px solid var(--line);border-radius:22px;padding:18px;position:sticky;top:16px}
+.phone small.k{font-size:10px;letter-spacing:.2em;text-transform:uppercase;color:#a0805a}
+.phone h3{margin:4px 0 12px;font:400 24px Georgia,serif;color:#651c32}
+.choice{display:flex;align-items:center;gap:10px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-bottom:8px;font-size:14px}
+.choice.on{border-color:#651c32;box-shadow:inset 0 0 0 1px #651c32}.choice i{width:22px;height:22px}
+.choice em{margin-left:auto;font-style:normal;font-size:11px;color:var(--warn)}
+@media(max-width:900px){.wrap{grid-template-columns:1fr}.phone{position:static}.r,.add{grid-template-columns:16px 30px 1fr 56px}.r .en,.add .en{display:none}.r .del{display:none}}
+</style></head><body><div class="shell">
+<nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#">Piezas</a><a href="#">Categorías</a><a href="#">Piedras</a><a href="#">Colecciones</a><a href="#" class="on">Materiales</a></nav>
+<main class="main"><div class="top"><div><h1>Materiales</h1><p class="note" style="margin:6px 0 0">Edita directo en la tabla · arrastra ⠿ para ordenar</p></div></div>
+<div class="wrap"><div>
+<section class="tbl">
+<div class="r h"><span></span><span></span><span>Nombre</span><span class="en">Inglés</span><span>Piezas</span><span class="del"></span></div>
+<div class="r"><span class="handle">⠿</span><span class="metal m-yellow"></span><input value="Oro amarillo 18k"><input class="en" value="18k yellow gold"><a href="#">18 →</a><button class="btn sm ghost del">Eliminar</button></div>
+<div class="r dirty"><span class="handle">⠿</span><span class="metal m-white"></span><input class="ch" value="Oro blanco 18 k"><input class="en" value="18k white gold"><a href="#">13 →</a><button class="btn sm ghost del">Eliminar</button></div>
+<div class="r"><span class="handle">⠿</span><span class="metal m-silver"></span><input value="Plata 925"><input class="en" value="925 Silver"><span class="note">0</span><button class="btn sm ghost del">Eliminar</button></div>
+<div class="r"><span class="handle">⠿</span><span class="metal m-rose"></span><input value="Oro rosa"><input class="en" value="Rose Gold"><span class="note">0</span><button class="btn sm ghost del">Eliminar</button></div>
+<div class="add"><span></span><span class="metal m-yellow" style="opacity:.35"></span><input placeholder="＋ Nuevo material, ej. Oro rosa 18k"><input class="en" placeholder="Name in English"><span></span><span></span></div>
+</section>
+<div class="save"><span class="warn">1 cambio sin guardar</span><div style="display:flex;gap:8px"><button class="btn ghost">Descartar</button><button class="btn primary">Guardar cambios</button></div></div>
+</div>
+<aside class="phone"><small class="k">Así lo ve el cliente · Personaliza</small><h3>03 · Metal</h3>
+<div class="choice on"><i class="metal m-yellow"></i>Oro amarillo 18k</div>
+<div class="choice"><i class="metal m-white"></i>Oro blanco 18 k</div>
+<div class="choice"><i class="metal m-silver"></i>Plata 925<em>sin piezas en tienda</em></div>
+<div class="choice"><i class="metal m-rose"></i>Oro rosa<em>sin piezas en tienda</em></div>
+<div class="choice" style="color:var(--muted)">✦ Quiero asesoría</div>
+</aside></div></main></div></body></html>

@@ -1,0 +1,6 @@
+.metal{border-radius:50%;box-shadow:inset 0 0 0 1px rgba(0,0,0,.08),0 6px 14px -8px rgba(31,26,23,.5)}
+.m-yellow{background:radial-gradient(circle at 30% 28%,#fff4cf 0,#e9c773 22%,#c99a3a 55%,#8f6a22 100%)}
+.m-white{background:radial-gradient(circle at 30% 28%,#ffffff 0,#eceeee 25%,#c7cacb 60%,#8e9294 100%)}
+.m-silver{background:radial-gradient(circle at 30% 28%,#ffffff 0,#e1e4e6 25%,#b3b8bc 60%,#7b8186 100%)}
+.m-rose{background:radial-gradient(circle at 30% 28%,#fff0e8 0,#f0bfa6 25%,#d08c6c 60%,#93583f 100%)}
+.side{grid-template-rows:auto}

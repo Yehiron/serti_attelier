@@ -27,6 +27,10 @@ class StoneNamedSerializer(NamedSerializer):
     color = serializers.CharField(allow_blank=True)
 
 
+class MaterialNamedSerializer(NamedSerializer):
+    color = serializers.CharField(allow_blank=True)
+
+
 class CoverSerializer(serializers.Serializer[Any]):
     src = serializers.CharField()
     srcset = serializers.CharField()
@@ -63,6 +67,10 @@ class StoneTaxonSerializer(TaxonSerializer):
     color = serializers.CharField(allow_blank=True)
 
 
+class MaterialTaxonSerializer(TaxonSerializer):
+    color = serializers.CharField(allow_blank=True)
+
+
 class CategorySerializer(TaxonSerializer):
     children = serializers.SerializerMethodField()
 
@@ -79,7 +87,7 @@ class TaxonomySerializer(serializers.Serializer[Any]):
     categories = CategorySerializer(many=True)
     collections = TaxonSerializer(many=True)
     stones = StoneTaxonSerializer(many=True)
-    materials = TaxonSerializer(many=True)
+    materials = MaterialTaxonSerializer(many=True)
 
 
 class ImageSerializer(serializers.Serializer[Any]):
@@ -207,7 +215,7 @@ class VideoSerializer(serializers.Serializer[Any]):
 
 class PieceDetailSerializer(PieceListSerializer):
     video = serializers.SerializerMethodField()
-    materials = NamedSerializer(many=True)
+    materials = MaterialNamedSerializer(many=True)
     collections = serializers.SerializerMethodField()
     gallery = serializers.SerializerMethodField()
     related = serializers.SerializerMethodField()
