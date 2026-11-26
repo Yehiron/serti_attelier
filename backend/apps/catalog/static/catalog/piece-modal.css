@@ -1,0 +1,50 @@
+.pe-dialog { padding:0; border:0; width:min(1040px,calc(100% - 32px)); height:min(760px,calc(100% - 48px)); max-width:none; max-height:none; border-radius:20px; overflow:hidden; box-shadow:0 40px 90px -30px #1f1a1799; }
+.pe-dialog::backdrop { background:#1f1a1780; backdrop-filter:blur(4px); }
+.pe-dialog iframe { width:100%; height:100%; border:0; background:#fbf9f7; }
+body:has(.pe-editor) { margin:0; background:#fbf9f7; }
+body:has(.pe-editor) #header, body:has(.pe-editor) #nav-sidebar, body:has(.pe-editor) .breadcrumbs, body:has(.pe-editor) footer { display:none; }
+body:has(.pe-editor) #content, body:has(.pe-editor) #main, body:has(.pe-editor) #content-main { margin:0; padding:0; max-width:none; }
+.pe-editor { --pe-line:#e8e1dc; --pe-bg:#fff; --pe-soft:#f6f1ed; --pe-text:#29211e; color:var(--pe-text); position:fixed; inset:0; background:var(--pe-bg); display:flex; flex-direction:column; }
+.dark .pe-editor { --pe-line:#44403c; --pe-bg:#1c1917; --pe-soft:#292524; --pe-text:#f5f5f4; }
+.pe-head { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:16px 22px; border-bottom:1px solid var(--pe-line); }
+.pe-head small { color:#8a7771; text-transform:uppercase; letter-spacing:.06em; }
+.pe-head h1 { margin:2px 0 0; font:600 20px Georgia,serif; }
+.pe-head-actions { display:flex; gap:8px; align-items:center; }
+.pe-head button, .pe-savebar button, .pe-thumbs button { border:1px solid var(--pe-line); border-radius:9px; padding:8px 12px; background:var(--pe-soft); color:inherit; cursor:pointer; }
+.pe-editor form { display:flex; flex:1; min-height:0; flex-direction:column; }
+.pe-body { flex:1; min-height:0; display:grid; grid-template-columns:300px 1fr; }
+.pe-left { overflow:auto; padding:18px; border-right:1px solid var(--pe-line); }
+.pe-hero { position:relative; aspect-ratio:4/5; border-radius:14px; overflow:hidden; background:var(--pe-soft); }
+.pe-hero img { width:100%; height:100%; object-fit:cover; }
+.pe-hero span { position:absolute; top:10px; left:10px; border-radius:99px; background:white; color:#7a1631; padding:4px 9px; font-size:11px; }
+.pe-thumbs { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin:12px 0; }
+.pe-thumbs img, .pe-thumbs button { width:100%; aspect-ratio:1; object-fit:cover; border-radius:8px; }
+.pe-status { display:grid; gap:10px; padding:14px; border-radius:14px; background:var(--pe-soft); font-size:13px; }
+.pe-status div { display:flex; justify-content:space-between; gap:8px; }
+.pe-right { overflow:auto; padding:4px 22px 22px; }
+.pe-section { border-bottom:1px solid var(--pe-line); }
+.pe-section > summary { cursor:pointer; padding:18px 0; font-weight:600; display:flex; gap:10px; align-items:center; }
+.pe-section > summary::after { content:'+'; margin-left:auto; font-size:20px; }
+.pe-section[open] > summary::after { content:'−'; }
+.pe-section > summary span { color:#8b817b; font-size:12px; font-weight:400; }
+.pe-section > summary .pe-complete { color:#287653; }
+.pe-section fieldset { border:0; padding:0; }
+.pe-section fieldset > h2 { display:none; }
+.pe-savebar { display:flex !important; justify-content:space-between; align-items:center; padding:14px 22px; border-top:1px solid var(--pe-line); background:var(--pe-bg); font-size:13px; }
+.pe-savebar div { display:flex; gap:8px; }
+.pe-savebar .pe-primary { color:white; background:#7a1631; border-color:#7a1631; }
+@media(max-width:860px) { .pe-dialog { width:100%; height:100%; margin:0; border-radius:0; } .pe-body { display:block; overflow:auto; } .pe-left { overflow:visible; border-right:0; border-bottom:1px solid var(--pe-line); } .pe-hero { aspect-ratio:16/11; } .pe-right { overflow:visible; } }
+.pe-menu { position:relative; }
+.pe-menu summary { cursor:pointer; list-style:none; padding:8px 12px; border:1px solid var(--pe-line); border-radius:9px; }
+.pe-menu > div { position:absolute; right:0; top:100%; z-index:10; min-width:170px; background:var(--pe-bg); border:1px solid var(--pe-line); border-radius:9px; box-shadow:0 8px 24px #0003; }
+.pe-menu a { display:block; padding:9px 12px; color:inherit; }
+.pe-placeholder { width:100%; color:inherit; cursor:pointer; }
+.pe-status label { display:flex; justify-content:space-between; align-items:center; gap:8px; }
+
+/* «En la tienda» como interruptor (prototipo B) */
+input[data-pe-toggle]{appearance:none;-webkit-appearance:none;width:42px;height:24px;border-radius:99px;background:#d6cfc8;position:relative;cursor:pointer;transition:background .2s;flex:none;margin:0}
+input[data-pe-toggle]::after{content:"";position:absolute;top:3px;left:3px;width:18px;height:18px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.25);transition:transform .2s}
+input[data-pe-toggle]:checked{background:#2f6b4f}
+input[data-pe-toggle]:checked::after{transform:translateX(18px)}
+input[data-pe-toggle]:focus-visible{outline:2px solid #7a1631;outline-offset:2px}
+input[data-pe-toggle]:disabled{opacity:.5;cursor:not-allowed}

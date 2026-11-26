@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="es">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Editar pieza · C · Con vista previa</title>
+<link rel="stylesheet" href="editor.css">
+<style>
+.sheet { position: fixed; z-index: 40; inset: 24px; background: #fbf9f7; border-radius: 20px; overflow: hidden; display: grid; grid-template-rows: auto 1fr; box-shadow: 0 40px 90px -30px rgba(31,26,23,.6); }
+.shead { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 14px 20px; background: #fff; border-bottom: 1px solid var(--line); flex-wrap: wrap; }
+.shead h2 { margin: 0; font: 600 19px Georgia, serif; }
+.sbody { display: grid; grid-template-columns: minmax(360px, 1fr) minmax(0, 1.1fr); overflow: hidden; }
+.form { overflow-y: auto; padding: 18px 22px 30px; display: grid; gap: 18px; align-content: start; border-right: 1px solid var(--line); }
+.form h3 { margin: 6px 0 0; font-size: 12px; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.preview { background: #e9e3dd; overflow-y: auto; display: grid; justify-items: center; align-content: start; padding: 20px; gap: 12px; }
+.pv-tools { display: flex; gap: 8px; align-items: center; }
+.phone { width: 360px; background: #ead9cb; border-radius: 30px; border: 10px solid #1f1a17; overflow: hidden; box-shadow: 0 30px 60px -30px rgba(0,0,0,.5); }
+.pv-hero { height: 360px; background: url(p.webp) center/cover; position: relative; }
+.pv-hero::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, rgba(51,4,20,.85), transparent 60%); }
+.pv-copy { position: absolute; z-index: 1; left: 18px; right: 18px; bottom: 16px; color: #ead9cb; }
+.pv-copy small { color: #c9a96e; font-size: 9px; letter-spacing: .2em; text-transform: uppercase; }
+.pv-copy h4 { margin: 6px 0; font: 400 34px/1 Georgia, serif; }
+.pv-copy b { font: 400 18px Georgia, serif; }
+.pv-body { padding: 18px; color: #651c32; display: grid; gap: 10px; }
+.pv-body p { margin: 0; font-size: 12px; color: #58513d; }
+.pv-spec { background: #fbf6f1; border-radius: 14px; padding: 12px; font-size: 11px; display: grid; grid-template-columns: auto 1fr; gap: 6px 12px; }
+.pv-spec dt { color: #58513d; letter-spacing: .1em; text-transform: uppercase; font-size: 9px; } .pv-spec dd { margin: 0; text-align: right; font-family: Georgia, serif; font-size: 13px; }
+.hl { outline: 2px dashed var(--accent); outline-offset: 3px; border-radius: 4px; }
+.mobile-switch { display: none; }
+@media (max-width: 900px) { .sheet { inset: 0; border-radius: 0; } .sbody { grid-template-columns: 1fr; overflow-y: auto; } .form { overflow: visible; border: 0; } .preview { display: none; } .mobile-switch { display: inline-flex; } }
+</style></head>
+<body>
+<div class="shell">
+  <nav class="side"><img src="../../../frontend/public/brand/logo/wordmark-wine.webp" alt="SERTI"><a href="#">Pedidos</a><a href="#" class="on">Piezas</a><a href="#">Categorías</a><a href="#">Piedras</a><a href="#">Colecciones</a></nav>
+  <main class="main"><div class="top"><h1>Piezas</h1></div><div class="plist"><div class="prow on"><span class="mini" style="background-image:url(p.webp)"></span><div><b>Anillo Esmeraldas Esfera</b><span class="sku">SERTI-028</span></div><span class="pill pub">Publicada</span><span class="money">$ 4.300.000</span><button class="btn">Editar</button></div></div></main>
+</div>
+<div class="scrim"></div>
+<div class="sheet" role="dialog" aria-label="Editar pieza">
+  <div class="shead"><div style="display:flex;gap:12px;align-items:center"><button class="btn ghost" aria-label="Cerrar">← Piezas</button><div><span class="sku">SERTI-028 · <span class="dot-saved">Guardado automáticamente</span></span><h2>Anillo Esmeraldas Esfera</h2></div></div><div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><span class="seg mobile-switch"><button class="on">Editar</button><button>Vista previa</button></span><span class="pill pub">Publicada</span><button class="btn">Ocultar</button><button class="btn primary">Publicar cambios</button></div></div>
+  <div class="sbody">
+    <div class="form">
+      <h3>Fotos</h3>
+      <div class="photos"><div class="photo" style="background-image:url(p.webp)"><span class="star">★ Principal</span></div><div class="photo" style="background-image:url(e1.jpg)"></div><div class="photo" style="background-image:url(e2.jpg)"></div><div class="photo add">＋<br>Subir</div></div>
+      <h3>Lo esencial</h3>
+      <label class="f"><span>Nombre</span><input id="nm" value="Anillo Esmeraldas Esfera" class="hl"></label>
+      <div class="row2"><label class="f"><span>Precio</span><input id="pr" value="$ 4.300.000"></label><label class="f"><span>Disponibilidad</span><select><option>Disponible</option><option>Reservada</option><option>Vendida</option><option>Preventa</option></select></label></div>
+      <label class="f"><span>Descripción corta</span><textarea id="ds" style="min-height:64px">Anillo Esmeraldas Esfera. The Timeless Collection, hecho a mano en el atelier.</textarea></label>
+      <h3>Clasificación</h3>
+      <div class="row2"><label class="f"><span>Categoría</span><select><option>Anillos</option></select></label><label class="f"><span>Colección</span><div class="tagbox"><span>The Timeless Collection <i>×</i></span></div></label></div>
+      <div class="row2"><label class="f"><span>Piedras</span><div class="tagbox"><span><i class="gem" style="background:#1f7a55"></i>Esmeralda <i>×</i></span><span><i class="gem" style="background:#e9eef2;border:1px solid #ccc"></i>Diamante <i>×</i></span></div></label><label class="f"><span>Metal</span><div class="tagbox"><span>Oro amarillo 18k <i>×</i></span></div></label></div>
+      <h3>Detalles y medidas</h3>
+      <label class="f"><span>Detalles</span><textarea>Anillo en oro amarillo de 18 kilates, ley 750&#10;Banda de esferas&#10;1 esmeralda&#10;Halo de 15 diamantes naturales de 1,3 mm</textarea></label>
+      <div class="row3"><label class="f"><span>Ley del metal</span><input value="18k · ley 750"></label><label class="f"><span>Talla</span><input></label><label class="f"><span>Peso (g)</span><input></label></div>
+      <details><summary style="cursor:pointer;font-weight:600;font-size:13px">Más: inglés, historia, cuidado y Google</summary><div style="display:grid;gap:12px;margin-top:12px"><label class="f"><span>Name (EN)</span><input value="Emerald Sphere Ring"></label><label class="f"><span>Título en Google</span><input></label></div></details>
+    </div>
+    <div class="preview">
+      <div class="pv-tools"><span class="seg"><button class="on">Celular</button><button>Escritorio</button></span><span class="note">Así se verá en la tienda</span></div>
+      <div class="phone">
+        <div class="pv-hero"><div class="pv-copy"><small>The Timeless Collection · SERTI-028</small><h4 id="pvn">Anillo Esmeraldas Esfera</h4><b id="pvp">$ 4.300.000</b></div></div>
+        <div class="pv-body"><small style="letter-spacing:.2em;font-size:9px;text-transform:uppercase;color:#58513d">Pieza única · 1 de 1</small><h5 style="margin:0;font:400 22px/1.1 Georgia,serif">Una sola vez, para una sola persona</h5><p id="pvd">Anillo Esmeraldas Esfera. The Timeless Collection, hecho a mano en el atelier.</p><dl class="pv-spec"><dt>Metal</dt><dd>Oro amarillo 18k</dd><dt>Piedras</dt><dd>Diamante · Esmeralda</dd><dt>Ley</dt><dd>18k · ley 750</dd><dt>Código</dt><dd>SERTI-028</dd></dl></div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+const bind=(i,o)=>document.getElementById(i).addEventListener('input',e=>document.getElementById(o).textContent=e.target.value);
+bind('nm','pvn');bind('pr','pvp');bind('ds','pvd');
+</script>
+</body></html>

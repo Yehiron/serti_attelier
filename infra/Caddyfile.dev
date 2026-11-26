@@ -40,14 +40,16 @@
 	}
 
 
-	header @cms_public >Content-Security-Policy "frame-ancestors 'none'"
+	header @cms_public >Content-Security-Policy "frame-ancestors 'self'"
 	header {
 		Strict-Transport-Security "max-age=31536000"
 		X-Content-Type-Options "nosniff"
 		Referrer-Policy "strict-origin-when-cross-origin"
 		Permissions-Policy "camera=(), microphone=(), geolocation=()"
 
-		X-Frame-Options "DENY"
+		# TEMPORAL (desarrollo, editor flotante del dashboard): incrustar solo desde este
+		# mismo sitio. Restaurar DENY y frame-ancestors 'none' al terminar. Producción no cambia.
+		X-Frame-Options "SAMEORIGIN"
 		-Server
 	}
 
@@ -63,7 +65,7 @@
 	}
 
 	handle {
-		header @cms_public >Content-Security-Policy "frame-ancestors 'none'"
+		header @cms_public >Content-Security-Policy "frame-ancestors 'self'"
 		reverse_proxy frontend:3000
 	}
 }

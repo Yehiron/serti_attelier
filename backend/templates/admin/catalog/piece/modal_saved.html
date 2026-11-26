@@ -1,0 +1,1 @@
+<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Guardado</title></head><body>{{ piece_id|json_script:"pe-saved-id" }}<script>window.parent.postMessage({type: 'serti:piece-saved', id: JSON.parse(document.getElementById('pe-saved-id').textContent)}, location.origin);</script></body></html>

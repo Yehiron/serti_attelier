@@ -37,6 +37,7 @@ def test_dashboard_pages_render_with_hashed_static_files(tmp_path: Path) -> None
                 reverse("admin:orders_order_changelist"),
                 reverse("admin:catalog_piece_changelist"),
                 reverse("admin:catalog_piece_change", args=[piece.pk]),
+                reverse("admin:catalog_piece_change", args=[piece.pk]) + "?_modal=1",
                 reverse("admin:catalog_piece_delete", args=[piece.pk]),
                 reverse("admin:catalog_stone_changelist"),
                 reverse("admin:catalog_category_changelist"),

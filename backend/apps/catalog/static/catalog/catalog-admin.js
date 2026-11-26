@@ -5,7 +5,7 @@
     if (search) search.placeholder = "Buscar por nombre o referencia";
     const form = document.querySelector('[data-catalog-form]');
     if (!form) return;
-    document.querySelector('.ca-editor').classList.add('ca-js');
+    document.querySelector('.ca-editor')?.classList.add('ca-js');
     let dirty = false, submitting = false;
     const category = form.querySelector('#id_category');
     const dialog = document.querySelector('[data-category-dialog]');
@@ -87,7 +87,7 @@
     form.addEventListener('input', () => { dirty = true; });
     form.addEventListener('change', () => { dirty = true; });
     window.addEventListener('beforeunload', event => {
-      if (dirty && !submitting) { event.preventDefault(); event.returnValue = ''; }
+      if (dirty && !submitting && !document.querySelector('[data-pe-editor]')) { event.preventDefault(); event.returnValue = ''; }
     });
     form.addEventListener('submit', event => {
       // A retry has its own fetch handler and must not lock the editing form.
@@ -103,7 +103,8 @@
         form.append(input);
       }
       form.querySelectorAll('button[type=submit]').forEach(button => { button.disabled = true; });
-      form.querySelector('[data-save-feedback]').textContent = 'Guardando…';
+      const feedback = form.querySelector('[data-save-feedback]');
+      if (feedback) feedback.textContent = 'Guardando…';
     });
     const cardsRoot = form.querySelector('.ca-photo-grid');
     const cards = () => Array.from(form.querySelectorAll('[data-photo-card]'))

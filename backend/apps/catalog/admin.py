@@ -30,6 +30,7 @@ from django.urls import path, reverse
 from django.utils.decorators import method_decorator
 from django.utils.html import format_html, format_html_join, strip_tags
 from django.utils.translation import gettext_lazy as _
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.http import require_GET, require_POST
 from modeltranslation.admin import (
     TabbedTranslationAdmin,
@@ -899,7 +900,56 @@ class PieceAdmin(
             catalog_editorial_badge=self.editorial_badge(piece),
             catalog_sale_badge=self.sale_badge(piece),
         )
-        return super().render_change_form(request, context, add, change, form_url, obj)
+        response = super().render_change_form(request, context, add, change, form_url, obj)
+        if request.GET.get("_modal") == "1" and change:
+            photos = list(piece.images.all())
+            context["modal_photos"] = [
+                {
+                    "url": thumbnail_url(photo) if photo.original else "",
+                    "alt": photo.alt,
+                    "is_primary": photo.is_primary,
+                }
+                for photo in photos
+            ]
+            context["modal_actions"] = [
+                {
+                    "label": label,
+                    "url": reverse(f"admin:catalog_piece_detail_{operation}", args=[piece.pk]),
+                }
+                for operation, label in (
+                    ("preorder_on", "Marcar preventa"),
+                    ("preorder_off", "Quitar preventa"),
+                    ("archive", "Archivar"),
+                    ("duplicate", "Duplicar"),
+                )
+                if self.detail_allowed(request, piece.pk, operation)
+            ]
+            operation = (
+                "hide"
+                if piece.status == "published"
+                else ("unhide" if piece.status == "hidden" else "publish")
+            )
+            context["modal_toggle_url"] = (
+                reverse(f"admin:catalog_piece_detail_{operation}", args=[piece.pk])
+                if self.detail_allowed(request, piece.pk, operation)
+                else ""
+            )
+            context["modal_sale_editable"] = (
+                self.has_commercial_permission(request, piece)
+                and piece.status != "archived"
+                and piece.sale_state in ("available", "preorder")
+            )
+            context["modal_price"] = self.regular_price_cop(piece)
+            cast(TemplateResponse, response).template_name = "admin/catalog/piece/modal_form.html"
+        return response
+
+    def change_view(
+        self, request: HttpRequest, object_id: str, form_url: str = "", extra_context: Any = None
+    ) -> HttpResponse:
+        view = super().change_view
+        if request.GET.get("_modal") == "1":
+            return xframe_options_sameorigin(view)(request, object_id, form_url, extra_context)
+        return view(request, object_id, form_url, extra_context)
 
     def get_urls(self) -> Any:
         return [
@@ -1130,6 +1180,7 @@ class PieceAdmin(
                     "back_url": reverse("admin:catalog_piece_change", args=[object_id]),
                 },
             )
+        json_request = request.headers.get("Accept") == "application/json"
         try:
             if operation == "duplicate":
                 return self.copy_response(
@@ -1149,8 +1200,28 @@ class PieceAdmin(
                     "unhide": services.unhide,
                     "archive": services.archive_piece,
                 }[operation](piece, request.user, request)
+            if json_request:
+                piece.refresh_from_db()
+                next_operation = (
+                    "hide"
+                    if piece.status == "published"
+                    else ("unhide" if piece.status == "hidden" else "publish")
+                )
+                return JsonResponse(
+                    {
+                        "status": piece.status,
+                        "missing": services.publication_missing(piece),
+                        "toggle_url": reverse(
+                            f"admin:catalog_piece_detail_{next_operation}", args=[piece.pk]
+                        ),
+                    }
+                )
             self.message_user(request, _("Acción completada."), messages.SUCCESS)
         except (DomainError, ValidationError) as exc:
+            if json_request:
+                return JsonResponse(
+                    {"error": str(exc), "missing": services.publication_missing(piece)}, status=400
+                )
             self.message_user(request, str(exc), messages.ERROR)
         return HttpResponseRedirect(reverse("admin:catalog_piece_change", args=[object_id]))
 
@@ -1213,6 +1284,11 @@ class PieceAdmin(
         return super().response_add(request, obj, post_url_continue)
 
     def response_change(self, request: HttpRequest, obj: Piece) -> HttpResponse:
+        if request.GET.get("_modal") == "1" and "catalog_piece_save_publish" not in request.POST:
+            super().response_change(request, obj)  # Preserve Django's success message.
+            return TemplateResponse(
+                request, "admin/catalog/piece/modal_saved.html", {"piece_id": obj.pk}
+            )
         if "catalog_piece_save_publish" in request.POST:
             if not self.has_commercial_permission(request, obj):
                 raise PermissionDenied
@@ -1427,6 +1503,13 @@ class PieceAdmin(
             raise ValidationError(str(exc)) from exc
 
     def save_related(self, request: HttpRequest, form: Any, formsets: Any, change: bool) -> None:
+        if request.GET.get("_modal") == "1" and "modal_sale_state" in request.POST:
+            target = request.POST["modal_sale_state"]
+            if target != form.instance.sale_state:
+                if target not in ("available", "preorder"):
+                    raise ValidationError("El estado de venta solo se cambia desde inventario.")
+                set_preorder(form.instance, target == "preorder", request.user)
+                form.instance.refresh_from_db(fields=["sale_state", "sold_at"])
         services.save_piece_relations(
             form.instance, form.cleaned_data, actor=request.user, request=request
         )

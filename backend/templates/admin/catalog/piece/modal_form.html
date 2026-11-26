@@ -1,0 +1,24 @@
+{% extends "admin/change_form.html" %}{% load static admin_modify %}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'catalog/piece-modal.css' %}">{% endblock %}{% block extrahead %}{{ block.super }}<script src="{% static 'catalog/piece-modal.js' %}" defer></script>{% endblock %}
+{% block nav-global-side %}{% endblock %}
+{% block base %}
+<div class="pe-editor" data-pe-editor>
+  <header class="pe-head"><div><small>{{ original.sku }} · {{ original.category|default:"Sin categoría" }}</small><h1>{{ original.name_es }}</h1></div><div class="pe-head-actions"><button type="button" data-pe-section="Información">ES</button><button type="button" data-pe-section="Inglés">EN</button><details class="pe-menu"><summary aria-label="Más acciones">⋯</summary><div><a href="{% url 'admin:catalog_piece_history' original.pk %}" target="_top">Historial</a>{% for action in modal_actions %}<a href="{{ action.url }}" target="_top">{{ action.label }}</a>{% endfor %}{% if has_delete_permission %}<a href="{% url 'admin:catalog_piece_delete' original.pk %}" target="_top">Eliminar</a>{% endif %}</div></details><button type="button" data-pe-close aria-label="Cerrar">×</button></div></header>
+  <form method="post" enctype="multipart/form-data" id="piece_form" novalidate data-catalog-form>{% csrf_token %}
+    {% if to_field %}<input type="hidden" name="{{ to_field_var }}" value="{{ to_field }}">{% endif %}
+    <div class="pe-body"><aside class="pe-left">
+      {% for photo in modal_photos %}{% if forloop.first %}<div class="pe-hero"><img src="{{ photo.url }}" alt="{{ photo.alt }}"><span>★ Principal</span></div>{% endif %}{% empty %}<button type="button" class="pe-hero pe-placeholder" data-pe-section="Fotos">＋ Subir fotos</button>{% endfor %}
+      <div class="pe-thumbs">{% for photo in modal_photos %}{% if not forloop.first %}<img src="{{ photo.url }}" alt="{{ photo.alt }}">{% endif %}{% endfor %}<button type="button" data-pe-section="Fotos">＋</button>{% if original.video %}<button type="button" data-pe-section="Video">▶</button>{% endif %}</div>
+      <div class="pe-status"><label>En la tienda <input type="checkbox" role="switch" data-pe-toggle data-url="{{ modal_toggle_url }}" {% if original.status == 'published' %}checked{% endif %} {% if not modal_toggle_url %}disabled{% endif %}></label><label>Disponibilidad <select name="modal_sale_state" {% if not modal_sale_editable %}disabled{% endif %}><option value="available" {% if original.sale_state == 'available' %}selected{% endif %}>Disponible</option><option value="reserved" {% if original.sale_state == 'reserved' %}selected{% endif %} disabled>Reservada</option><option value="sold" {% if original.sale_state == 'sold' %}selected{% endif %} disabled>Vendida</option><option value="preorder" {% if original.sale_state == 'preorder' %}selected{% endif %}>Preventa</option></select></label><div>Precio <a href="#id_price_cents" data-pe-section="Precio">{{ modal_price }}</a></div><p data-pe-missing>{% if publication_missing %}Para publicar: {{ publication_missing|join:", " }}{% endif %}</p></div>
+      {{ publication_missing|json_script:"pe-publication-missing" }}
+      {% include "admin/catalog/piece_status.html" %}
+    </aside><main class="pe-right">
+      {% if errors %}<div class="ca-error" role="alert">Revisa los campos señalados. {{ adminform.form.non_field_errors }}</div>{% endif %}
+      {% for fieldset in adminform %}<details class="pe-section" data-pe-title="{{ fieldset.name }}" {% if forloop.counter <= 2 %}open{% endif %}><summary>{{ fieldset.name }} <span data-pe-completion></span></summary><div>{% include 'admin/includes/fieldset.html' %}{% if fieldset.name == 'Clasificación' %}{% include 'admin/catalog/piece/category_link.html' %}{% endif %}</div></details>{% endfor %}
+      {% for inline_admin_formset in inline_admin_formsets %}<details class="pe-section" data-pe-title="{{ inline_admin_formset.opts.verbose_name_plural }}"><summary>{{ inline_admin_formset.opts.verbose_name_plural }}{% if forloop.first %} <span data-pe-photo-completion></span>{% endif %}</summary>{% include inline_admin_formset.opts.template %}</details>{% endfor %}
+    </main></div>
+    <footer class="pe-savebar"><span data-pe-dirty>Sin cambios pendientes</span><div><button type="button" data-pe-close>Cancelar</button>{% if has_change_permission %}<button class="pe-primary" type="submit" name="_save" value="1">Guardar</button>{% endif %}</div></footer>
+    <script id="django-admin-form-add-constants" src="{% static 'admin/js/change_form.js' %}" async></script>{% prepopulated_fields_js %}
+  </form>{% include "admin/catalog/piece/category_dialog.html" %}
+</div>
+{% endblock %}{% block submit_buttons_bottom %}{% endblock %}
