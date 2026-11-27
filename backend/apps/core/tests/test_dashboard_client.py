@@ -385,7 +385,8 @@ def test_audit_navigation_and_permissions(role, expected):
     assert bool(links and links[0]["has_permission"]) == (expected == 200)
     if expected == 200:
         html = response.content.decode()
-        assert "Canceló el pedido" in html
+        # The timeline writes «<persona> canceló el pedido …» as one sentence.
+        assert "canceló el pedido" in html.lower()
         assert "192.0.2.1" not in html
 
 
