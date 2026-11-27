@@ -1,0 +1,34 @@
+{% extends "admin/change_form.html" %}
+{% load static %}
+{% block nav-global-side %}{% endblock %}
+{% block form_top %}
+<header class="set-header"><div><h1>Datos del sitio</h1><p>Los cambios se ven en la tienda en 1 minuto</p></div>{% if has_change_permission %}<button type="submit" name="_continue" class="set-primary">Guardar cambios</button>{% endif %}</header>
+{{ settings_example|json_script:"set-example" }}
+{% endblock %}
+{% block field_sets %}
+<div class="set-layout">
+<nav class="set-nav" aria-label="Secciones de datos del sitio">
+<a href="#set-contacto">Contacto y redes</a><a href="#set-mensajes">Mensajes de WhatsApp</a><a href="#set-pagos">Pagos y reservas</a><a href="#set-seo">Google (SEO)</a><a href="#set-horario">Horario y zona</a>
+</nav>
+<div class="set-sections">
+{% for fieldset in adminform %}
+<section class="set-card" id="{% cycle 'set-contacto' 'set-mensajes' 'set-pagos' 'set-seo' 'set-horario' %}"><h2>{{ fieldset.name }}</h2>
+{% if forloop.counter == 2 %}<p class="set-help">Variables: {name} {sku} {url}</p>{% endif %}
+<div class="set-fields">
+{% for line in fieldset %}{% for field in line %}
+<div class="set-field{% if field.field.errors %} set-field-error{% endif %}" data-field="{{ field.field.name }}">
+{% if field.is_readonly %}<span class="set-label">{{ field.field.label }}</span><div class="set-readonly">{{ field.contents }}</div>{% else %}{{ field.label_tag }}{{ field.field }}{{ field.field.errors }}{% endif %}
+{% if field.field.name == 'whatsapp_number' %}<div class="set-hint" data-whatsapp-info></div><a class="set-link" data-whatsapp-link target="_blank" rel="noopener noreferrer" hidden>Probar ↗</a>{% endif %}
+{% if field.field.name == 'appointment_only' %}<span class="set-chip" data-appointment>Dirección física oculta: atención solo con cita</span>{% endif %}
+{% if field.field.name == 'instagram_url' or field.field.name == 'facebook_url' or field.field.name == 'tiktok_url' or field.field.name == 'pinterest_url' %}<small class="set-hint" data-social-warning>{% if not field.field.value %}Sin configurar{% elif 'qa.' in field.field.value or 'test' in field.field.value or 'prueba' in field.field.value or 'example' in field.field.value %}¿Es la cuenta real? Parece de pruebas{% endif %}</small>{% endif %}
+{% if forloop.parentloop.parentloop.counter == 2 and not field.is_readonly %}<div class="set-variable-buttons"><button type="button" data-variable="name">{name}</button><button type="button" data-variable="sku">{sku}</button><button type="button" data-variable="url">{url}</button></div><small class="set-live-error" aria-live="polite"></small><span class="set-help">Vista previa</span><div class="set-bubble" data-preview></div>{% endif %}
+{% if forloop.parentloop.parentloop.counter == 4 %}<small class="set-counter"></small>{% endif %}
+</div>
+{% endfor %}{% endfor %}
+</div>
+{% if forloop.counter == 4 %}<div class="set-google"><span class="set-help">Vista previa de Google</span><div class="set-google-title" data-google-title></div><div class="set-google-url">{{ settings_site_url }}</div><div data-google-description></div></div>{% endif %}
+</section>
+{% endfor %}
+</div></div>
+{% if has_change_permission %}<div class="set-mobile-save"><span data-dirty hidden>Cambios sin guardar</span><button type="submit" name="_continue" class="set-primary">Guardar cambios</button></div>{% endif %}
+{% endblock %}

@@ -1,13 +1,20 @@
 from __future__ import annotations
 
+from string import Formatter
 from typing import TYPE_CHECKING, Any
 
 from django import forms
 from django.contrib import admin, messages
+from django.core.exceptions import PermissionDenied
 from django.db import transaction
 from django.http import HttpRequest
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from modeltranslation.admin import TabbedTranslationAdmin
+
+# The redesigned form draws its own ES/EN tabs (core/settings.js); the tabbed variant needs
+# jQuery UI tabs, which the dashboard does not load (it raised «tabsContainer.tabs»).
+from modeltranslation.admin import TranslationAdmin
 from unfold.admin import ModelAdmin
 
 from apps.audit.services import record
@@ -48,14 +55,50 @@ else:
 class SiteSettingsForm(BaseSettingsForm):
     certificate_price_cents = PesosField(label=_("Precio del certificado (COP)"), min_value=0)
 
+    def clean(self) -> dict[str, Any]:
+        cleaned: dict[str, Any] = super().clean() or {}
+        for prefix, allowed in (
+            ("whatsapp", {"name", "sku", "url"}),
+            ("manual_payment_instructions", {"number", "total", "deadline"}),
+        ):
+            names = (
+                [
+                    f"whatsapp_{kind}_{locale}"
+                    for kind in ("general", "preorder", "reserved", "sold")
+                    for locale in ("es", "en")
+                ]
+                if prefix == "whatsapp"
+                else [f"{prefix}_{locale}" for locale in ("es", "en")]
+            )
+            for name in names:
+                if name not in cleaned:
+                    continue
+                try:
+                    for _literal, field, spec, conversion in Formatter().parse(cleaned[name] or ""):
+                        if field is not None and (field not in allowed or spec or conversion):
+                            raise ValueError
+                except ValueError:
+                    self.add_error(
+                        name,
+                        _("Solo se permiten {name}, {sku} y {url}.")
+                        if prefix == "whatsapp"
+                        else _("Solo se permiten {number}, {total} y {deadline}."),
+                    )
+        return cleaned
+
     class Meta:
         model = SiteSettings
         exclude = ("id", "title_scale", "text_scale")
 
 
 @admin.register(SiteSettings)
-class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSettings], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
+class SiteSettingsAdmin(ClientPresentationMixin, TranslationAdmin[SiteSettings], ModelAdmin):  # type: ignore[misc]  # Unfold is untyped.
     form = SiteSettingsForm
+    change_form_template = "admin/core/sitesettings/change_form.html"
+
+    class Media:
+        css = {"all": ("core/settings.css",)}
+        js = ("core/settings.js",)
 
     def has_add_permission(self, request: HttpRequest) -> bool:
         return False
@@ -66,53 +109,78 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
     def changelist_view(
         self, request: HttpRequest, extra_context: dict[str, Any] | None = None
     ) -> Any:
-        get_solo()
-        return super().changelist_view(request, extra_context)
+        if not self.has_view_or_change_permission(request):
+            raise PermissionDenied
+        obj = get_solo()
+        return redirect(
+            reverse(
+                "admin:core_sitesettings_change", args=[obj.pk], current_app=self.admin_site.name
+            )
+        )
 
     def get_fieldsets(self, request: HttpRequest, obj: Any = None) -> Any:
-        fieldsets = super().get_fieldsets(request, obj)
-        result = []
-        for label, options in fieldsets:
-            result.append(
-                (
-                    label,
-                    {
-                        **options,
-                        "fields": [
-                            field
-                            for field in options["fields"]
-                            if field not in {"title_scale", "text_scale"}
-                        ],
-                    },
-                )
-            )
-        business_fields = {
-            "business_locality",
-            "business_region",
-            "business_country",
-            "appointment_only",
-            "service_area",
-            "opening_hours_es",
-            "opening_hours_en",
-            "seo_home_title_es",
-            "seo_home_title_en",
-            "seo_home_description_es",
-            "seo_home_description_en",
-        }
-        result = [
+        return (
             (
-                label,
+                _("Contacto y redes"),
                 {
-                    **options,
-                    "fields": [
-                        field for field in options["fields"] if field not in business_fields
-                    ],
+                    "fields": (
+                        "whatsapp_number",
+                        "support_email",
+                        "instagram_url",
+                        "facebook_url",
+                        "tiktok_url",
+                        "pinterest_url",
+                        "appointment_only",
+                    )
                 },
-            )
-            for label, options in result
-        ]
-        result.append((_("Negocio y buscadores"), {"fields": list(sorted(business_fields))}))
-        return result
+            ),
+            (
+                _("Mensajes de WhatsApp"),
+                {
+                    "fields": tuple(
+                        f"whatsapp_{kind}_{lang}"
+                        for kind in ("general", "preorder", "reserved", "sold")
+                        for lang in ("es", "en")
+                    )
+                },
+            ),
+            (
+                _("Pagos y reservas"),
+                {
+                    "fields": (
+                        "certificate_price_cents",
+                        "online_reservation_minutes",
+                        "manual_reservation_hours",
+                        "manual_payment_instructions_es",
+                        "manual_payment_instructions_en",
+                    )
+                },
+            ),
+            (
+                _("Google (SEO)"),
+                {
+                    "fields": (
+                        "seo_home_title_es",
+                        "seo_home_title_en",
+                        "seo_home_description_es",
+                        "seo_home_description_en",
+                    )
+                },
+            ),
+            (
+                _("Horario y zona"),
+                {
+                    "fields": (
+                        "business_locality",
+                        "business_region",
+                        "business_country",
+                        "service_area",
+                        "opening_hours_es",
+                        "opening_hours_en",
+                    )
+                },
+            ),
+        )
 
     def changeform_view(
         self,
@@ -121,6 +189,27 @@ class SiteSettingsAdmin(ClientPresentationMixin, TabbedTranslationAdmin[SiteSett
         form_url: str = "",
         extra_context: dict[str, Any] | None = None,
     ) -> Any:
+        from django.conf import settings
+
+        from apps.catalog.models import Piece
+
+        from .selectors import piece_url
+
+        piece = Piece.objects.filter(status=Piece.Status.PUBLISHED).order_by("pk").first()
+        example = (
+            {"name": piece.name_es, "sku": piece.sku, "url": piece_url(piece, "es")}
+            if piece
+            else {
+                "name": "Anillo Halo de Esmeralda",
+                "sku": "SERTI-001",
+                "url": f"{settings.PUBLIC_SITE_URL}/es/piezas/ejemplo",
+            }
+        )
+        extra_context = {
+            **(extra_context or {}),
+            "settings_example": example,
+            "settings_site_url": settings.PUBLIC_SITE_URL,
+        }
         if not get_solo().whatsapp_number:
             self.message_user(
                 request,
