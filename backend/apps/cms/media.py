@@ -2,6 +2,7 @@
 
 import hashlib
 import math
+import unicodedata
 import uuid
 from copy import deepcopy
 from typing import Any
@@ -227,6 +228,43 @@ def resolve(ref, locale, *, asset=None):
         )
     data["alt"] = data["alt"].get(locale) or data["alt"].get("es", "")
     return data
+
+
+def duplicate_groups(rows):
+    """Return directly matching asset IDs, excluding the asset itself."""
+    rows = list(rows)
+    matches: dict[int, set[int]] = {row.pk: set() for row in rows}
+    descriptions: dict[str, list[Any]] = {}
+    dimensions: dict[tuple[int, int], list[Any]] = {}
+    for row in rows:
+        normalized = " ".join(
+            "".join(
+                c
+                for c in unicodedata.normalize("NFKD", row.alt_es.casefold())
+                if not unicodedata.combining(c)
+            ).split()
+        )
+        if normalized:
+            descriptions.setdefault(normalized, []).append(row)
+        if row.width and row.height:  # unprocessed uploads have no size yet
+            dimensions.setdefault((row.width, row.height), []).append(row)
+
+    def link(a, b):
+        matches[a.pk].add(b.pk)
+        matches[b.pk].add(a.pk)
+
+    for group in descriptions.values():
+        for i, a in enumerate(group):
+            for b in group[i + 1 :]:
+                link(a, b)
+    for group in dimensions.values():
+        group.sort(key=lambda row: row.size)
+        for i, a in enumerate(group):
+            for b in group[i + 1 :]:
+                if b.size > a.size * 1.02:
+                    break
+                link(a, b)
+    return {pk: sorted(ids) for pk, ids in matches.items()}
 
 
 def all_usage():

@@ -66,7 +66,7 @@ def protected(view):
     return wrapped
 
 
-def payload(asset, sources=None):
+def payload(asset, sources=None, duplicates=None):
     generation = asset.versions.get(str(asset.version), {})
     image: dict[str, Any] = next(iter(generation.values()), {})
     paths = image.get("paths", {})
@@ -90,6 +90,8 @@ def payload(asset, sources=None):
         "original": asset.original.url,
         "ratios": media.ratios(),
         "usage": media.used_by(asset, sources) if sources is not None else [],
+        "duplicates": (duplicates or {}).get(asset.pk, []),
+        "created_at": asset.created_at.isoformat(),
     }
 
 
@@ -118,15 +120,41 @@ def assets(request):
                 | Q(alt_es__icontains=search)
                 | Q(alt_en__icontains=search)
             )
+        rows = list(rows)
         sources = media.all_usage()
+        # Archived photos neither count as nor reveal duplicates of the active library.
+        duplicates: dict[int, list[int]] = {row.pk: [] for row in rows if row.archived}
+        duplicates.update(media.duplicate_groups(row for row in rows if not row.archived))
+        usage = {row.pk: media.used_by(row, sources) for row in rows}
+        active = [row for row in rows if not row.archived]
+        counts = {
+            "": len(active),
+            "used": sum(bool(usage[row.pk]) for row in active),
+            "unused": sum(not usage[row.pk] for row in active),
+            "no_alt": sum(not row.alt_es.strip() for row in active),
+            "duplicates": sum(bool(duplicates[row.pk]) for row in active),
+            "archived": sum(row.archived for row in rows),
+        }
         mode = request.GET.get("filter", "")
-        rows = rows.filter(archived=mode == "archived")
-        if mode in {"used", "unused"}:
-            rows = [row for row in rows if bool(media.used_by(row, sources)) == (mode == "used")]
-        page = Paginator(rows, 40).get_page(request.GET.get("page", 1))
+        selected = [row for row in rows if row.archived == (mode == "archived")]
+        if mode == "used":
+            selected = [row for row in selected if usage[row.pk]]
+        elif mode == "unused":
+            selected = [row for row in selected if not usage[row.pk]]
+        elif mode == "no_alt":
+            selected = [row for row in selected if not row.alt_es.strip()]
+        elif mode == "duplicates":
+            selected = [row for row in selected if duplicates[row.pk]]
+        page = Paginator(selected, 40).get_page(request.GET.get("page", 1))
+        items = []
+        for row in page:
+            item = payload(row, duplicates=duplicates)
+            item["usage"] = usage[row.pk]
+            items.append(item)
         return JsonResponse(
             {
-                "items": [payload(row, sources) for row in page],
+                "items": items,
+                "counts": counts,
                 "page": page.number,
                 "pages": page.paginator.num_pages,
             }
@@ -156,7 +184,13 @@ def assets(request):
 def detail(request, pk):
     asset = get_object_or_404(MediaAsset.objects.select_for_update(of=("self",)), pk=pk)
     if request.method == "GET":
-        return JsonResponse(payload(asset, media.all_usage()))
+        return JsonResponse(
+            payload(
+                asset,
+                media.all_usage(),
+                media.duplicate_groups(MediaAsset.objects.filter(archived=False)),
+            )
+        )
     if request.method != "POST":
         return JsonResponse({"error": "Acción no disponible."}, status=405)
     data = json.loads(request.body)
@@ -196,4 +230,10 @@ def detail(request, pk):
         transaction.on_commit(lambda: media.enqueue(asset.pk, asset.version))
     else:
         raise ValidationError("Selecciona una acción disponible.")
-    return JsonResponse(payload(asset, media.all_usage()))
+    return JsonResponse(
+        payload(
+            asset,
+            media.all_usage(),
+            media.duplicate_groups(MediaAsset.objects.filter(archived=False)),
+        )
+    )
