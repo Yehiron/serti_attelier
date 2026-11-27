@@ -81,3 +81,24 @@ def test_cleanup_removes_orders_of_hard_deleted_e2e_pieces(payload, settings):
     assert order.items.get().piece_id is None
     call_command("e2e_cleanup", stdout=StringIO())
     assert not Order.objects.filter(pk=order.pk).exists()
+
+
+def test_cleanup_only_removes_e2e_contact_messages(settings):
+    from apps.inquiries.models import ContactInquiry
+
+    settings.DEBUG = True
+    fields = dict(
+        name="Prueba",
+        topic="other",
+        message="Un mensaje de prueba suficientemente largo",
+        preferred_channel="email",
+        privacy_version=1,
+        locale="es",
+    )
+    test_message = ContactInquiry.objects.create(email="one@e2e.invalid", **fields)
+    real_message = ContactInquiry.objects.create(email="one@e2e.invalid.example.com", **fields)
+    call_command("e2e_cleanup", dry_run=True, stdout=StringIO())
+    assert ContactInquiry.objects.filter(pk=test_message.pk).exists()
+    call_command("e2e_cleanup", stdout=StringIO())
+    assert not ContactInquiry.objects.filter(pk=test_message.pk).exists()
+    assert ContactInquiry.objects.filter(pk=real_message.pk).exists()

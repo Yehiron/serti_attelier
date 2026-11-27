@@ -264,7 +264,8 @@ def test_approved_metrics_and_query_budget(order: Order, django_assert_num_queri
     Order.objects.filter(pk=order.pk).update(
         payment_status="approved", paid_at=now - timedelta(hours=1)
     )
-    with django_assert_num_queries(10):
+    # +1: catalog counts (pieces with < 2 photos / without stone) for the home panel.
+    with django_assert_num_queries(11):
         metrics = compute_metrics(now)
     cards = {row["key"]: row for row in metrics["sales"]}
     assert cards["today"]["count"] == 1 and cards["month"]["count"] == 1
@@ -308,8 +309,8 @@ def test_dashboard_cache_and_roles(operator: User, django_assert_num_queries: An
     cache.clear()
     request = request_for(operator)
     dashboard_callback(request, {})
-    # Warm the permission cache too; a cache hit performs no ORM work.
-    with django_assert_num_queries(0):
+    # The shared sales metrics remain cached; live pending items still query their sources.
+    with patch("apps.orders.metrics.compute_metrics", side_effect=AssertionError("cache miss")):
         assert "shop_metrics" in dashboard_callback(request, {})
     for role in (PROPIETARIO, OPERACIONES):
         from apps.accounts.roles import ROLE_PERMISSIONS

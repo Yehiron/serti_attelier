@@ -6,17 +6,19 @@ from datetime import datetime, timedelta
 from typing import Any, cast
 from urllib.parse import urlencode
 
+from django.conf import settings
 from django.core.cache import cache
-from django.db.models import Count, Field, Q, Sum
+from django.db.models import Count, Field, Prefetch, Q, Sum
 from django.db.models.functions import TruncMonth
 from django.http import HttpRequest
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from apps.catalog.models import Piece
+from apps.catalog.models import Category, Collection, Piece, Stone
 from apps.catalog.selectors import missing_english_translation
 from apps.core.formatting import BOGOTA, format_admin_cop
+from apps.inquiries.models import ContactInquiry
 from apps.promotions.models import CouponRedemption
 
 from .models import Order, OrderItem
@@ -95,6 +97,8 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
                 "count": row["count"],
                 "total": format_admin_cop(row["total"]),
                 "width": row["total"] * 100 // maximum,
+                "short": short_money(row["total"]),
+                "current": offset == 0,
             }
         )
     start90 = today - timedelta(days=89)
@@ -113,6 +117,9 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
         )
         for row in breakdowns[key]:
             row["label"] = row.pop(field) or str(_("Sin asignar"))
+        maximum_count = max((row["count"] for row in breakdowns[key]), default=1)
+        for row in breakdowns[key]:
+            row["width"] = row["count"] * 100 // maximum_count
     start30 = today - timedelta(days=29)
     redemptions = CouponRedemption.objects.filter(
         created_at__gte=start30, created_at__lte=now, order__payment_status="approved"
@@ -170,7 +177,19 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
         {"label": label, "count": counts[f"h{i}"], "url": admin_link("catalog_piece", filters)}
         for i, (label, _query, filters) in enumerate(health_specs)
     ]
+    from apps.catalog.admin import piece_image_count
+
+    catalog_counts = (
+        Piece.objects.filter(status="published")
+        .annotate(photo_count=piece_image_count())
+        .aggregate(
+            few=Count("pk", filter=Q(photo_count__lt=2)),
+            one=Count("pk", filter=Q(photo_count=1)),
+            no_stone=Count("pk", filter=Q(stones__isnull=True), distinct=True),
+        )
+    )
     return {
+        "catalog_counts": catalog_counts,
         "sales": sales,
         "groups": groups,
         "attention": attention,
@@ -183,6 +202,162 @@ def compute_metrics(now: datetime | None = None) -> dict[str, Any]:
     }
 
 
+def short_money(cents: int) -> str:
+    pesos = cents / 100
+    if pesos >= 1_000_000:
+        return "$" + f"{pesos / 1_000_000:.1f}".rstrip("0").rstrip(".").replace(".", ",") + " M"
+    if pesos >= 1_000:
+        return "$" + f"{pesos / 1_000:.1f}".rstrip("0").rstrip(".").replace(".", ",") + " mil"
+    return format_admin_cop(cents)
+
+
+def home_greeting(now: datetime) -> tuple[str, str]:
+    now = now.astimezone(BOGOTA)
+    greeting = (
+        "Buenos días"
+        if 5 <= now.hour < 12
+        else "Buenas tardes"
+        if 12 <= now.hour < 18
+        else "Buenas noches"
+    )
+    weekdays = ("Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado", "Domingo")
+    months = (
+        "enero",
+        "febrero",
+        "marzo",
+        "abril",
+        "mayo",
+        "junio",
+        "julio",
+        "agosto",
+        "septiembre",
+        "octubre",
+        "noviembre",
+        "diciembre",
+    )
+    return greeting, f"{weekdays[now.weekday()]} {now.day} de {months[now.month - 1]}"
+
+
+def home_data(request, metrics):
+    from django.utils.timesince import timesince
+
+    from apps.catalog.admin import piece_image_count, stone_test_phrase
+
+    todos: list[dict[str, str]] = []
+    data = {"todos": todos, "public_url": settings.PUBLIC_SITE_URL}
+    if request.user.has_perm("inquiries.view_contactinquiry"):
+        messages = ContactInquiry.objects.filter(status="new").order_by("created_at")
+        count = messages.count()
+        first = list(messages[:3])
+        data["messages"] = {
+            "count": count,
+            "oldest": timesince(first[0].created_at) if first else None,
+            "url": reverse("admin:inquiries_contactinquiry_changelist") + "?bandeja=new",
+        }
+        for message in first:
+            todos.append(
+                {
+                    "icon": "✉",
+                    "title": f"Responder a {message.name}",
+                    "subtitle": (
+                        f"{message.get_topic_display()} · prefiere "
+                        f"{message.get_preferred_channel_display().lower()}"
+                    ),
+                    "url": reverse("admin:inquiries_contactinquiry_changelist")
+                    + f"?bandeja=new&mensaje={message.pk}",
+                }
+            )
+    if metrics:
+        center = order_center_metrics()
+        for row in center[1:3]:
+            if row["count"]:
+                todos.append(
+                    {
+                        "icon": "📦",
+                        "title": f"{row['count']} · {row['label']}",
+                        "subtitle": "Revisar pedidos",
+                        "url": row["url"],
+                    }
+                )
+        if metrics["attention"]:
+            todos.append(
+                {
+                    "icon": "!",
+                    "title": f"{metrics['attention']} pedidos requieren atención",
+                    "subtitle": "Revisar incidencias",
+                    "url": metrics["attention_url"],
+                }
+            )
+        today, month = metrics["sales"][0], metrics["sales"][3]
+        data["today"] = {
+            **today,
+            "url": admin_link("orders_order", {"center": "paid", "period": "today"}),
+        }
+        data["month"] = {
+            **month,
+            "average": format_admin_cop(
+                month["total_cents"] // month["count"] if month["count"] else 0
+            ),
+            "url": admin_link("orders_order", {"center": "paid", "period": "month"}),
+        }
+        orders = (
+            Order.objects.filter(payment_status="approved", paid_at__lte=timezone.now())
+            .prefetch_related(Prefetch("items", queryset=OrderItem.objects.order_by("pk")))
+            .order_by("-paid_at")[:5]
+        )
+        data["recent"] = [
+            {
+                "name": order.items.all()[0].name_es if order.items.all() else order.number,
+                "image": order.items.all()[0].image_path if order.items.all() else "",
+                "total": format_admin_cop(order.total_cents),
+                "url": admin_link("orders_order", {"order": order.pk}),
+            }
+            for order in orders
+        ]
+    if request.user.has_perm("catalog.view_piece"):
+        if metrics:
+            counts = metrics["catalog_counts"]
+            data["pieces"] = {
+                "count": metrics["health"][0]["count"],
+                "sold": metrics["health"][3]["count"],
+                "url": metrics["health"][0]["url"],
+            }
+        else:
+            counts = (
+                Piece.objects.filter(status="published")
+                .annotate(photo_count=piece_image_count())
+                .aggregate(few=Count("pk", filter=Q(photo_count__lt=2)))
+            )
+        if counts["few"]:
+            todos.append(
+                {
+                    "icon": "📷",
+                    "title": f"{counts['few']} piezas con menos de 2 fotos",
+                    "subtitle": "Completar las fotos de la vitrina",
+                    "url": admin_link("catalog_piece", {"health": "few_photos"}),
+                }
+            )
+    for model in (Stone, Category, Collection):
+        if request.user.has_perm(f"catalog.view_{model._meta.model_name}"):
+            for obj in model.objects.all().only(
+                "pk", "name_es", "description_es", "description_en"
+            ):
+                description_es = getattr(obj, "description_es", "")
+                description_en = getattr(obj, "description_en", "")
+                if stone_test_phrase(description_es) or stone_test_phrase(description_en):
+                    todos.append(
+                        {
+                            "icon": "!",
+                            "title": f"{obj.name_es} tiene texto de prueba",
+                            "subtitle": "Revisar descripción",
+                            "url": reverse(
+                                f"admin:catalog_{model._meta.model_name}_change", args=[obj.pk]
+                            ),
+                        }
+                    )
+    return data
+
+
 def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[str, Any]:
     links = []
     for label, permission, url, post in (
@@ -190,7 +365,7 @@ def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[st
         (
             _("Editar portada"),
             "cms.change_homesection",
-            reverse("admin:cms_homesection_changelist"),
+            reverse("visual-editor") + "?document=home",
             False,
         ),
         (_("Publicar inicio"), "cms.publish_content", reverse("admin:cms-home-publish"), True),
@@ -203,15 +378,16 @@ def dashboard_callback(request: HttpRequest, context: dict[str, Any]) -> dict[st
     ):
         if request.user.has_perm(permission):
             links.append({"label": label, "url": url, "post": post})
-    context = {**context, "quick_links": links}
+    greeting, date = home_greeting(timezone.now())
+    context = {**context, "quick_links": links, "home_greeting": greeting, "home_date": date}
     if not request.user.has_perm("orders.view_order"):
-        return context
+        return {**context, "home": home_data(request, None)}
     key = f"orders:dashboard:v2:{timezone.now().astimezone(BOGOTA).date().isoformat()}"
     metrics = cache.get(key)
     if metrics is None:
         metrics = compute_metrics()
         cache.set(key, metrics, 60)
-    return {**context, "shop_metrics": metrics}
+    return {**context, "shop_metrics": metrics, "home": home_data(request, metrics)}
 
 
 def collection_window(period, now=None):

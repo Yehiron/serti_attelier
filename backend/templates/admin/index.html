@@ -1,37 +1,16 @@
 {% extends "admin/index.html" %}
-{% load i18n %}
+{% load static %}
+{% block extrahead %}{{ block.super }}<link rel="stylesheet" href="{% static 'core/home.css' %}">{% endblock %}
 {% block content %}
-<nav class="flex flex-wrap gap-4 mb-6" aria-label="{% translate 'Accesos rápidos' %}">
-{% for link in quick_links %}
-  {% if link.post %}<form method="post" action="{{ link.url }}">{% csrf_token %}<button class="border rounded px-4 py-2" type="submit">{{ link.label }}</button></form>
-  {% else %}<a class="border rounded px-4 py-2" href="{{ link.url }}">{{ link.label }}</a>{% endif %}
-{% endfor %}
-</nav>
-{% if shop_metrics %}
-<div class="flex flex-col gap-6">
-  <h1 class="text-2xl font-semibold">{% translate "Indicadores de la tienda" %}</h1>
-  <div class="grid gap-4 lg:grid-cols-4">
-  {% for card in shop_metrics.sales %}
-    <div class="border rounded p-4"><h2>{{ card.label }}</h2><strong class="text-2xl">{{ card.total }}</strong><p>{{ card.count }} {% translate "ventas confirmadas" %}</p></div>
-  {% endfor %}
-  </div>
-  <a class="border rounded p-4 text-red-600 font-semibold" href="{{ shop_metrics.attention_url }}">{% translate "Pedidos que requieren atención" %}: {{ shop_metrics.attention }}</a>
-  <div class="grid gap-6 lg:grid-cols-2">
-  {% for field, rows in shop_metrics.groups.items %}
-    <section class="border rounded p-4"><h2 class="font-semibold">{% if field == "payment_status" %}{% translate "Pedidos por estado de pago" %}{% else %}{% translate "Pedidos por estado de entrega" %}{% endif %}</h2>
-    <table class="w-full">{% for row in rows %}<tr><td><a {% if row.highlight %}class="text-red-600 font-semibold"{% endif %} href="{{ row.url }}">{{ row.label }}</a></td><td>{{ row.count }}</td></tr>{% endfor %}</table></section>
-  {% endfor %}
-  </div>
-  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Ventas por mes" %}</h2>
-  {% for row in shop_metrics.monthly %}<div class="py-2">{{ row.label }} · {{ row.total }} · {{ row.count }}<div style="height:8px;background:#591e24;width:{{ row.width }}%;"></div></div>{% endfor %}</section>
-  <div class="grid gap-6 lg:grid-cols-2">
-  {% for kind, rows in shop_metrics.breakdowns.items %}
-    <section class="border rounded p-4"><h2 class="font-semibold">{% if kind == "categories" %}{% translate "Piezas vendidas por categoría · 90 días" %}{% else %}{% translate "Piezas vendidas por piedra · 90 días" %}{% endif %}</h2><table class="w-full">{% for row in rows %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td></tr>{% empty %}<tr><td>—</td></tr>{% endfor %}</table></section>
-  {% endfor %}
-  </div>
-  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Cupones usados · 30 días" %}</h2><p>{{ shop_metrics.discounts.count }} · {{ shop_metrics.discounts.formatted_total }}</p>
-  <table class="w-full">{% for row in shop_metrics.coupons %}<tr><td>{{ row.label }}</td><td>{{ row.count }}</td><td>{{ row.formatted_total }}</td></tr>{% endfor %}</table></section>
-  <section class="border rounded p-4"><h2 class="font-semibold">{% translate "Salud del catálogo" %}</h2><table class="w-full">{% for row in shop_metrics.health %}<tr><td><a href="{{ row.url }}">{{ row.label }}</a></td><td>{{ row.count }}</td></tr>{% endfor %}</table></section>
-</div>
-{% else %}{{ block.super }}{% endif %}
-{% endblock %}
+<div class="home-panel">
+<header class="home-header"><div><h1>{{ home_greeting }}</h1><p>{{ home_date }} · esto es lo que pasa en SERTI hoy</p></div><nav class="home-actions" aria-label="Accesos rápidos">{% for link in quick_links %}{% if link.post %}<form method="post" action="{{ link.url }}">{% csrf_token %}<button type="submit">{{ link.label }}</button></form>{% else %}<a href="{{ link.url }}">{% if forloop.first and link.label == 'Agregar pieza' %}＋ Pieza{% else %}{{ link.label }}{% endif %}</a>{% endif %}{% endfor %}<a class="home-primary" href="{{ home.public_url }}">Ver tienda ↗</a></nav></header>
+<div class="home-kpis">
+{% if shop_metrics %}<a class="home-kpi" href="{{ home.today.url }}"><small>Ventas hoy</small><strong>{{ home.today.total }}</strong><span>{{ home.today.count }} venta{{ home.today.count|pluralize }} confirmada{{ home.today.count|pluralize }}</span></a><a class="home-kpi" href="{{ home.month.url }}"><small>Este mes</small><strong>{{ home.month.total }}</strong><span>{{ home.month.count }} venta{{ home.month.count|pluralize }} · ticket promedio {{ home.month.average }}</span></a>{% endif %}
+{% if home.pieces %}<a class="home-kpi" href="{{ home.pieces.url }}"><small>Piezas en la tienda</small><strong>{{ home.pieces.count }}</strong><span>{{ home.pieces.sold }} vendida{{ home.pieces.sold|pluralize }} en 30 días</span></a>{% endif %}
+{% if home.messages %}<a class="home-kpi" href="{{ home.messages.url }}"><small>Mensajes sin responder</small><strong>{{ home.messages.count }}</strong><span>{% if home.messages.oldest %}el más antiguo: hace {{ home.messages.oldest }}{% else %}Todo al día{% endif %}</span></a>{% endif %}</div>
+<div class="home-grid-two"><section class="home-card"><h2>Pendientes para hoy <span class="home-badge">{{ home.todos|length }}</span></h2><div class="home-todos">{% for todo in home.todos %}<a href="{{ todo.url }}"><i>{{ todo.icon }}</i><span><b>{{ todo.title }}</b><small>{{ todo.subtitle }}</small></span><span>→</span></a>{% empty %}<p>Todo al día ✓</p>{% endfor %}</div></section>
+{% if shop_metrics %}<section class="home-card"><h2>Ventas por mes</h2><div class="home-bars">{% for row in shop_metrics.monthly %}<div class="home-bar-column"><div class="home-bar-track"><span class="home-bar {% if row.current %}home-current{% endif %}" style="height:{{ row.width }}%" role="img" aria-label="{{ row.label }}: {{ row.total }}, {{ row.count }} ventas"></span></div><span>{{ row.label }}</span>{% if row.count %}<b>{{ row.short }}</b>{% endif %}</div>{% endfor %}</div></section>{% endif %}</div>
+{% if shop_metrics %}<div class="home-grid-three"><section class="home-card"><h2>Últimas ventas</h2>{% for sale in home.recent %}<a class="home-row home-sale" href="{{ sale.url }}">{% if sale.image %}<img src="{{ sale.image }}" alt="">{% else %}<span class="home-placeholder">◇</span>{% endif %}<span>{{ sale.name }}</span><b>{{ sale.total }}</b></a>{% empty %}<p>Aún no hay ventas.</p>{% endfor %}</section>
+<section class="home-card"><h2>Lo que más se vende · 90 días</h2>{% for kind, rows in shop_metrics.breakdowns.items %}<h3>{% if kind == 'categories' %}Categorías{% else %}Piedras{% endif %}</h3>{% for row in rows %}<div class="home-row"><span>{{ row.label }}</span><b>{{ row.count }}</b></div><div class="home-meter"><span style="width:{{ row.width }}%"></span></div>{% empty %}<p>—</p>{% endfor %}{% endfor %}</section>
+<section class="home-card"><h2>Salud del catálogo</h2>{% for row in shop_metrics.health %}<a class="home-row" href="{{ row.url }}"><span>{{ row.label }}</span><b class="home-badge {% if row.count and forloop.counter > 4 %}home-warn{% endif %}">{{ row.count }}</b></a>{% endfor %}<a class="home-row" href="{% url 'admin:catalog_piece_changelist' %}?health=few_photos"><span>Con una sola foto</span><b class="home-badge {% if shop_metrics.catalog_counts.one %}home-warn{% endif %}">{{ shop_metrics.catalog_counts.one }}</b></a><div class="home-row"><span>Sin piedra asignada</span><b class="home-badge {% if shop_metrics.catalog_counts.no_stone %}home-warn{% endif %}">{{ shop_metrics.catalog_counts.no_stone }}</b></div><p class="home-coupons">Cupones usados · 30 días: {{ shop_metrics.discounts.count }} · {{ shop_metrics.discounts.formatted_total }}</p>{% for coupon in shop_metrics.coupons %}<div class="home-row"><span>{{ coupon.label }}</span><span>{{ coupon.count }} · {{ coupon.formatted_total }}</span></div>{% endfor %}</section></div>{% endif %}
+</div>{% endblock %}

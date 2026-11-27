@@ -23,6 +23,7 @@ from apps.catalog.models import (
     PieceVideo,
 )
 from apps.cms.models import MediaAsset
+from apps.inquiries.models import ContactInquiry
 from apps.inventory.models import PieceReservation, PieceStatusChange
 from apps.notifications.models import (
     AdminNotification,
@@ -67,6 +68,10 @@ class Command(BaseCommand):
             pieces = all_pieces.exclude(pk__in=protected_ids).exclude(pk__in=other_reservations)
             piece_ids = list(pieces.values_list("pk", flat=True))
             steps = [
+                (
+                    "mensajes de prueba",
+                    ContactInquiry.objects.filter(email__iendswith="@e2e.invalid"),
+                ),
                 (
                     "recepciones de avisos",
                     AdminNotificationReceipt.objects.filter(notification__order_id__in=order_ids),
